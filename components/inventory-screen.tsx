@@ -9,6 +9,7 @@ import { EntryList } from "@/components/entry-list";
 import { formatBrazilianDate } from "@/lib/local-date";
 import { createEntry, getInventory, listActiveEntries, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
 import type { EntryDraft, Inventory, InventoryEntry } from "@/lib/models";
+import { SyncPanel } from "@/components/sync-panel";
 
 export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const [inventory, setInventory] = useState<Inventory>();
@@ -65,11 +66,12 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
 
   return (
     <main className="shell">
-      <div className="topbar"><div><Link className="muted" href="/">← Inventários</Link><h1>Inventário {formatBrazilianDate(inventory.date)}</h1></div><span className="muted">Local</span></div>
+      <div className="topbar"><div><Link className="muted" href="/">← Inventários</Link><h1>Inventário {formatBrazilianDate(inventory.date)}</h1></div><span className="muted">{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Local"}</span></div>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="stack">
         <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => setEditing(undefined)} />
         <EntryList entries={entries} onEdit={setEditing} onDelete={(entry) => void deleteEntry(entry)} />
+        <SyncPanel inventory={inventory} onSynced={refresh} />
         <AnalysisPanel key={`${inventory.id}:${inventory.revision}`} inventory={inventory} entries={entries} />
       </div>
     </main>

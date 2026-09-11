@@ -2,11 +2,12 @@
 
 - Execute comandos de terminal pelo `rtk`.
 - O frontend é Next.js/TypeScript e fica na raiz; o motor e a API FastAPI ficam em `backend/`.
-- IndexedDB é a fonte de dados da entrega atual. Não adicione sincronização, banco central, exportação ou finalização sem uma solicitação explícita.
+- IndexedDB continua sendo a fonte primária da operação local e offline. Lançamento, edição e exclusão jamais podem depender da rede; a sincronização central apenas replica alterações já preservadas localmente.
 - Preserve os lançamentos individuais; a consolidação pertence exclusivamente ao motor Python.
 - Antes de declarar pronto, execute os gates documentados no README e registre limitações reais em `docs/STATUS.md`.
 - `pnpm dev` atende em `http://localhost:3000`; a análise nova também requer o FastAPI em `http://localhost:8000`. O service worker é validado com `pnpm build` seguido de `pnpm start`, não em desenvolvimento.
-- A Fase 2 ainda não começou. Não introduza sincronização, PostgreSQL, exportações, finalização, histórico ou autenticação sem autorização explícita.
+- Fase 1 está concluída. Fase 2 (persistência central, Alembic, sincronização e conflitos) foi implementada e validada localmente; PostgreSQL real, HTTPS, CORS, autenticação/autorização e validação física continuam pendentes.
+- Não iniciar infraestrutura de produção nem implementar exportações, finalização, histórico completo ou autenticação/autorização sem solicitação explícita. Preserve as regras de segurança, offline, testes e documentação em qualquer alteração futura.
 
 
 <!-- BEGIN:nextjs-agent-rules -->

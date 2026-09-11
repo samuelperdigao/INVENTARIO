@@ -11,5 +11,6 @@ public/workbox-*.js
 .env.local
 backend/.venv/
 backend/.pytest_cache/
+backend/inventario.db
 backend/**/__pycache__/
 *.py[cod]

@@ -14,6 +14,7 @@ function entry(side: "EF" | "DE", bay: string, lot: string, id: string): Invento
     createdAt: id,
     updatedAt: id,
     revision: 1,
+    syncBaseRevision: 0,
     syncStatus: "PENDING",
     tombstone: false,
   };
@@ -32,4 +33,3 @@ it("mantém lançamentos individuais e ordena EF, DE, vãos e lotes naturalmente
   expect(groups[0].bays[0].entries.map((item) => item.lot)).toEqual(["2", "10"]);
   expect(groups[0].bays[0].entries).toHaveLength(2);
 });
-

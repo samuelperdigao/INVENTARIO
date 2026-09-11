@@ -1,4 +1,4 @@
-import { v7 as uuidv7 } from "uuid";
+import { v4 as uuidv4, v7 as uuidv7 } from "uuid";
 
 import { db } from "@/lib/db";
 import { localDateIso } from "@/lib/local-date";
@@ -40,8 +40,10 @@ export async function createInventory(date = localDateIso()): Promise<Inventory>
     createdAt: now,
     updatedAt: now,
     revision: 1,
+    syncBaseRevision: 0,
     syncStatus: "PENDING",
     tombstone: false,
+    syncToken: uuidv4(),
   };
   await db.inventories.add(inventory);
   return inventory;
@@ -75,6 +77,7 @@ export async function createEntry(inventoryId: string, draft: EntryDraft): Promi
     createdAt: now,
     updatedAt: now,
     revision: 1,
+    syncBaseRevision: 0,
     syncStatus: "PENDING",
     tombstone: false,
   };
@@ -133,4 +136,24 @@ export async function tombstoneEntry(entryId: string): Promise<void> {
     });
     await bumpInventory(inventory, now);
   });
+}
+
+/** Compatibiliza inventários criados na Fase 1 antes da chave de sincronização. */
+export async function prepareInventoryForSync(inventoryId: string): Promise<Inventory> {
+  return db.transaction("rw", db.inventories, async () => {
+    const inventory = await db.inventories.get(inventoryId);
+    if (!inventory || inventory.tombstone) throw new Error("Inventário não encontrado.");
+    const prepared: Inventory = {
+      ...inventory,
+      syncToken: inventory.syncToken || uuidv4(),
+      syncBaseRevision: inventory.syncBaseRevision ?? 0,
+      syncStatus: inventory.syncStatus ?? "PENDING",
+    };
+    await db.inventories.put(prepared);
+    return prepared;
+  });
+}
+
+export async function listEntriesForSync(inventoryId: string): Promise<InventoryEntry[]> {
+  return db.entries.where("inventoryId").equals(inventoryId).toArray();
 }

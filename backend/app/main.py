@@ -1,17 +1,34 @@
-"""Borda HTTP sem estado do motor de inventário."""
+"""Borda HTTP para análise pura e sincronização central."""
 
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
+import os
+
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
+from app.database import Base, database_url, engine, get_session
 from app.engine import AnalysisEntry, analyze_entries
-from app.schemas import AnalysisPreviewRequest, AnalysisReport
+from app.schemas import AnalysisPreviewRequest, AnalysisReport, SyncRequest, SyncResponse
+from app.sync_service import SyncAuthorizationError, SyncNotFoundError, synchronize
 
-app = FastAPI(title="Inventário — análise", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # SQLite existe só para desenvolvimento local. PostgreSQL de produção é
+    # preparado exclusivamente por Alembic, antes de iniciar a API.
+    if database_url().startswith("sqlite"):
+        Base.metadata.create_all(engine)
+    yield
+
+
+app = FastAPI(title="Inventário — análise e sincronização", version="0.2.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[origin.strip() for origin in os.getenv("INVENTORY_CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if origin.strip()],
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "X-Inventory-Sync-Token"],
 )
 
 
@@ -31,3 +48,21 @@ def preview_analysis(payload: AnalysisPreviewRequest) -> dict[str, object]:
         ),
     )
 
+
+@app.post("/api/v1/sync", response_model=SyncResponse)
+def sync(
+    payload: SyncRequest,
+    sync_token: str = Header(min_length=32, alias="X-Inventory-Sync-Token"),
+    session: Session = Depends(get_session),
+) -> dict[str, object]:
+    try:
+        return synchronize(session, payload, sync_token)
+    except SyncNotFoundError as error:
+        session.rollback()
+        raise HTTPException(status_code=404, detail="Inventário central não encontrado.") from error
+    except SyncAuthorizationError as error:
+        session.rollback()
+        raise HTTPException(status_code=403, detail="Código de sincronização inválido.") from error
+    except SQLAlchemyError as error:
+        session.rollback()
+        raise HTTPException(status_code=503, detail="Persistência central indisponível.") from error

@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
 
 class ApiModel(BaseModel):
@@ -72,3 +72,66 @@ class AnalysisReport(ApiModel):
     lots: list[LotAnalysis]
     summary: AnalysisSummary
 
+
+class SyncInventory(ApiModel):
+    id: UUID
+    date: date
+    status: Literal["OPEN"]
+    createdAt: datetime
+    updatedAt: datetime
+    revision: StrictInt = Field(ge=1)
+    syncBaseRevision: StrictInt = Field(ge=0)
+    tombstone: bool
+    deletedAt: datetime | None = None
+
+
+class SyncEntry(ApiModel):
+    id: UUID
+    inventoryId: UUID
+    side: Literal["EF", "DE"]
+    bay: str = Field(min_length=1, max_length=100)
+    lot: str = Field(min_length=1, max_length=255)
+    quantity: StrictInt = Field(gt=0)
+    createdAt: datetime
+    updatedAt: datetime
+    revision: StrictInt = Field(ge=1)
+    syncBaseRevision: StrictInt = Field(ge=0)
+    tombstone: bool
+    deletedAt: datetime | None = None
+
+
+class SyncRequest(ApiModel):
+    deviceId: UUID
+    inventoryId: UUID
+    cursor: StrictInt = Field(ge=0)
+    inventory: SyncInventory | None = None
+    entries: list[SyncEntry] = Field(default_factory=list, max_length=1_000)
+
+    @model_validator(mode="after")
+    def validate_inventory_scope(self) -> "SyncRequest":
+        if self.inventory is not None and self.inventory.id != self.inventoryId:
+            raise ValueError("O inventário enviado não corresponde ao escopo da sincronização.")
+        if any(entry.inventoryId != self.inventoryId for entry in self.entries):
+            raise ValueError("Todo lançamento deve pertencer ao inventário sincronizado.")
+        if len({entry.id for entry in self.entries}) != len(self.entries):
+            raise ValueError("Não envie o mesmo lançamento mais de uma vez na mesma sincronização.")
+        return self
+
+
+class SyncAcknowledgement(ApiModel):
+    inventory: bool
+    entryIds: list[UUID]
+
+
+class SyncConflict(ApiModel):
+    entityType: Literal["inventory", "entry"]
+    entityId: UUID
+    serverRecord: dict[str, Any]
+
+
+class SyncResponse(ApiModel):
+    cursor: StrictInt = Field(ge=0)
+    inventory: SyncInventory | None
+    entries: list[SyncEntry]
+    acknowledged: SyncAcknowledgement
+    conflicts: list[SyncConflict]

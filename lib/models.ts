@@ -12,6 +12,8 @@ export interface LocalRecord {
   createdAt: string;
   updatedAt: string;
   revision: number;
+  /** Revisão confirmada pelo servidor antes da alteração local atual. */
+  syncBaseRevision: number;
   syncStatus: SyncStatus;
   tombstone: boolean;
   deletedAt?: string;
@@ -20,6 +22,8 @@ export interface LocalRecord {
 export interface Inventory extends LocalRecord {
   date: string;
   status: "OPEN";
+  /** Segredo de capacidade local para acessar o inventário central. */
+  syncToken: string;
 }
 
 export interface InventoryEntry extends LocalRecord {
@@ -78,4 +82,20 @@ export interface AnalysisCache {
   revision: number;
   report: AnalysisReport;
   cachedAt: string;
+}
+
+export interface SyncMetadata {
+  id: string;
+  deviceId?: string;
+  cursor?: number;
+}
+
+export interface SyncConflict {
+  id: string;
+  inventoryId: string;
+  entityType: "inventory" | "entry";
+  entityId: string;
+  localRecord: Inventory | InventoryEntry;
+  serverRecord: Inventory | InventoryEntry;
+  createdAt: string;
 }

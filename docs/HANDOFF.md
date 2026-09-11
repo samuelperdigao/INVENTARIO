@@ -2,14 +2,14 @@
 
 ## Estado atual
 
-A Fase 1 está concluída: inventário local offline e análise determinística estão funcionais. O repositório tem o checkpoint Git desta fase; não existe Fase 2 implementada.
+Fase 1 está concluída e preservada. A Fase 2 foi implementada e validada localmente: há banco central, API de sincronização, reconciliação incremental e tratamento explícito de conflitos. PostgreSQL real, HTTPS, CORS, autenticação/autorização e dispositivos físicos ainda precisam de validação antes de exposição pública.
 
 ## Arquitetura implementada
 
 - Next.js 16/TypeScript na raiz, com componentes mobile-first.
 - Dexie sobre IndexedDB como fonte de verdade local.
 - Serwist gera o shell offline apenas em build de produção.
-- FastAPI em `backend/`, sem banco ou persistência remota.
+- FastAPI em `backend/`, com SQLAlchemy, Alembic e persistência central para inventários, lançamentos, eventos e conflitos.
 - Motor Python em `backend/app/engine.py`, separado do contrato HTTP.
 
 ## Principais arquivos e módulos
@@ -19,6 +19,9 @@ A Fase 1 está concluída: inventário local offline e análise determinística 
 - `lib/models.ts`, `db.ts`, `inventory-repository.ts`, `grouping.ts`, `analysis-client.ts`: modelo, IndexedDB, ordenação e API.
 - `app/sw.ts` e `next.config.mjs`: PWA/Serwist e configuração Next.
 - `backend/app/schemas.py`, `main.py`, `engine.py`: contrato, HTTP e regras puras.
+- `backend/app/database.py`, `persistence.py`, `sync_service.py`: conexão SQLAlchemy, modelos relacionais e protocolo de sincronização.
+- `backend/alembic/versions/0001_central_sync.py`: migração inicial para PostgreSQL/SQLite.
+- `lib/sync-client.ts` e `components/sync-panel.tsx`: cliente IndexedDB, cursor, conflitos e controles operacionais de sincronização.
 - `tests/` e `e2e/`: testes unitários e fluxo de navegador.
 
 ## Funcionalidades concluídas
@@ -27,6 +30,10 @@ A Fase 1 está concluída: inventário local offline e análise determinística 
 - Lançamentos individuais, edição, exclusão confirmada com tombstone, agrupamento EF/DE/vão e ordenação natural.
 - Persistência IndexedDB e lançamento sem rede.
 - Análise online, cache por revisão e leitura de cache possivelmente desatualizado quando offline.
+- Sincronização manual segura entre dispositivos: dados pendentes são enviados depois de preservados no IndexedDB; alterações centrais são buscadas por cursor.
+- Repetição de envio não duplica entidades; IDs e revisões já aceitos são reconhecidos de modo idempotente.
+- Conflitos de edição preservam o payload local e o central, são registrados no banco e exigem que o operador mantenha uma das versões.
+- Outro dispositivo pode conectar o inventário com o ID e o código de sincronização exibidos pelo criador.
 
 ## Motor de análise
 
@@ -38,13 +45,13 @@ A Fase 1 está concluída: inventário local offline e análise determinística 
 
 ## Persistência offline
 
-`Inventory` e `InventoryEntry` usam UUIDv7, timestamps, revisão, `syncStatus` e tombstone. Inclusão, edição e exclusão usam transação Dexie. A API não participa do lançamento e não persiste payloads.
+`Inventory` e `InventoryEntry` usam UUIDv7, timestamps, revisão, `syncBaseRevision`, `syncStatus` e tombstone. Inclusão, edição e exclusão usam transação Dexie. A API nunca participa do lançamento local: ela só replica alterações pendentes quando o operador sincroniza. O código de acesso por inventário fica no IndexedDB; o banco central conserva somente seu hash.
 
 ## Testes existentes
 
-- Vitest: 8 testes para formulário, erro de armazenamento, IndexedDB, cache, agrupamento, edição e exclusão.
-- Pytest: 8 testes para contrato HTTP e regras `OK`, `19 + 1`, `15 + 5`, `15 + 2 + 3`, empate, `11 + 9` e consolidação.
-- Playwright: 2 fluxos para recarga offline do shell e análise online/cache offline.
+- Vitest: 10 testes para formulário, erro de armazenamento, IndexedDB, cache, agrupamento, edição, exclusão e aplicação/decisão de conflitos de sincronização.
+- Pytest: 10 testes para contrato HTTP, motor `OK`, `19 + 1`, `15 + 5`, `15 + 2 + 3`, empate, consolidação e sincronização idempotente/conflitante com token.
+- Playwright: 3 fluxos para recarga offline, análise online/cache offline e sincronização entre dois contextos de navegador.
 
 ## Comandos importantes
 
@@ -52,6 +59,7 @@ A Fase 1 está concluída: inventário local offline e análise determinística 
 pnpm install --frozen-lockfile
 pnpm dev
 backend/.venv/Scripts/python.exe -m uvicorn app.main:app --app-dir backend --reload --port 8000
+backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -62,32 +70,32 @@ pnpm e2e
 
 ## Como executar o projeto
 
-O frontend de desenvolvimento fica em `http://localhost:3000`. Para solicitar análise nova, execute também o FastAPI em `http://localhost:8000`. Não há variável obrigatória: `NEXT_PUBLIC_ANALYSIS_API_BASE_URL` usa esse endereço por padrão. Para PWA/offline, use `pnpm build` e `pnpm start`.
+O frontend de desenvolvimento fica em `http://localhost:3000`. Para solicitar análise nova ou sincronizar, execute também o FastAPI em `http://localhost:8000`. Não há variável obrigatória para desenvolvimento: as duas URLs públicas usam esse endereço por padrão. Em produção, defina `INVENTORY_DATABASE_URL` como `postgresql+psycopg://…`, execute `alembic upgrade head` e configure `INVENTORY_CORS_ORIGINS` com o domínio HTTPS publicado. Para PWA/offline, use `pnpm build` e `pnpm start`.
 
 ## Decisões técnicas importantes
 
-- Não criar PostgreSQL, sincronização ou exportações na Fase 1.
+- PostgreSQL é o destino de produção; SQLite é estritamente fallback local e de testes. O FastAPI só cria tabelas automaticamente em SQLite.
+- O cabeçalho `X-Inventory-Sync-Token` é obrigatório para cada inventário central e é comparado pelo hash. Não há endpoint que enumere inventários.
+- `syncBaseRevision` impede que duas edições derivadas da mesma versão se sobrescrevam. O servidor registra o conflito e a interface oferece manter a versão local ou central.
 - Serwist é envolvido somente com `NODE_ENV=production`; desenvolvimento não registra service worker para não interferir no HMR.
 - `allowedDevOrigins` permite `127.0.0.1`, usado pelos testes de navegador em desenvolvimento.
-- PostgreSQL permanece a escolha para o módulo central futuro, mas não é dependência atual.
 
 ## Problemas conhecidos
 
-Não há bloqueador da Fase 1. Persistem apenas dois avisos de depreciação de dependências ao usar `pytest`. A automação interna do Codex não é evidência de suporte IndexedDB móvel; Chromium local passou.
+Persistem dois avisos de depreciação de dependências ao usar `pytest`. A automação interna do Codex não é evidência de suporte IndexedDB móvel; Chromium local passou. Ainda não há prova de migração contra um PostgreSQL real, de HTTPS publicado ou de compatibilidade em Android/Safari físicos.
 
 ## Pendências
 
 - Teste em Android físico.
 - Teste Safari/iPhone físico e PWA iOS real.
 - Validação operacional em ambiente real.
-- Todas as capacidades planejadas para Fase 2 em diante.
+- Provisionar PostgreSQL, rodar a migração, configurar HTTPS/CORS e realizar smoke test publicado.
+- Implementar autenticação/autorização de usuários e equipes antes de expor a sincronização a um público não controlado; o código atual isola por credencial de inventário, não por identidade de usuário.
+- Exportações Excel/PDF/Word, finalização e histórico completo.
 
 ## Próxima tarefa exata
 
-Próxima fase:
-Implementar backend central, banco de dados e sincronização confiável entre IndexedDB e servidor, preservando funcionamento offline e preparando uso em múltiplos dispositivos.
-
-Ainda não executar essa tarefa.
+Provisionar e validar a infraestrutura de produção da Fase 2, incluindo PostgreSQL real, migração Alembic, HTTPS/CORS e autenticação/autorização antes de exposição pública.
 
 ## Arquivos que a próxima conversa deve ler
 

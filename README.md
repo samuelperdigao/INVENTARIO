@@ -4,7 +4,11 @@ Aplicação mobile-first para registrar inventários físicos sem rede e solicit
 
 ## Escopo desta entrega
 
-Inclui criação e reabertura de inventários locais, lançamentos individuais, edição, exclusão com tombstone, ordenação operacional, cache do último relatório e o motor de análise. Sincronização, PostgreSQL, exportações, finalização, histórico completo e publicação não foram implementados.
+Inclui criação e reabertura de inventários locais, lançamentos individuais, edição, exclusão com tombstone, ordenação operacional, cache do último relatório, motor de análise e sincronização central entre dispositivos. IndexedDB permanece a fonte de verdade de toda operação local: conexão não é exigida para lançar, editar ou excluir.
+
+O backend usa SQLAlchemy e a migração Alembic `0001_central_sync` para inventários, lançamentos, eventos incrementais e conflitos. PostgreSQL é obrigatório em produção; SQLite é apenas conveniência de desenvolvimento local.
+
+Fase 1 está concluída. A Fase 2 está implementada e validada localmente; PostgreSQL real, HTTPS/CORS, autenticação/autorização e validação em dispositivos físicos permanecem pendentes antes de qualquer exposição pública. Exportações, finalização e histórico completo ainda não foram implementados.
 
 ## Requisitos
 
@@ -19,6 +23,7 @@ pnpm dev
 
 python -m venv backend/.venv
 backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
+backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head
 backend/.venv/Scripts/python.exe -m uvicorn app.main:app --app-dir backend --reload --port 8000
 ```
 
@@ -42,6 +47,23 @@ pnpm build
 pnpm e2e
 ```
 
+## Sincronização entre dispositivos
+
+No inventário, use **Sincronizar agora** quando houver conexão. O primeiro envio cria o inventário central; reenvios são idempotentes. Em **Conectar este inventário em outro dispositivo**, o criador encontra o ID e o código de sincronização. No segundo dispositivo, informe ambos na tela inicial.
+
+O código é uma credencial: não o publique nem o envie por canal inseguro. Quando duas alterações partem da mesma revisão, o sistema registra as duas versões e pede que o operador escolha qual manter; não aplica "última gravação vence" silenciosamente.
+
+Para produção, defina no ambiente:
+
+```text
+INVENTORY_DATABASE_URL=postgresql+psycopg://usuario:senha@host:5432/inventario
+INVENTORY_CORS_ORIGINS=https://inventario.exemplo.com
+NEXT_PUBLIC_ANALYSIS_API_BASE_URL=https://api.inventario.exemplo.com
+NEXT_PUBLIC_SYNC_API_BASE_URL=https://api.inventario.exemplo.com
+```
+
+Execute `backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head` contra o PostgreSQL antes de iniciar a API. O código de sincronização não substitui autenticação de usuários/equipes, ainda pendente antes de qualquer exposição pública.
+
 O teste de recarga offline precisa de um build/servidor e do navegador Chromium instalado:
 
 ```powershell
@@ -56,6 +78,7 @@ pnpm e2e
 - `app/`, `components/`, `lib/`: shell Next.js, interface e dados locais Dexie/IndexedDB.
 - `app/sw.ts`: service worker Serwist que pré-cacheia o shell para recarga offline. O Next é executado com webpack porque esta integração Serwist ainda não suporta Turbopack; a integração é aplicada somente em produção.
 - `backend/app/engine.py`: regras puras de análise, sem HTTP ou persistência.
-- `backend/app/main.py`: contrato FastAPI que valida e delega ao motor.
+- `backend/app/main.py`: contrato FastAPI que valida, analisa e sincroniza.
+- `backend/app/database.py`, `persistence.py`, `sync_service.py`: PostgreSQL/SQLite local, entidades centrais, cursores, idempotência e conflitos.
 
 Consulte [regras de negócio](docs/REGRAS_NEGOCIO.md) e [status](docs/STATUS.md).

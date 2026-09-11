@@ -1,5 +1,17 @@
 # Handoff
 
+## V1 estrutural — checkpoint local de relatório e encerramento
+
+Esta etapa acrescentou a parte estrutural restante da V1 sem redesenhar o frontend: modelo consolidado único, Excel/PDF/Word, finalização central e histórico. A migration `0004_inventory_reports_finalization` acrescenta `finalized_at` e `report_snapshot` a `inventories`.
+
+O fluxo é: sincronizar inventário aberto → `POST /api/v1/inventories/{id}/finalize` com a revisão central → servidor analisa lançamentos ativos e salva snapshot → inventário passa a `FINISHED` e rejeita novas mutações. A sincronização não pode criar nem alterar esse estado: a transição é exclusiva do endpoint protegido. Não há regra de reabertura; não a implemente sem aprovação.
+
+Arquivos novos principais: `backend/app/reports.py`, migration `0004`, `components/finalization-panel.tsx`, `components/history-panel.tsx`, `backend/tests/test_reports.py` e `backend/tests/test_finalization_api.py`. O frontend só recebe controles operacionais; não houve alteração estética ampla.
+
+Gates locais: lint, TypeScript, Vitest (10), Pytest (19), build, Playwright (3) e Alembic SQLite temporário até `0004` passaram. Isto não valida PostgreSQL real, HTTPS, CORS publicado, provedores, Android ou Safari/iOS.
+
+Próxima tarefa: validação publicada — provisionar Neon, aplicar `alembic upgrade head`, configurar secrets, Render/Vercel e os subdomínios HTTPS; executar smoke test real. Depois, validar Android/iOS e só então iniciar refinamento visual.
+
 ## Fase 2.2 - estado de preparacao
 
 Foi adicionada somente a preparacao versionada para a publicacao: `render.yaml`, instrucoes de Vercel/Render/Neon, headers defensivos e healthcheck que verifica a conexao SQL. A escolha recomendada e Vercel para o frontend, Render para o FastAPI e Neon para PostgreSQL. O backend deve receber `https://api.<dominio>` e o frontend `https://app.<dominio>` para que o cookie `SameSite=Strict` siga funcional entre subdominios sem ser alterado para uma politica menos restritiva.
@@ -104,7 +116,7 @@ Persistem dois avisos de depreciação de dependências ao usar `pytest`. A auto
 - FASE 2.2 — Infraestrutura real de produção: provisionar PostgreSQL gerenciado; executar `alembic upgrade head` no PostgreSQL real; definir segredos de produção; configurar domínio/HTTPS e CORS final; publicar frontend/backend; realizar smoke test; e validar autenticação e sincronização no ambiente publicado.
 - A validação local cobriu SQLite e geração de SQL PostgreSQL, mas não existe PostgreSQL, Docker, domínio, certificado ou conta de deploy disponível neste host. Não marcar nenhum desses itens como validado antes da execução no ambiente real.
 - Definir procedimento administrativo para associar inventários herdados que ficaram com `team_id` nulo; eles são deliberadamente inacessíveis até esse backfill seguro.
-- Exportações Excel/PDF/Word, finalização e histórico completo.
+- Provisionamento e validação real da infraestrutura publicada; exportações, finalização e histórico foram concluídos localmente neste checkpoint.
 
 ## Próxima tarefa exata
 

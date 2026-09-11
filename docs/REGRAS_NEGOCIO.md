@@ -1,5 +1,12 @@
 # Regras de negócio — núcleo e análise
 
+## Relatório, finalização e histórico
+
+- O modelo consolidado único contém registros individuais ordenados, lotes consolidados, locais, classificação, local principal, divergências, recomendações e resumo. Excel, PDF e Word apenas o apresentam.
+- A finalização é central e exige uma revisão sincronizada. Ela gera e preserva o snapshot do relatório, registra `finalized_at`, muda o estado para `FINISHED` e bloqueia novas alterações por sincronização.
+- A V1 não define reabertura. Um inventário `FINISHED` é somente leitura no dispositivo e no servidor; os registros históricos permanecem preservados.
+- Histórico lista somente inventários `FINISHED` da equipe autenticada. Ler relatório ou exportar exige também o código de sincronização do inventário, sem revelar inventários de outra equipe.
+
 ## Produção e transporte
 
 - A publicação usa HTTPS para frontend e API. `app.<domínio>` e `api.<domínio>` devem compartilhar o mesmo domínio raiz, para que a sessão renovável continue protegida por `Secure`, `HttpOnly` e `SameSite=Strict`.

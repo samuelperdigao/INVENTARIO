@@ -25,6 +25,8 @@ class InventoryRow(Base):
     sync_token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     team_id: Mapped[str | None] = mapped_column(ForeignKey("teams.id", ondelete="RESTRICT"), index=True)
     owner_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    finalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    report_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
 
 class UserRow(Base):

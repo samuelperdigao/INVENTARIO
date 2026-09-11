@@ -23,6 +23,7 @@ export function validateEntryDraft(draft: EntryDraft): string | undefined {
 }
 
 async function bumpInventory(inventory: Inventory, now: string): Promise<void> {
+  if (inventory.status !== "OPEN") throw new Error("Inventário finalizado não aceita alterações.");
   await db.inventories.put({
     ...inventory,
     updatedAt: now,
@@ -51,6 +52,10 @@ export async function createInventory(date = localDateIso()): Promise<Inventory>
 
 export async function listOpenInventories(): Promise<Inventory[]> {
   return db.inventories.filter((inventory) => !inventory.tombstone && inventory.status === "OPEN").sortBy("createdAt");
+}
+
+export async function listLocalInventories(): Promise<Inventory[]> {
+  return db.inventories.filter((inventory) => !inventory.tombstone).sortBy("createdAt");
 }
 
 export async function getInventory(id: string): Promise<Inventory | undefined> {
@@ -89,6 +94,21 @@ export async function createEntry(inventoryId: string, draft: EntryDraft): Promi
     await bumpInventory(inventory, now);
   });
   return entry;
+}
+
+export async function markInventoryFinished(inventoryId: string, revision: number): Promise<void> {
+  await db.transaction("rw", db.inventories, async () => {
+    const inventory = await db.inventories.get(inventoryId);
+    if (!inventory || inventory.tombstone) throw new Error("Inventário não encontrado.");
+    await db.inventories.put({
+      ...inventory,
+      status: "FINISHED",
+      revision,
+      syncBaseRevision: revision,
+      syncStatus: "SYNCED",
+      updatedAt: new Date().toISOString(),
+    });
+  });
 }
 
 export async function updateEntry(entryId: string, draft: EntryDraft): Promise<InventoryEntry> {

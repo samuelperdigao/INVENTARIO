@@ -10,6 +10,7 @@ import { formatBrazilianDate } from "@/lib/local-date";
 import { createEntry, getInventory, listActiveEntries, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
 import type { EntryDraft, Inventory, InventoryEntry } from "@/lib/models";
 import { SyncPanel } from "@/components/sync-panel";
+import { FinalizationPanel } from "@/components/finalization-panel";
 
 export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const [inventory, setInventory] = useState<Inventory>();
@@ -69,10 +70,11 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       <div className="topbar"><div><Link className="muted" href="/">← Inventários</Link><h1>Inventário {formatBrazilianDate(inventory.date)}</h1></div><span className="muted">{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Local"}</span></div>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="stack">
-        <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => setEditing(undefined)} />
-        <EntryList entries={entries} onEdit={setEditing} onDelete={(entry) => void deleteEntry(entry)} />
+        {inventory.status === "OPEN" ? <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => setEditing(undefined)} /> : <p className="notice">Inventário finalizado: lançamentos preservados em modo somente leitura.</p>}
+        <EntryList entries={entries} onEdit={setEditing} onDelete={(entry) => void deleteEntry(entry)} readOnly={inventory.status === "FINISHED"} />
         <SyncPanel inventory={inventory} onSynced={refresh} />
         <AnalysisPanel key={`${inventory.id}:${inventory.revision}`} inventory={inventory} entries={entries} />
+        <FinalizationPanel inventory={inventory} onFinished={refresh} />
       </div>
     </main>
   );

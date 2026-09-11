@@ -1,5 +1,15 @@
 # Status do Projeto
 
+## V1 estrutural — concluída localmente em 11/09/2026
+
+- Foi adicionada a migration Alembic `0004_inventory_reports_finalization`: estado `FINISHED`, instante de finalização, snapshot do relatório e índice de histórico.
+- `backend/app/reports.py` fornece o modelo consolidado único. Excel (`openpyxl`), PDF (`reportlab`) e Word (`python-docx`) consomem o mesmo modelo; os arquivos não repetem regras de análise.
+- A API agora finaliza somente inventário sincronizado e autorizado, bloqueia mutações posteriores, lista histórico por equipe e protege relatório/exportações por bearer token, associação à equipe e código de sincronização.
+- A sincronização não aceita criar ou alterar o status para `FINISHED`: essa transição existe somente no endpoint protegido de finalização.
+- A interface mantém o desenho existente: finalização, downloads e consulta de histórico foram incluídos como controles operacionais mínimos. Inventário finalizado é somente leitura localmente.
+- Gates desta alteração: `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` (10), `pytest backend/tests` (19), `pnpm build`, `pnpm e2e` (3) e `alembic upgrade head` em SQLite temporário passaram. Os dois avisos conhecidos de depreciação do TestClient permanecem sem falha funcional.
+- PostgreSQL real/Neon, secrets, domínio HTTPS, CORS final, Render/Vercel, smoke test publicado e validação Android/iOS continuam exclusivamente pendências externas.
+
 ## Fase 2.2 - preparacao local concluida; provisionamento externo pendente
 
 - Arquitetura recomendada: Vercel (Next.js), Render (FastAPI) e Neon (PostgreSQL gerenciado), com `app.<dominio>` e `api.<dominio>` sob o mesmo dominio raiz.
@@ -41,7 +51,7 @@ Fase 2.1 — identidade, equipes e endurecimento de infraestrutura. Encerrada e 
 
 ## Pendente
 
-- Exportações Excel/PDF/Word, finalização, histórico completo, deploy e publicação.
+- Deploy e publicação: exportações, finalização e histórico completo foram concluídos e validados localmente nesta etapa.
 - Provisionamento PostgreSQL real, execução de `alembic upgrade head` nele, configuração HTTPS/CORS do ambiente e smoke test contra a infraestrutura publicada.
 - Teste em Android físico, Safari/iPhone físico, comportamento PWA real no iOS e validação operacional em ambiente real.
 

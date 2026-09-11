@@ -76,7 +76,7 @@ class AnalysisReport(ApiModel):
 class SyncInventory(ApiModel):
     id: UUID
     date: date
-    status: Literal["OPEN"]
+    status: Literal["OPEN", "FINISHED"]
     createdAt: datetime
     updatedAt: datetime
     revision: StrictInt = Field(ge=1)
@@ -175,3 +175,16 @@ class CreateTeamRequest(ApiModel):
 class AddTeamMemberRequest(ApiModel):
     email: str = Field(min_length=3, max_length=320)
     role: Literal["ADMIN", "OPERATOR"] = "OPERATOR"
+
+
+class FinalizeInventoryRequest(ApiModel):
+    revision: StrictInt = Field(ge=1)
+
+
+class InventoryHistoryItem(ApiModel):
+    id: UUID
+    date: date
+    status: Literal["OPEN", "FINISHED"]
+    revision: StrictInt = Field(ge=1)
+    finalizedAt: datetime | None = None
+    summary: AnalysisSummary | None = None

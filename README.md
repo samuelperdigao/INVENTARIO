@@ -1,5 +1,16 @@
 # Inventário offline
 
+## Relatório, exportações e finalização
+
+O backend produz um único modelo consolidado a partir dos lançamentos individuais e das regras do motor. Esse mesmo modelo gera Excel, PDF e Word; nenhum formato recalcula classificações.
+
+- `POST /api/v1/inventories/{inventoryId}/finalize`: exige bearer token, equipe, código `X-Inventory-Sync-Token` e a revisão central atual. Gera o snapshot, registra a data/hora e deixa o inventário `FINISHED`.
+- `GET /api/v1/inventories/history?teamId=...`: lista finalizados da equipe autenticada.
+- `GET /api/v1/inventories/{inventoryId}/report`: devolve o relatório central.
+- `GET /api/v1/inventories/{inventoryId}/exports/{xlsx|pdf|docx}`: baixa `Inventario_DD-MM-AAAA.<formato>`.
+
+Relatório e exportações exigem autenticação, autorização de equipe e código de sincronização. A finalização é irreversível na V1; não há reabertura aprovada. Rode a migration `0004_inventory_reports_finalization` com o mesmo comando Alembic antes de iniciar qualquer API publicada.
+
 Aplicação mobile-first para registrar inventários físicos sem rede e solicitar uma análise determinística ao FastAPI quando estiver online.
 
 ## Escopo desta entrega
@@ -8,7 +19,7 @@ Inclui criação e reabertura de inventários locais, lançamentos individuais, 
 
 O backend usa SQLAlchemy e a migração Alembic `0001_central_sync` para inventários, lançamentos, eventos incrementais e conflitos. PostgreSQL é obrigatório em produção; SQLite é apenas conveniência de desenvolvimento local.
 
-Fase 1 e a Fase 2.1 de segurança estão implementadas e validadas localmente. PostgreSQL real, HTTPS/CORS do domínio publicado, deploy público e validação em dispositivos físicos permanecem pendentes antes de qualquer exposição pública. A próxima etapa é a Fase 2.2 — infraestrutura real de produção. Exportações, finalização e histórico completo ainda não foram implementados.
+Fase 1, Fase 2.1 de segurança e as funcionalidades estruturais da V1 estão implementadas e validadas localmente. PostgreSQL real, HTTPS/CORS do domínio publicado, deploy público e validação em dispositivos físicos permanecem pendentes antes de qualquer exposição pública. A próxima etapa é a validação publicada da infraestrutura preparada.
 
 ## Requisitos
 
@@ -86,7 +97,7 @@ As duas variaveis `NEXT_PUBLIC_*` sao URLs publicas compiladas no bundle; nunca 
 ### Ordem de deploy
 
 1. Criar o projeto Neon e obter a connection string com SSL; cadastra-la apenas como `INVENTORY_DATABASE_URL` no Render.
-2. Em terminal confiavel, com a connection string somente no ambiente do processo, executar `backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head` contra o Neon e confirmar `0003_team_member_role_constraint (head)`.
+2. Em terminal confiavel, com a connection string somente no ambiente do processo, executar `backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head` contra o Neon e confirmar `0004_inventory_reports_finalization (head)`.
 3. Criar a Blueprint Render a partir de `render.yaml`, informar os secrets solicitados e aguardar `/healthz` retornar 200.
 4. Criar o projeto Vercel apontando para a raiz do repositorio, definir as variaveis acima e publicar o build.
 5. Associar `api.seu-dominio.example` ao Render e `app.seu-dominio.example` a Vercel; concluir os registros DNS e aguardar os certificados TLS automaticos.

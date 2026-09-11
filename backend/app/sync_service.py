@@ -25,6 +25,14 @@ class SyncNotFoundError(Exception):
     pass
 
 
+class SyncFinalizedError(Exception):
+    pass
+
+
+class SyncFinalizationRequiredError(Exception):
+    pass
+
+
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -222,6 +230,11 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
     """
 
     inventory_id = str(payload.inventoryId)
+    # FINISHED is a server-owned transition. The sync schema also represents
+    # remote inventories, so it accepts the value for responses, but clients
+    # must never create or change an inventory to that state through sync.
+    if payload.inventory is not None and payload.inventory.status != "OPEN":
+        raise SyncFinalizationRequiredError()
     inventory = session.get(InventoryRow, inventory_id)
     if inventory is None:
         if payload.inventory is None:
@@ -236,6 +249,9 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
         if not hmac.compare_digest(inventory.sync_token_hash, _hash_token(sync_token)):
             raise SyncAuthorizationError()
         acknowledged_inventory = False
+
+    if inventory.status == "FINISHED" and (payload.inventory is not None or payload.entries):
+        raise SyncFinalizedError()
 
     acknowledged_entry_ids: list[str] = []
     conflicts: list[dict[str, Any]] = []

@@ -7,9 +7,10 @@ interface EntryListProps {
   entries: InventoryEntry[];
   onEdit: (entry: InventoryEntry) => void;
   onDelete: (entry: InventoryEntry) => void;
+  readOnly?: boolean;
 }
 
-export function EntryList({ entries, onEdit, onDelete }: EntryListProps) {
+export function EntryList({ entries, onEdit, onDelete, readOnly = false }: EntryListProps) {
   const groups = groupEntries(entries);
   return (
     <section className="stack" aria-label="Lançamentos registrados">
@@ -24,10 +25,10 @@ export function EntryList({ entries, onEdit, onDelete }: EntryListProps) {
               {bayEntries.map((entry) => (
                 <article className="entry-row" key={entry.id}>
                   <div><strong>Lote {entry.lot}</strong><br /><span className="muted">{entry.quantity} peça(s)</span></div>
-                  <div className="entry-actions">
+                  {!readOnly ? <div className="entry-actions">
                     <button className="small-button" type="button" onClick={() => onEdit(entry)}>Editar</button>
                     <button className="small-button delete" type="button" onClick={() => onDelete(entry)}>Excluir</button>
-                  </div>
+                  </div> : null}
                 </article>
               ))}
             </section>
@@ -37,4 +38,3 @@ export function EntryList({ entries, onEdit, onDelete }: EntryListProps) {
     </section>
   );
 }
-

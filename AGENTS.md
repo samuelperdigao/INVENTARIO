@@ -34,3 +34,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Em produção, `INVENTORY_ENV=production`, `INVENTORY_DATABASE_URL` PostgreSQL, `INVENTORY_AUTH_SECRET` forte e `INVENTORY_CORS_ORIGINS` HTTPS explícitas são obrigatórios. Não contorne as validações de inicialização.
 - Toda mudança de schema deve passar por Alembic. Inventários herdados sem `team_id` são preservados, mas devem ser associados administrativamente antes de qualquer acesso central.
 - Fase 2.1 está encerrada localmente no checkpoint `feat: add authentication teams and protected sync`. A Fase 2.2 limita-se ao provisionamento e à validação real de PostgreSQL, segredos, domínio/HTTPS, CORS, publicação e smoke test; não introduza funcionalidades operacionais nela.
+
+## V1 estrutural — relatório, finalização e histórico
+
+- Exportações, finalização e histórico foram autorizados e implementados localmente após a Fase 2.1. O backend é a autoridade para finalizar, armazenar o snapshot do relatório e servir exportações; nunca “finalize” apenas no IndexedDB.
+- Uma finalização exige inventário central sincronizado, sessão, equipe e código de sincronização. Ela é irreversível nesta V1: não invente reabertura.
+- Excel, PDF e Word devem receber exclusivamente o modelo em `backend/app/reports.py`; regras de classificação continuam em `backend/app/engine.py`.
+- A migration `0004_inventory_reports_finalization` é obrigatória junto às anteriores antes da API publicada. PostgreSQL real e deploy continuam pendências externas.

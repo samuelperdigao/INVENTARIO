@@ -9,6 +9,7 @@ import { createInventory, listOpenInventories } from "@/lib/inventory-repository
 import { connectRemoteInventory } from "@/lib/sync-client";
 import type { Inventory } from "@/lib/models";
 import { AuthPanel } from "@/components/auth-panel";
+import { HistoryPanel } from "@/components/history-panel";
 
 function visualLabels(inventories: Inventory[]): Map<string, string> {
   const occurrences = new Map<string, number>();
@@ -89,6 +90,7 @@ export function InventoryHome() {
         ))}
       </section>
       <AuthPanel />
+      <HistoryPanel />
       <section className="card stack" aria-label="Conectar inventário">
         <div><h2>Conectar outro dispositivo</h2><p className="muted">Informe o ID e o código de sincronização recebidos do dispositivo que criou o inventário.</p></div>
         <form className="stack" onSubmit={(event) => void handleConnect(event)}>

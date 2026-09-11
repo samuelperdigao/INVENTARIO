@@ -21,7 +21,7 @@ export interface LocalRecord {
 
 export interface Inventory extends LocalRecord {
   date: string;
-  status: "OPEN";
+  status: "OPEN" | "FINISHED";
   /** Segredo de capacidade local para acessar o inventário central. */
   syncToken: string;
 }

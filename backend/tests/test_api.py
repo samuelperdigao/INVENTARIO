@@ -11,6 +11,8 @@ def test_healthz() -> None:
     response = client.get("/healthz")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-frame-options"] == "DENY"
 
 
 def test_preview_contract_and_server_validation() -> None:
@@ -36,4 +38,3 @@ def test_preview_contract_and_server_validation() -> None:
         ]},
     )
     assert invalid.status_code == 422
-

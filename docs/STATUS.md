@@ -1,5 +1,15 @@
 # Status do Projeto
 
+## Fase 2.2 - preparacao local concluida; provisionamento externo pendente
+
+- Arquitetura recomendada: Vercel (Next.js), Render (FastAPI) e Neon (PostgreSQL gerenciado), com `app.<dominio>` e `api.<dominio>` sob o mesmo dominio raiz.
+- `render.yaml` prepara o backend com Uvicorn em `$PORT`, healthcheck `/healthz` e secrets que nao sao serializados no repositorio. No plano gratuito, Alembic e um gate manual obrigatorio antes de liberar a API, pois o `preDeployCommand` do Render exige compute pago.
+- `/healthz` agora confirma uma consulta `SELECT 1` antes de responder 200 e retorna somente indisponibilidade generica se o banco falhar; o endpoint nao expoe URL, credenciais ou detalhes internos.
+- Frontend e backend recebem `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e `Permissions-Policy`; HSTS e habilitado exclusivamente quando `INVENTORY_ENV=production`.
+- Nenhuma conta, PostgreSQL, dominio, certificado, variavel de hospedagem, migration real ou URL publica foi criada/alterada neste repositorio. Logo, publicacao, HTTPS, CORS final e smoke test de producao continuam **PENDENTES**.
+- Gates locais da preparacao: `pnpm lint`, `pnpm typecheck`, `pnpm test` (10 testes), `pytest backend/tests` (14 testes), `pnpm build` e `pnpm e2e` (3 fluxos) passaram. O primeiro typecheck concorrente ao build falhou por arquivos `.next/types` removidos durante a propria compilacao; reexecutado apos o build, passou.
+- Alembic foi aplicado em banco SQLite temporario ate `0003_team_member_role_constraint`; confirmou as tabelas centrais, `users`, `teams`, `team_members`, `auth_sessions` e a constraint `ck_team_members_role`. O arquivo temporario foi removido. Isto e validacao local, nao PostgreSQL real.
+
 ## Fase atual
 
 Fase 2.1 — identidade, equipes e endurecimento de infraestrutura. Encerrada e validada localmente em 11/09/2026; a próxima etapa é a Fase 2.2 — infraestrutura real de produção. PostgreSQL real, HTTPS publicado, CORS do domínio definitivo e validação física continuam pendências externas.

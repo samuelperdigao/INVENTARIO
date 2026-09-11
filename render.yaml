@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: inventory-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: python -m pip install -r requirements.txt
+    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+      - key: INVENTORY_ENV
+        value: production
+      - key: INVENTORY_DATABASE_URL
+        sync: false
+      - key: INVENTORY_AUTH_SECRET
+        generateValue: true
+      - key: INVENTORY_ACCESS_TOKEN_MINUTES
+        value: "15"
+      - key: INVENTORY_REFRESH_SESSION_DAYS
+        value: "14"
+      - key: INVENTORY_CORS_ORIGINS
+        sync: false

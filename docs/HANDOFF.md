@@ -1,5 +1,13 @@
 # Handoff
 
+## Fase 2.2 - estado de preparacao
+
+Foi adicionada somente a preparacao versionada para a publicacao: `render.yaml`, instrucoes de Vercel/Render/Neon, headers defensivos e healthcheck que verifica a conexao SQL. A escolha recomendada e Vercel para o frontend, Render para o FastAPI e Neon para PostgreSQL. O backend deve receber `https://api.<dominio>` e o frontend `https://app.<dominio>` para que o cookie `SameSite=Strict` siga funcional entre subdominios sem ser alterado para uma politica menos restritiva.
+
+Nada externo foi provisionado. A proxima pessoa deve primeiro obter autorizacao para usar as contas, criar recursos gratuitos e configurar DNS; depois informar somente as URLs finais (nunca secrets) e executar o roteiro do README. O primeiro gate externo e `alembic upgrade head` no PostgreSQL real, seguido de `GET /healthz` com 200.
+
+Os gates locais passaram: lint, typecheck, 10 testes Vitest, 14 Pytest, build de producao e 3 fluxos Playwright. Alembic subiu um SQLite temporario ate `0003_team_member_role_constraint`, com todas as tabelas de identidade/equipe/sincronizacao e a constraint de papel presentes; o arquivo temporario foi removido. Isso nao e evidencia de PostgreSQL, TLS, CORS publicado ou smoke test externo.
+
 ## Estado atual
 
 Fase 1 está concluída e preservada. A Fase 2.1 acrescentou identidade, equipes e proteção de acesso à sincronização, tudo validado localmente. PostgreSQL real, HTTPS publicado, CORS do domínio definitivo e dispositivos físicos ainda precisam de validação antes de exposição pública.

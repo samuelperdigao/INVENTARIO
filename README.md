@@ -47,6 +47,57 @@ pnpm build
 pnpm e2e
 ```
 
+## Publicacao controlada (Fase 2.2)
+
+A arquitetura preparada, ainda **nao provisionada**, e Vercel para o frontend Next.js, Render para a API FastAPI e Neon para PostgreSQL gerenciado. A escolha preserva Git deploy, HTTPS automatico e os componentes tecnicos existentes sem introduzir infraestrutura propria.
+
+Use obrigatoriamente dois subdominios do mesmo dominio raiz:
+
+```text
+https://app.seu-dominio.example  -> Vercel
+https://api.seu-dominio.example  -> Render
+```
+
+Essa topologia e necessaria para o refresh cookie permanecer `Secure`, `HttpOnly` e `SameSite=Strict`. URLs padrao independentes de provedores (por exemplo, `vercel.app` e `onrender.com`) nao sao uma configuracao de producao aprovada para o fluxo de sessao.
+
+### Variaveis de producao
+
+Configure no Render, sem versionar valores:
+
+```text
+INVENTORY_ENV=production
+INVENTORY_DATABASE_URL=postgresql+psycopg://...?sslmode=require
+INVENTORY_AUTH_SECRET=<segredo gerado pelo provedor ou aleatorio com pelo menos 32 caracteres>
+INVENTORY_ACCESS_TOKEN_MINUTES=15
+INVENTORY_REFRESH_SESSION_DAYS=14
+INVENTORY_CORS_ORIGINS=https://app.seu-dominio.example
+```
+
+Configure na Vercel **antes do build de producao**:
+
+```text
+INVENTORY_ENV=production
+NEXT_PUBLIC_ANALYSIS_API_BASE_URL=https://api.seu-dominio.example
+NEXT_PUBLIC_SYNC_API_BASE_URL=https://api.seu-dominio.example
+```
+
+As duas variaveis `NEXT_PUBLIC_*` sao URLs publicas compiladas no bundle; nunca coloque segredos nelas. O `render.yaml` entrega uma definicao declarativa da API: instala dependencias, inicia Uvicorn em `$PORT` e usa `/healthz` como healthcheck. O primeiro provisionamento ainda pede `INVENTORY_DATABASE_URL` e `INVENTORY_CORS_ORIGINS` no painel, sem grava-las no repositorio.
+
+### Ordem de deploy
+
+1. Criar o projeto Neon e obter a connection string com SSL; cadastra-la apenas como `INVENTORY_DATABASE_URL` no Render.
+2. Em terminal confiavel, com a connection string somente no ambiente do processo, executar `backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head` contra o Neon e confirmar `0003_team_member_role_constraint (head)`.
+3. Criar a Blueprint Render a partir de `render.yaml`, informar os secrets solicitados e aguardar `/healthz` retornar 200.
+4. Criar o projeto Vercel apontando para a raiz do repositorio, definir as variaveis acima e publicar o build.
+5. Associar `api.seu-dominio.example` ao Render e `app.seu-dominio.example` a Vercel; concluir os registros DNS e aguardar os certificados TLS automaticos.
+6. Atualizar `INVENTORY_CORS_ORIGINS` no Render com a URL final da Vercel, redeployar a API e executar os smoke tests abaixo.
+
+O plano `free` do Render e adequado apenas para o primeiro smoke test: a instancia pode hibernar apos inatividade. Nao publicar como operacao continua sem aceitar essa limitacao ou escolher um plano explicitamente autorizado.
+
+### Smoke test publicado
+
+Depois de os dominios responderem por HTTPS, registrar com resultado real: `GET https://api.seu-dominio.example/healthz`; cabecalhos `Strict-Transport-Security`, `X-Content-Type-Options` e `X-Frame-Options`; registro/login/refresh/logout; bloqueio de UUID de outra equipe; criacao offline e sincronizacao em dois contextos; idempotencia, tombstone, edicao, conflito e cursor incremental. Nao marcar estes itens como aprovados ate a execucao no ambiente publicado.
+
 ## Sincronização entre dispositivos
 
 No inventário, use **Sincronizar agora** quando houver conexão. O primeiro envio cria o inventário central; reenvios são idempotentes. Em **Conectar este inventário em outro dispositivo**, o criador encontra o ID e o código de sincronização. No segundo dispositivo, informe ambos na tela inicial.
@@ -59,20 +110,7 @@ O lançamento operacional continua disponível localmente e offline, mesmo sem c
 
 Para acessar um inventário central, a API exige três verificações: sessão de usuário válida, associação à equipe do inventário e o código de sincronização. Conhecer um UUID ou o código não dá acesso a outra equipe. Responsáveis (`ADMIN`) podem incluir membros; operadores (`OPERATOR`) podem sincronizar, mas não administram integrantes.
 
-Para produção, defina no ambiente:
-
-```text
-INVENTORY_DATABASE_URL=postgresql+psycopg://usuario:senha@host:5432/inventario
-INVENTORY_ENV=production
-INVENTORY_AUTH_SECRET=segredo-aleatorio-unico-com-pelo-menos-32-caracteres
-INVENTORY_ACCESS_TOKEN_MINUTES=15
-INVENTORY_REFRESH_SESSION_DAYS=14
-INVENTORY_CORS_ORIGINS=https://inventario.exemplo.com
-NEXT_PUBLIC_ANALYSIS_API_BASE_URL=https://api.inventario.exemplo.com
-NEXT_PUBLIC_SYNC_API_BASE_URL=https://api.inventario.exemplo.com
-```
-
-Execute `backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head` contra o PostgreSQL antes de iniciar a API. Em produção, a API recusa SQLite, segredo curto/padrão e CORS com curinga ou HTTP. Publique frontend e API atrás de HTTPS; cookies de renovação ficam `Secure` nesse ambiente. As variáveis `NEXT_PUBLIC_*` são URLs públicas compiladas no build e não devem carregar segredo.
+A configuração de produção, a ordem de migrations e os smoke tests estão na seção **Publicacao controlada (Fase 2.2)** acima. Em produção, a API recusa SQLite, segredo curto/padrão e CORS com curinga ou HTTP. Publique frontend e API atrás de HTTPS; cookies de renovação ficam `Secure` nesse ambiente.
 
 Inventários criados antes da migration de equipes são preservados, porém ficam sem `team_id` e bloqueados no backend até associação administrativa explícita. Não associe inventários por alteração manual em produção: defina e execute um backfill auditável antes de liberar acesso.
 

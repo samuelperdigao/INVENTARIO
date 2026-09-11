@@ -1,5 +1,11 @@
 # Regras de negócio — núcleo e análise
 
+## Produção e transporte
+
+- A publicação usa HTTPS para frontend e API. `app.<domínio>` e `api.<domínio>` devem compartilhar o mesmo domínio raiz, para que a sessão renovável continue protegida por `Secure`, `HttpOnly` e `SameSite=Strict`.
+- Em produção, o healthcheck executa uma consulta simples no PostgreSQL e responde 503 genérico quando a persistência não estiver disponível. Nunca inclui URL, credenciais ou detalhes de banco na resposta.
+- CORS aceita apenas a origem HTTPS explícita do frontend publicado e credenciais. Curingas e HTTP não são configurações válidas em produção.
+
 ## Dados locais
 
 - Cada inventário recebe UUIDv7, data local do dispositivo no formato `YYYY-MM-DD`, timestamps, revisão, `syncBaseRevision`, `syncStatus` e `tombstone`.

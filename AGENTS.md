@@ -20,6 +20,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Fase 2.2 - publicacao controlada
+
+- A arquitetura preparada e Vercel (frontend Next.js), Render (FastAPI via `render.yaml`) e Neon (PostgreSQL gerenciado). Ela nao esta provisionada enquanto nao houver autorizacao externa, contas e dominio.
+- Use `https://app.<dominio>` para o frontend e `https://api.<dominio>` para a API. Ambos devem usar o mesmo dominio raiz para manter o refresh cookie `Secure`, `HttpOnly` e `SameSite=Strict` sem relaxar essa protecao.
+- No plano gratuito do Render, execute `alembic upgrade head` como gate manual e auditavel contra o PostgreSQL antes de liberar a API. Nao substitua esse fluxo por criacao manual de schema; o `healthz` so responde 200 quando consegue consultar o banco.
+- `INVENTORY_DATABASE_URL`, `INVENTORY_AUTH_SECRET` e o valor final de `INVENTORY_CORS_ORIGINS` sao secrets/configuracoes do provedor; nunca entram em `.env.example`, Git ou logs.
+
 ## Fase 2.1 — segurança de acesso
 
 - Sincronização central exige bearer token de usuário, associação à equipe e o código de sincronização do inventário. O código é apenas uma segunda prova de posse e nunca autenticação.

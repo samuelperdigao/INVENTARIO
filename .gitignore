@@ -1,0 +1,15 @@
+node_modules/
+.next/
+tsconfig.tsbuildinfo
+coverage/
+playwright-report/
+test-results/
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+.env
+.env.local
+backend/.venv/
+backend/.pytest_cache/
+backend/**/__pycache__/
+*.py[cod]

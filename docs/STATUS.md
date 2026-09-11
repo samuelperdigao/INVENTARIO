@@ -54,3 +54,9 @@ Fase 2 — backend central, persistência e sincronização. Implementada e vali
 ## Próxima tarefa exata
 
 Provisionar e validar a infraestrutura de produção da Fase 2, incluindo PostgreSQL real, migração Alembic, HTTPS/CORS e autenticação/autorização antes de exposição pública.
+
+## Checkpoint Git da Fase 2 local
+
+- Commit de implementação: `7db63cf` (`feat: complete central sync and conflict handling`).
+- Branch: `master`.
+- Estado final local: Fase 1 concluída; Fase 2 implementada e validada pelos gates locais. PostgreSQL real, HTTPS/CORS, autenticação/autorização e validação física continuam pendentes.

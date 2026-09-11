@@ -97,6 +97,12 @@ Persistem dois avisos de depreciação de dependências ao usar `pytest`. A auto
 
 Provisionar e validar a infraestrutura de produção da Fase 2, incluindo PostgreSQL real, migração Alembic, HTTPS/CORS e autenticação/autorização antes de exposição pública.
 
+## Checkpoint Git da Fase 2 local
+
+- Commit de implementação: `7db63cf` (`feat: complete central sync and conflict handling`).
+- Branch: `master`.
+- Estado final: Fase 1 concluída; Fase 2 implementada e validada localmente. PostgreSQL real, HTTPS/CORS, autenticação/autorização, Android físico e Safari/iOS físico permanecem pendentes.
+
 ## Arquivos que a próxima conversa deve ler
 
 1. `AGENTS.md`

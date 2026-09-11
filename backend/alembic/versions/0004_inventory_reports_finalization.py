@@ -1,6 +1,6 @@
 """adiciona relatório consolidado e finalização de inventário
 
-Revision ID: 0004_inventory_reports_finalization
+Revision ID: 0004_reports_finalization
 Revises: 0003_team_member_role_constraint
 Create Date: 2026-09-11 20:00:00
 """
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0004_inventory_reports_finalization"
+revision = "0004_reports_finalization"
 down_revision = "0003_team_member_role_constraint"
 branch_labels = None
 depends_on = None

@@ -2,7 +2,7 @@
 
 ## Fase atual
 
-Fase 2 — backend central, persistência e sincronização. Implementada e validada localmente em 11/09/2026; ainda requer PostgreSQL real, HTTPS/CORS, autenticação/autorização e validação física antes de ser considerada pronta para produção.
+Fase 2.1 — identidade, equipes e endurecimento de infraestrutura. Encerrada e validada localmente em 11/09/2026; a próxima etapa é a Fase 2.2 — infraestrutura real de produção. PostgreSQL real, HTTPS publicado, CORS do domínio definitivo e validação física continuam pendências externas.
 
 ## Concluído
 
@@ -31,7 +31,7 @@ Fase 2 — backend central, persistência e sincronização. Implementada e vali
 
 ## Pendente
 
-- Exportações Excel/PDF/Word, finalização, histórico completo, autenticação, deploy e publicação.
+- Exportações Excel/PDF/Word, finalização, histórico completo, deploy e publicação.
 - Provisionamento PostgreSQL real, execução de `alembic upgrade head` nele, configuração HTTPS/CORS do ambiente e smoke test contra a infraestrutura publicada.
 - Teste em Android físico, Safari/iPhone físico, comportamento PWA real no iOS e validação operacional em ambiente real.
 
@@ -40,7 +40,18 @@ Fase 2 — backend central, persistência e sincronização. Implementada e vali
 - Não há bloqueadores conhecidos para a implementação local da Fase 2.
 - O `TestClient` das dependências FastAPI/Starlette emite dois avisos de depreciação durante `pytest`; a suíte passa e não há impacto funcional observado.
 - O navegador interno do Codex não concluiu IndexedDB durante a inspeção, mas o Chromium local e os fluxos Playwright concluíram; isso é limitação do ambiente de automação, não uma compatibilidade móvel validada.
-- O código de sincronização é uma credencial de capacidade por inventário, não substitui autenticação de usuários, rate limiting ou gestão de equipe em uma publicação pública.
+- Ainda não há rate limiting, recuperação de senha, convite por e-mail ou auditoria operacional completa; eles não devem ser confundidos com a base de identidade e equipes entregue nesta fase.
+
+## Fase 2.1 — concluído localmente
+
+- Registro e login por e-mail/senha, hash `scrypt`, access token assinado de curta duração e sessão renovável revogável em cookie `HttpOnly`.
+- Modelo `User → Team → TeamMember → Inventory`, com papéis `ADMIN` e `OPERATOR`; a criação da conta inicia uma equipe com o responsável como `ADMIN`.
+- Sincronização exige usuário autenticado, associação à equipe e código de sincronização; inventário de outra equipe retorna 404 mesmo que UUID e código sejam conhecidos.
+- CORS usa origens explícitas e credenciais; em `production` a API recusa SQLite, segredo fraco e origem não HTTPS/curinga.
+- Migrations `0002_auth_teams_access` e `0003_team_member_role_constraint` aplicadas com sucesso em SQLite limpo até `head`; o ciclo `downgrade 0001_central_sync → upgrade head` também passou. Inventários antigos permanecem com associação nula e bloqueados no central até associação administrativa planejada.
+- Alembic também gerou com sucesso o SQL do dialeto PostgreSQL para `upgrade head`; isso valida a geração, não substitui a execução contra uma instância PostgreSQL real.
+- O SQLite local preexistente tinha o schema de `0001_central_sync` criado pelo runtime sem tabela de versão; após confirmar o schema herdado, ele foi marcado em `0001_central_sync` e atualizado pelas migrations aditivas `0002` e `0003` sem recriar tabelas.
+- Testes de autenticação, sessão, autorização de equipe, IDOR, papel de operador, idempotência, conflito e tombstone foram adicionados e passam localmente.
 
 ## Decisões técnicas
 
@@ -53,10 +64,11 @@ Fase 2 — backend central, persistência e sincronização. Implementada e vali
 
 ## Próxima tarefa exata
 
-Provisionar e validar a infraestrutura de produção da Fase 2, incluindo PostgreSQL real, migração Alembic, HTTPS/CORS e autenticação/autorização antes de exposição pública.
+FASE 2.2 — provisionar PostgreSQL gerenciado, executar migrations Alembic no PostgreSQL real, definir segredos de produção, configurar domínio/HTTPS e CORS final, publicar frontend/backend e realizar smoke test de autenticação e sincronização. Não iniciar essa fase sem ambiente externo definido.
 
 ## Checkpoint Git da Fase 2 local
 
 - Commit de implementação: `7db63cf` (`feat: complete central sync and conflict handling`).
 - Branch: `master`.
-- Estado final local: Fase 1 concluída; Fase 2 implementada e validada pelos gates locais. PostgreSQL real, HTTPS/CORS, autenticação/autorização e validação física continuam pendentes.
+- Estado final local: Fase 1 e Fase 2.1 de segurança implementadas e validadas pelos gates locais. PostgreSQL real, HTTPS/CORS publicado e validação física continuam pendentes.
+- Checkpoint da Fase 2.1: `feat: add authentication teams and protected sync`. O worktree deve permanecer limpo antes da Fase 2.2.

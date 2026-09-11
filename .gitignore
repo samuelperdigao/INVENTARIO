@@ -8,9 +8,10 @@ public/sw.js
 public/sw.js.map
 public/workbox-*.js
 .env
-.env.local
+.env.*
+!.env.example
 backend/.venv/
 backend/.pytest_cache/
-backend/inventario.db
+backend/*.db
 backend/**/__pycache__/
 *.py[cod]

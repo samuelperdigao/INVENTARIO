@@ -19,3 +19,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Fase 2.1 — segurança de acesso
+
+- Sincronização central exige bearer token de usuário, associação à equipe e o código de sincronização do inventário. O código é apenas uma segunda prova de posse e nunca autenticação.
+- Senhas usam `scrypt`; o token de acesso é curto e o token de renovação é opaco, revogável e enviado somente em cookie `HttpOnly`.
+- Em produção, `INVENTORY_ENV=production`, `INVENTORY_DATABASE_URL` PostgreSQL, `INVENTORY_AUTH_SECRET` forte e `INVENTORY_CORS_ORIGINS` HTTPS explícitas são obrigatórios. Não contorne as validações de inicialização.
+- Toda mudança de schema deve passar por Alembic. Inventários herdados sem `team_id` são preservados, mas devem ser associados administrativamente antes de qualquer acesso central.
+- Fase 2.1 está encerrada localmente no checkpoint `feat: add authentication teams and protected sync`. A Fase 2.2 limita-se ao provisionamento e à validação real de PostgreSQL, segredos, domínio/HTTPS, CORS, publicação e smoke test; não introduza funcionalidades operacionais nela.

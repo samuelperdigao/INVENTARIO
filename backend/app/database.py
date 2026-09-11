@@ -7,15 +7,16 @@ as migrações Alembic antes de iniciar a API.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+from app.config import get_settings
+
 
 def database_url() -> str:
-    return os.getenv("INVENTORY_DATABASE_URL", "sqlite:///./backend/inventario.db")
+    return get_settings().database_url
 
 
 def create_database_engine(url: str | None = None):

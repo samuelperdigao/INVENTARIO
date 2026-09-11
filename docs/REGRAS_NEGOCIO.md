@@ -39,3 +39,13 @@
 - Inclusões usam IDs UUIDv7 gerados no cliente. Tombstones também são sincronizados; uma exclusão não some por falta temporária de rede.
 - Em concorrência incompatível, o servidor preserva o payload recebido e a versão central em auditoria, responde com conflito e o cliente preserva as duas versões. O operador escolhe manter sua versão ou usar a versão central; nenhuma delas é apagada silenciosamente.
 - A revisão local do inventário também é incrementada ao receber lançamento remoto, invalidando corretamente o cache de análise sem transformar a alteração remota em uma nova pendência.
+
+## Identidade, equipes e acesso central
+
+- Criar, editar e excluir lançamentos continua local e offline; autenticação só é necessária no momento posterior da sincronização central.
+- Uma conta possui e-mail normalizado, nome visível e senha armazenada exclusivamente como hash `scrypt` com salt individual. A senha nunca integra a sincronização, o IndexedDB ou o banco em texto puro.
+- Ao criar uma conta, o sistema cria sua primeira equipe e a associação `ADMIN`. Uma equipe tem membros `ADMIN` (responsável) ou `OPERATOR`.
+- Inventário central pertence a uma equipe e registra o usuário que o publicou inicialmente. Um membro pode sincronizar inventários de sua equipe; só `ADMIN` pode incluir membros.
+- `POST /api/v1/sync` exige simultaneamente bearer token válido, associação à equipe escolhida e `X-Inventory-Sync-Token`. UUID, código de sincronização ou cursor isoladamente não concedem leitura nem escrita.
+- Se o inventário não pertencer à equipe autorizada, a API responde como não encontrado, sem confirmar sua existência. Conflitos, idempotência, tombstones e `syncBaseRevision` mantêm as mesmas regras da Fase 2.
+- Esta regra de identidade e autorização está encerrada e validada localmente na Fase 2.1. A próxima etapa não altera o domínio: apenas valida a mesma proteção em PostgreSQL, HTTPS e domínio reais.

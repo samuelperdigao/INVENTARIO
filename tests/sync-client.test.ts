@@ -4,6 +4,10 @@ import { db } from "@/lib/db";
 import { createEntry, createInventory } from "@/lib/inventory-repository";
 import { listSyncConflicts, resolveConflict, syncInventory } from "@/lib/sync-client";
 
+vi.mock("@/lib/auth-client", () => ({
+  getAuthenticatedContext: vi.fn().mockResolvedValue({ accessToken: "test-access-token", teamId: "00000000-0000-4000-8000-000000000001" }),
+}));
+
 afterEach(() => vi.unstubAllGlobals());
 
 type ServerConflict = { entityType: "entry"; entityId: string; serverRecord: Record<string, unknown> };

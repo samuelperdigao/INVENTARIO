@@ -116,7 +116,7 @@ def _record_conflict(
     return {"entityType": entity_type, "entityId": entity_id, "serverRecord": server_record}
 
 
-def _create_inventory(session: Session, incoming: SyncInventory, sync_token: str) -> InventoryRow:
+def _create_inventory(session: Session, incoming: SyncInventory, sync_token: str, team_id: str, owner_user_id: str) -> InventoryRow:
     row = InventoryRow(
         id=str(incoming.id),
         date=incoming.date,
@@ -127,6 +127,8 @@ def _create_inventory(session: Session, incoming: SyncInventory, sync_token: str
         tombstone=incoming.tombstone,
         deleted_at=incoming.deletedAt,
         sync_token_hash=_hash_token(sync_token),
+        team_id=team_id,
+        owner_user_id=owner_user_id,
     )
     session.add(row)
     session.flush()
@@ -212,7 +214,7 @@ def _apply_entry(
     )
 
 
-def synchronize(session: Session, payload: SyncRequest, sync_token: str) -> dict[str, Any]:
+def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team_id: str, actor_user_id: str) -> dict[str, Any]:
     """Aplica apenas alterações pendentes e devolve alterações desde o cursor.
 
     A igualdade de revisão torna repetição segura. Um ``syncBaseRevision`` que
@@ -224,9 +226,13 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str) -> dict
     if inventory is None:
         if payload.inventory is None:
             raise SyncNotFoundError()
-        inventory = _create_inventory(session, payload.inventory, sync_token)
+        inventory = _create_inventory(session, payload.inventory, sync_token, team_id, actor_user_id)
         acknowledged_inventory = True
     else:
+        # Uma referência válida não revela inventário de outra equipe. O
+        # chamador já teve a associação com ``team_id`` validada na borda HTTP.
+        if inventory.team_id != team_id:
+            raise SyncNotFoundError()
         if not hmac.compare_digest(inventory.sync_token_hash, _hash_token(sync_token)):
             raise SyncAuthorizationError()
         acknowledged_inventory = False

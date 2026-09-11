@@ -2,7 +2,7 @@
 
 ## Estado atual
 
-Fase 1 está concluída e preservada. A Fase 2 foi implementada e validada localmente: há banco central, API de sincronização, reconciliação incremental e tratamento explícito de conflitos. PostgreSQL real, HTTPS, CORS, autenticação/autorização e dispositivos físicos ainda precisam de validação antes de exposição pública.
+Fase 1 está concluída e preservada. A Fase 2.1 acrescentou identidade, equipes e proteção de acesso à sincronização, tudo validado localmente. PostgreSQL real, HTTPS publicado, CORS do domínio definitivo e dispositivos físicos ainda precisam de validação antes de exposição pública.
 
 ## Arquitetura implementada
 
@@ -10,6 +10,8 @@ Fase 1 está concluída e preservada. A Fase 2 foi implementada e validada local
 - Dexie sobre IndexedDB como fonte de verdade local.
 - Serwist gera o shell offline apenas em build de produção.
 - FastAPI em `backend/`, com SQLAlchemy, Alembic e persistência central para inventários, lançamentos, eventos e conflitos.
+- Identidade local com senha `scrypt`, bearer token curto e sessão opaca revogável em cookie `HttpOnly`; a sessão é renovada sem persistir segredo no IndexedDB.
+- Equipes com membros `ADMIN` e `OPERATOR`; `inventories.team_id` protege a sincronização contra IDOR e mantém `owner_user_id` para rastrear a publicação inicial.
 - Motor Python em `backend/app/engine.py`, separado do contrato HTTP.
 
 ## Principais arquivos e módulos
@@ -20,8 +22,10 @@ Fase 1 está concluída e preservada. A Fase 2 foi implementada e validada local
 - `app/sw.ts` e `next.config.mjs`: PWA/Serwist e configuração Next.
 - `backend/app/schemas.py`, `main.py`, `engine.py`: contrato, HTTP e regras puras.
 - `backend/app/database.py`, `persistence.py`, `sync_service.py`: conexão SQLAlchemy, modelos relacionais e protocolo de sincronização.
-- `backend/alembic/versions/0001_central_sync.py`: migração inicial para PostgreSQL/SQLite.
+- `backend/alembic/versions/0001_central_sync.py`, `0002_auth_teams_access.py` e `0003_team_member_role_constraint.py`: migrations centrais, de acesso e de restrição de papéis para PostgreSQL/SQLite.
 - `lib/sync-client.ts` e `components/sync-panel.tsx`: cliente IndexedDB, cursor, conflitos e controles operacionais de sincronização.
+- `lib/auth-client.ts` e `components/auth-panel.tsx`: sessão no navegador sem persistir bearer token, criação/login de conta e escolha da equipe para sincronização.
+- `backend/app/auth_service.py` e `config.py`: hash de senha, tokens, sessão revogável, validação de produção e autorização por equipe.
 - `tests/` e `e2e/`: testes unitários e fluxo de navegador.
 
 ## Funcionalidades concluídas
@@ -50,7 +54,7 @@ Fase 1 está concluída e preservada. A Fase 2 foi implementada e validada local
 ## Testes existentes
 
 - Vitest: 10 testes para formulário, erro de armazenamento, IndexedDB, cache, agrupamento, edição, exclusão e aplicação/decisão de conflitos de sincronização.
-- Pytest: 10 testes para contrato HTTP, motor `OK`, `19 + 1`, `15 + 5`, `15 + 2 + 3`, empate, consolidação e sincronização idempotente/conflitante com token.
+- Pytest: 13 testes para contrato HTTP, motor, autenticação, sessão HttpOnly, equipe, IDOR, papéis, idempotência, conflitos e tombstones.
 - Playwright: 3 fluxos para recarga offline, análise online/cache offline e sincronização entre dois contextos de navegador.
 
 ## Comandos importantes
@@ -89,19 +93,21 @@ Persistem dois avisos de depreciação de dependências ao usar `pytest`. A auto
 - Teste em Android físico.
 - Teste Safari/iPhone físico e PWA iOS real.
 - Validação operacional em ambiente real.
-- Provisionar PostgreSQL, rodar a migração, configurar HTTPS/CORS e realizar smoke test publicado.
-- Implementar autenticação/autorização de usuários e equipes antes de expor a sincronização a um público não controlado; o código atual isola por credencial de inventário, não por identidade de usuário.
+- FASE 2.2 — Infraestrutura real de produção: provisionar PostgreSQL gerenciado; executar `alembic upgrade head` no PostgreSQL real; definir segredos de produção; configurar domínio/HTTPS e CORS final; publicar frontend/backend; realizar smoke test; e validar autenticação e sincronização no ambiente publicado.
+- A validação local cobriu SQLite e geração de SQL PostgreSQL, mas não existe PostgreSQL, Docker, domínio, certificado ou conta de deploy disponível neste host. Não marcar nenhum desses itens como validado antes da execução no ambiente real.
+- Definir procedimento administrativo para associar inventários herdados que ficaram com `team_id` nulo; eles são deliberadamente inacessíveis até esse backfill seguro.
 - Exportações Excel/PDF/Word, finalização e histórico completo.
 
 ## Próxima tarefa exata
 
-Provisionar e validar a infraestrutura de produção da Fase 2, incluindo PostgreSQL real, migração Alembic, HTTPS/CORS e autenticação/autorização antes de exposição pública.
+Iniciar exclusivamente a **FASE 2.2 — Infraestrutura real de produção**: provisionar PostgreSQL gerenciado, executar as migrations Alembic no PostgreSQL real, definir segredos de produção, configurar domínio/HTTPS e CORS final, publicar frontend/backend e fazer smoke test de autenticação e sincronização. Não implementar funcionalidades operacionais nessa etapa.
 
 ## Checkpoint Git da Fase 2 local
 
 - Commit de implementação: `7db63cf` (`feat: complete central sync and conflict handling`).
 - Branch: `master`.
-- Estado final: Fase 1 concluída; Fase 2 implementada e validada localmente. PostgreSQL real, HTTPS/CORS, autenticação/autorização, Android físico e Safari/iOS físico permanecem pendentes.
+- Estado final: Fase 1 e Fase 2.1 de segurança implementadas e validadas localmente. PostgreSQL real, HTTPS/CORS publicado, Android físico e Safari/iOS físico permanecem pendentes.
+- Checkpoint local da Fase 2.1: `feat: add authentication teams and protected sync`. Confirme `git status` limpo antes de começar a Fase 2.2.
 
 ## Arquivos que a próxima conversa deve ler
 

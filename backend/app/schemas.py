@@ -103,6 +103,7 @@ class SyncEntry(ApiModel):
 class SyncRequest(ApiModel):
     deviceId: UUID
     inventoryId: UUID
+    teamId: UUID | None = None
     cursor: StrictInt = Field(ge=0)
     inventory: SyncInventory | None = None
     entries: list[SyncEntry] = Field(default_factory=list, max_length=1_000)
@@ -135,3 +136,42 @@ class SyncResponse(ApiModel):
     entries: list[SyncEntry]
     acknowledged: SyncAcknowledgement
     conflicts: list[SyncConflict]
+
+
+class RegisterRequest(ApiModel):
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=12, max_length=256)
+    displayName: str = Field(min_length=1, max_length=120)
+    teamName: str = Field(min_length=1, max_length=120)
+
+
+class LoginRequest(ApiModel):
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=1, max_length=256)
+
+
+class TeamMember(ApiModel):
+    id: UUID
+    name: str
+    role: Literal["ADMIN", "OPERATOR"]
+
+
+class AuthenticatedUser(ApiModel):
+    id: UUID
+    email: str
+    displayName: str
+    teams: list[TeamMember]
+
+
+class AuthResponse(ApiModel):
+    accessToken: str
+    user: AuthenticatedUser
+
+
+class CreateTeamRequest(ApiModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
+class AddTeamMemberRequest(ApiModel):
+    email: str = Field(min_length=3, max_length=320)
+    role: Literal["ADMIN", "OPERATOR"] = "OPERATOR"

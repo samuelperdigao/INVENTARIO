@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 
 import { db } from "@/lib/db";
+import { getAuthenticatedContext } from "@/lib/auth-client";
 import { listEntriesForSync, prepareInventoryForSync } from "@/lib/inventory-repository";
 import type { Inventory, InventoryEntry, SyncConflict, SyncMetadata } from "@/lib/models";
 
@@ -49,15 +50,19 @@ async function requestSync(
   syncToken: string,
   payload: { inventory: Inventory | null; entries: InventoryEntry[]; cursor: number },
 ): Promise<SyncResponse> {
+  const auth = await getAuthenticatedContext();
   const response = await fetch(`${syncBaseUrl}/api/v1/sync`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "X-Inventory-Sync-Token": syncToken,
+      Authorization: `Bearer ${auth.accessToken}`,
     },
     body: JSON.stringify({
       deviceId: await getDeviceId(),
       inventoryId,
+      teamId: auth.teamId,
       cursor: payload.cursor,
       inventory: payload.inventory ? serializeInventory(payload.inventory) : null,
       entries: payload.entries.map(serializeEntry),

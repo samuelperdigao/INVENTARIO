@@ -47,4 +47,4 @@ Backend central + banco + sincronização entre dispositivos.
 
 ## Último checkpoint
 
-Fase 1 estabilizada, validada e documentada em 11/09/2026. Checkpoint Git: `4de6406`.
+Fase 1 estabilizada, validada e documentada em 11/09/2026. Checkpoint Git: `a0c6e54`.

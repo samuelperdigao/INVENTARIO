@@ -15,7 +15,7 @@ export function seedUsers(prefix: string): { ownerEmail: string; participantEmai
 
 export async function login(page: Page, email: string): Promise<void> {
   await page.goto("/acesso");
-  await page.getByLabel("E-mail corporativo").fill(email);
+  await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha").fill("senha-segura-123");
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
 }

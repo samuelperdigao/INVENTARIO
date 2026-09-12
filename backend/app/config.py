@@ -24,9 +24,8 @@ class Settings:
     smtp_password: str | None
     smtp_from_email: str | None
     smtp_security: str
-    verification_code_minutes: int
-    password_reset_code_minutes: int
-    auth_code_max_attempts: int
+    recovery_pin_max_attempts: int
+    recovery_pin_lock_minutes: int
     email_attachment_max_mb: int
 
     @property
@@ -59,9 +58,8 @@ def get_settings() -> Settings:
         smtp_password=os.getenv("INVENTORY_SMTP_PASSWORD"),
         smtp_from_email=os.getenv("INVENTORY_SMTP_FROM_EMAIL"),
         smtp_security=os.getenv("INVENTORY_SMTP_SECURITY", "starttls").lower(),
-        verification_code_minutes=int(os.getenv("INVENTORY_VERIFICATION_CODE_MINUTES", "10")),
-        password_reset_code_minutes=int(os.getenv("INVENTORY_PASSWORD_RESET_CODE_MINUTES", "10")),
-        auth_code_max_attempts=int(os.getenv("INVENTORY_AUTH_CODE_MAX_ATTEMPTS", "5")),
+        recovery_pin_max_attempts=int(os.getenv("INVENTORY_RECOVERY_PIN_MAX_ATTEMPTS", "5")),
+        recovery_pin_lock_minutes=int(os.getenv("INVENTORY_RECOVERY_PIN_LOCK_MINUTES", "15")),
         email_attachment_max_mb=int(os.getenv("INVENTORY_EMAIL_ATTACHMENT_MAX_MB", "15")),
     )
     if settings.is_production:

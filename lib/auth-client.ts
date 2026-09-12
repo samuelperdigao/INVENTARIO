@@ -10,7 +10,7 @@ export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
-  emailVerified: boolean;
+  recoveryPinConfigured: boolean;
   teams: AuthTeam[];
 }
 
@@ -87,24 +87,23 @@ async function authorizedUserRequest(path: string, body: object): Promise<AuthUs
   return user;
 }
 
-export async function registerAccount(input: { email: string; password: string; displayName: string }): Promise<string> {
-  return messageRequest("/api/v1/auth/register", input);
+export async function registerAccount(input: {
+  email: string;
+  password: string;
+  passwordConfirmation: string;
+  recoveryPin: string;
+  recoveryPinConfirmation: string;
+  displayName: string;
+}): Promise<AuthUser> {
+  return (await authRequest("/api/v1/auth/register", { method: "POST", body: JSON.stringify(input) })).user;
 }
 
-export async function verifyEmail(input: { email: string; code: string }): Promise<AuthUser> {
-  return (await authRequest("/api/v1/auth/verify-email", { method: "POST", body: JSON.stringify(input) })).user;
-}
-
-export async function resendVerificationCode(email: string): Promise<string> {
-  return messageRequest("/api/v1/auth/verification/resend", { email });
-}
-
-export async function requestPasswordReset(email: string): Promise<string> {
-  return messageRequest("/api/v1/auth/password-reset/request", { email });
-}
-
-export async function confirmPasswordReset(input: { email: string; code: string; newPassword: string; passwordConfirmation: string }): Promise<string> {
+export async function confirmPasswordReset(input: { email: string; recoveryPin: string; newPassword: string; passwordConfirmation: string }): Promise<string> {
   return messageRequest("/api/v1/auth/password-reset/confirm", input);
+}
+
+export async function configureRecoveryPin(input: { recoveryPin: string; recoveryPinConfirmation: string }): Promise<AuthUser> {
+  return authorizedUserRequest("/api/v1/auth/recovery-pin", input);
 }
 
 export async function loginAccount(input: { email: string; password: string }): Promise<AuthUser> {

@@ -38,6 +38,9 @@ class UserRow(Base):
     email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
     display_name: Mapped[str] = mapped_column(String(120), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    recovery_pin_hash: Mapped[str | None] = mapped_column(String(255))
+    recovery_pin_failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    recovery_pin_locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
@@ -74,23 +77,6 @@ class SessionRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-
-class AuthCodeRow(Base):
-    __tablename__ = "auth_codes"
-    __table_args__ = (
-        CheckConstraint("purpose IN ('EMAIL_VERIFICATION', 'PASSWORD_RESET')", name="ck_auth_codes_purpose"),
-    )
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
-    purpose: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
-    code_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False)
-    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class InventoryParticipantRow(Base):

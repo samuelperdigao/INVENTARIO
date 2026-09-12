@@ -3,16 +3,17 @@
 ## Fluxo de acesso e compartilhamento V1 — implementado na branch em 12/09/2026
 
 - Landing pública em `/`, fluxo de acesso em `/acesso`, dashboard autenticado em `/dashboard` e histórico em `/historico`.
-- Cadastro restrito ao domínio exato `@gerdau.com.br`, sem criação automática de equipe, com senha `scrypt`, confirmação por código de seis dígitos, expiração, cinco tentativas e intervalo mínimo entre emissões.
-- Recuperação de senha por código, confirmação da nova senha e revogação de todas as sessões renováveis anteriores.
-- Migration `0005_access_sharing`: `users.email_verified_at`, código ativo de participação, autoria da finalização, desafios de autenticação, participantes por inventário e auditoria de tentativas.
+- Cadastro com qualquer e-mail válido, sem criação automática de equipe e com acesso imediato, sem envio de código.
+- Recuperação por e-mail, NP pessoal de oito dígitos e confirmação da nova senha. O NP usa hash `scrypt` reforçado pelo segredo da aplicação; cinco falhas bloqueiam a recuperação por quinze minutos e uma troca válida revoga todas as sessões anteriores.
+- Migration `0006_recovery_pin`: hash do NP, contador de falhas e instante de bloqueio temporário. A `0005_access_sharing` continua responsável pela participação e autoria do histórico.
+- Contas anteriores à `0006` recebem uma etapa autenticada obrigatória para configurar e confirmar o NP no próximo login.
 - Participação simplificada: a interface mostra somente seis dígitos; o backend resolve o UUID, registra o usuário e emite token interno de alta entropia exclusivo. Dez falhas em quinze minutos causam bloqueio temporário.
 - Histórico dividido em **Meus inventários** e **Inventários da equipe**. Snapshots finalizados continuam imutáveis e podem ser consultados/exportados por usuário autorizado sem token manual.
 - Compartilhamento prioriza PDF por Web Share API, validado com `navigator.canShare()`; dispositivos sem suporte recebem download. PDF, XLSX e DOCX permanecem disponíveis.
-- Infraestrutura SMTP reutilizável atende verificação, recuperação e anexos de relatório. O destinatário do relatório vem da conta autenticada e nunca do frontend.
-- Gates executados nesta branch: lint, typecheck, 13 testes Vitest, 25 testes Pytest, build Next e migrations SQLite/PostgreSQL até `0005` passaram.
-- Playwright foi atualizado para o novo login e participação, mas não foi executado neste ambiente porque o download do Chromium expirou três vezes. A validação visual pelo navegador conectado também não alcançou o servidor local; ambos permanecem como limitação de ambiente, não como teste aprovado.
-- Pendência externa: escolher/provisionar o provedor SMTP autorizado, configurar remetente e credenciais no Render, aplicar `0005` no PostgreSQL real e executar smoke test publicado.
+- SMTP permanece isolado ao envio opcional de anexos de relatório. Cadastro e recuperação não dependem de e-mail transacional.
+- Gates executados: lint, typecheck, 13 testes Vitest, 26 testes Pytest, build Next e ciclo Alembic SQLite `upgrade → downgrade 0005 → upgrade 0006` passaram.
+- Playwright foi atualizado para o novo login e participação, mas não foi executado neste ambiente porque o download do Chromium expirou novamente. A validação visual continua como limitação de ambiente, não como teste aprovado.
+- Pendência externa: aplicar `0006` no PostgreSQL real e executar smoke test publicado. Provedor SMTP só é necessário para envio opcional de relatórios.
 
 ## V1 estrutural — concluída localmente em 11/09/2026
 
@@ -74,7 +75,7 @@ Fase 2.1 — identidade, equipes e endurecimento de infraestrutura. Encerrada e 
 - Não há bloqueadores conhecidos para a implementação local da Fase 2.
 - O `TestClient` das dependências FastAPI/Starlette emite dois avisos de depreciação durante `pytest`; a suíte passa e não há impacto funcional observado.
 - O navegador interno do Codex não concluiu IndexedDB durante a inspeção, mas o Chromium local e os fluxos Playwright concluíram; isso é limitação do ambiente de automação, não uma compatibilidade móvel validada.
-- Ainda não há convite de equipe por e-mail, rate limiting distribuído por IP ou auditoria operacional completa. Recuperação de senha e limite de tentativas de participação já foram implementados.
+- Ainda não há convite de equipe por e-mail, rate limiting distribuído por IP ou auditoria operacional completa. Recuperação por NP tem limite por conta; tentativas de participação também são limitadas.
 
 ## Fase 2.1 — concluído localmente
 

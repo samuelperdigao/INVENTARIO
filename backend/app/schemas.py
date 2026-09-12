@@ -142,18 +142,23 @@ class SyncResponse(ApiModel):
 class RegisterRequest(ApiModel):
     email: str = Field(min_length=3, max_length=320)
     password: str = Field(min_length=12, max_length=256)
+    passwordConfirmation: str = Field(min_length=12, max_length=256)
+    recoveryPin: str = Field(pattern=r"^\d{8}$")
+    recoveryPinConfirmation: str = Field(pattern=r"^\d{8}$")
     displayName: str = Field(min_length=1, max_length=120)
 
+    @model_validator(mode="after")
+    def credentials_match(self) -> "RegisterRequest":
+        if self.password != self.passwordConfirmation:
+            raise ValueError("As senhas informadas não coincidem.")
+        if self.recoveryPin != self.recoveryPinConfirmation:
+            raise ValueError("Os NPs pessoais informados não coincidem.")
+        return self
 
-class EmailCodeRequest(ApiModel):
+
+class ConfirmPasswordResetRequest(ApiModel):
     email: str = Field(min_length=3, max_length=320)
-
-
-class VerifyEmailRequest(EmailCodeRequest):
-    code: str = Field(pattern=r"^\d{6}$")
-
-
-class ConfirmPasswordResetRequest(VerifyEmailRequest):
+    recoveryPin: str = Field(pattern=r"^\d{8}$")
     newPassword: str = Field(min_length=12, max_length=256)
     passwordConfirmation: str = Field(min_length=12, max_length=256)
 
@@ -161,6 +166,17 @@ class ConfirmPasswordResetRequest(VerifyEmailRequest):
     def passwords_match(self) -> "ConfirmPasswordResetRequest":
         if self.newPassword != self.passwordConfirmation:
             raise ValueError("As senhas informadas não coincidem.")
+        return self
+
+
+class ConfigureRecoveryPinRequest(ApiModel):
+    recoveryPin: str = Field(pattern=r"^\d{8}$")
+    recoveryPinConfirmation: str = Field(pattern=r"^\d{8}$")
+
+    @model_validator(mode="after")
+    def pins_match(self) -> "ConfigureRecoveryPinRequest":
+        if self.recoveryPin != self.recoveryPinConfirmation:
+            raise ValueError("Os NPs pessoais informados não coincidem.")
         return self
 
 
@@ -183,7 +199,7 @@ class AuthenticatedUser(ApiModel):
     id: UUID
     email: str
     displayName: str
-    emailVerified: bool
+    recoveryPinConfigured: bool
     teams: list[TeamMember]
 
 

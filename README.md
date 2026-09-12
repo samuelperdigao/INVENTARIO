@@ -2,7 +2,7 @@
 
 ## Fluxo de acesso e compartilhamento
 
-A rota `/` é uma apresentação pública. O sistema operacional fica em `/dashboard` e exige uma conta confirmada. O cadastro aceita exclusivamente endereços `@gerdau.com.br`, envia um código numérico de seis dígitos e não cria uma equipe automaticamente. A associação a uma equipe permanece explícita e administrativa.
+A rota `/` é uma apresentação pública. O sistema operacional fica em `/dashboard` e exige uma conta. O cadastro aceita qualquer e-mail válido, libera o acesso imediatamente e não cria uma equipe automaticamente. O usuário também confirma o NP pessoal de oito dígitos, usado somente para recuperação de senha. A associação a uma equipe permanece explícita e administrativa.
 
 O acesso em outro dispositivo usa somente o código de participação de seis dígitos exibido depois da primeira sincronização. O backend resolve o UUID, registra o participante e emite um token interno aleatório exclusivo para aquela conta. O código expira quando o inventário é finalizado e nunca substitui autenticação ou autorização.
 
@@ -17,7 +17,7 @@ O backend produz um único modelo consolidado a partir dos lançamentos individu
 - `GET /api/v1/inventories/{inventoryId}/report`: devolve o relatório central.
 - `GET /api/v1/inventories/{inventoryId}/exports/{xlsx|pdf|docx}`: baixa `Inventario_DD-MM-AAAA.<formato>`.
 
-Relatórios de inventários abertos ainda exigem o token interno; inventários finalizados exigem somente autenticação e autorização. A finalização é irreversível na V1; não há reabertura aprovada. Rode as migrations até `0005_access_sharing` antes de iniciar qualquer API publicada.
+Relatórios de inventários abertos ainda exigem o token interno; inventários finalizados exigem somente autenticação e autorização. A finalização é irreversível na V1; não há reabertura aprovada. Rode as migrations até `0006_recovery_pin` antes de iniciar qualquer API publicada.
 
 Aplicação mobile-first para registrar inventários físicos sem rede e solicitar uma análise determinística ao FastAPI quando estiver online.
 
@@ -97,9 +97,8 @@ INVENTORY_SMTP_USERNAME=<usuário do provedor>
 INVENTORY_SMTP_PASSWORD=<secret do provedor>
 INVENTORY_SMTP_FROM_EMAIL=<remetente autorizado>
 INVENTORY_SMTP_SECURITY=starttls
-INVENTORY_VERIFICATION_CODE_MINUTES=10
-INVENTORY_PASSWORD_RESET_CODE_MINUTES=10
-INVENTORY_AUTH_CODE_MAX_ATTEMPTS=5
+INVENTORY_RECOVERY_PIN_MAX_ATTEMPTS=5
+INVENTORY_RECOVERY_PIN_LOCK_MINUTES=15
 INVENTORY_EMAIL_ATTACHMENT_MAX_MB=15
 ```
 
@@ -116,7 +115,7 @@ As duas variaveis `NEXT_PUBLIC_*` sao URLs publicas compiladas no bundle; nunca 
 ### Ordem de deploy
 
 1. Criar o projeto Neon e obter a connection string com SSL; cadastra-la apenas como `INVENTORY_DATABASE_URL` no Render.
-2. Em terminal confiavel, com a connection string somente no ambiente do processo, executar `backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head` contra o Neon e confirmar `0005_access_sharing (head)`.
+2. Em terminal confiavel, com a connection string somente no ambiente do processo, executar `backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head` contra o Neon e confirmar `0006_recovery_pin (head)`.
 3. Criar a Blueprint Render a partir de `render.yaml`, informar os secrets solicitados e aguardar `/healthz` retornar 200.
 4. Criar o projeto Vercel apontando para a raiz do repositorio, definir as variaveis acima e publicar o build.
 5. Associar `api.seu-dominio.example` ao Render e `app.seu-dominio.example` a Vercel; concluir os registros DNS e aguardar os certificados TLS automaticos.
@@ -136,9 +135,9 @@ O código identifica apenas inventários abertos e recebe limite de tentativas. 
 
 ## Conta, equipe e acesso à sincronização
 
-O lançamento operacional continua disponível localmente e offline. O perfil não sensível da última conta verificada é mantido localmente para reabrir dados do dispositivo sem rede; tokens de acesso nunca são persistidos. Antes da primeira sincronização de um inventário novo, a conta precisa estar associada a uma equipe. A senha é armazenada somente como hash `scrypt`, o bearer token permanece em memória e a sessão renovável usa cookie `HttpOnly`.
+O lançamento operacional continua disponível localmente e offline. O perfil não sensível da última conta é mantido localmente para reabrir dados do dispositivo sem rede; tokens de acesso nunca são persistidos. Antes da primeira sincronização de um inventário novo, a conta precisa estar associada a uma equipe. Senha e NP de recuperação são armazenados somente como hashes protegidos, o bearer token permanece em memória e a sessão renovável usa cookie `HttpOnly`.
 
-Cadastro, confirmação e recuperação usam uma infraestrutura única de e-mail. Em desenvolvimento, `INVENTORY_EMAIL_MODE=console` registra a mensagem em uma caixa local e no log para teste. Em produção, a API exige `smtp`, transporte protegido e remetente configurado. A escolha e as credenciais reais do provedor continuam uma pendência externa.
+O cadastro entra diretamente no sistema e a recuperação exige e-mail, NP pessoal de oito dígitos e confirmação da nova senha. Cinco tentativas incorretas bloqueiam novas tentativas por quinze minutos; a troca válida revoga todas as sessões anteriores. Contas criadas antes da migration `0006` configuram o NP uma única vez no primeiro login posterior. SMTP não participa da autenticação e permanece restrito ao envio opcional de relatórios.
 
 Para sincronizar um inventário central, a API exige sessão válida e token interno. A criação também exige associação à equipe; quem entra pelo código recebe um token individual ligado à própria conta. Conhecer UUID ou os seis dígitos isoladamente não concede acesso. Responsáveis (`ADMIN`) podem incluir membros; operadores (`OPERATOR`) podem sincronizar, mas não administram integrantes.
 

@@ -3,9 +3,12 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
+from app.database import get_session
 from app.email_service import development_outbox
 from app.main import app
+from app.persistence import UserRow
 from auth_helpers import register_verified
 
 
@@ -33,38 +36,55 @@ def _entry(inventory_id: str) -> dict[str, object]:
     }
 
 
-def test_registration_accepts_any_valid_email_and_requires_verification_without_creating_team() -> None:
+def _registration(email: str, pin: str = "38427105") -> dict[str, str]:
+    return {
+        "email": email, "password": "senha-segura-123",
+        "passwordConfirmation": "senha-segura-123", "displayName": "Novo Usuário",
+        "recoveryPin": pin, "recoveryPinConfirmation": pin,
+    }
+
+
+def test_registration_accepts_any_valid_email_and_enters_without_creating_team() -> None:
     rejected = client.post("/api/v1/auth/register", json={
-        "email": "email-invalido", "password": "senha-segura-123", "displayName": "Inválido",
+        **_registration("email-invalido"), "displayName": "Inválido",
     })
     assert rejected.status_code == 422
 
-    email = "novo.usuario@gmail.com"
-    registered = client.post("/api/v1/auth/register", json={
-        "email": email, "password": "senha-segura-123", "displayName": "Novo Usuário",
+    mismatched_np = client.post("/api/v1/auth/register", json={
+        **_registration("np-divergente@example.com"), "recoveryPinConfirmation": "10572843",
     })
-    assert registered.status_code == 202
-    assert client.post("/api/v1/auth/login", json={"email": email, "password": "senha-segura-123"}).status_code == 403
-    code = re.search(r"\b(\d{6})\b", development_outbox[-1].text)
-    assert code
-    verified = client.post("/api/v1/auth/verify-email", json={"email": email, "code": code.group(1)})
-    assert verified.status_code == 200
-    assert verified.json()["user"]["emailVerified"] is True
-    assert verified.json()["user"]["teams"] == []
+    assert mismatched_np.status_code == 422
+
+    email = "novo.usuario@gmail.com"
+    registered = client.post("/api/v1/auth/register", json=_registration(email))
+    assert registered.status_code == 201
+    assert registered.json()["user"]["recoveryPinConfigured"] is True
+    assert registered.json()["user"]["teams"] == []
+    assert "38427105" not in registered.text
+    assert "recovery_pin_hash" not in registered.text
+    assert development_outbox == []
+    assert client.post("/api/v1/auth/login", json={"email": email, "password": "senha-segura-123"}).status_code == 200
 
 
-def test_verification_code_locks_after_the_configured_attempt_limit() -> None:
-    email = "tentativas.codigo@gerdau.com.br"
-    assert client.post("/api/v1/auth/register", json={
-        "email": email, "password": "senha-segura-123", "displayName": "Tentativas",
-    }).status_code == 202
-    valid_code = re.search(r"\b(\d{6})\b", development_outbox[-1].text)
-    assert valid_code
-    valid_number = int(valid_code.group(1))
-    for offset in range(1, 6):
-        invalid_code = f"{(valid_number + offset) % 1_000_000:06d}"
-        assert client.post("/api/v1/auth/verify-email", json={"email": email, "code": invalid_code}).status_code == 422
-    assert client.post("/api/v1/auth/verify-email", json={"email": email, "code": valid_code.group(1)}).status_code == 422
+def test_recovery_pin_requires_eight_digits_and_locks_after_five_failures() -> None:
+    email = "tentativas.pin@gerdau.com.br"
+    assert client.post("/api/v1/auth/register", json=_registration(email)).status_code == 201
+    malformed = client.post("/api/v1/auth/password-reset/confirm", json={
+        "email": email, "recoveryPin": "1234567", "newPassword": "senha-nova-segura-456",
+        "passwordConfirmation": "senha-nova-segura-456",
+    })
+    assert malformed.status_code == 422
+    for _ in range(5):
+        invalid = client.post("/api/v1/auth/password-reset/confirm", json={
+            "email": email, "recoveryPin": "00000000", "newPassword": "senha-nova-segura-456",
+            "passwordConfirmation": "senha-nova-segura-456",
+        })
+        assert invalid.status_code == 422
+    blocked = client.post("/api/v1/auth/password-reset/confirm", json={
+        "email": email, "recoveryPin": "38427105", "newPassword": "senha-nova-segura-456",
+        "passwordConfirmation": "senha-nova-segura-456",
+    })
+    assert blocked.status_code == 429
 
 
 def test_password_reset_changes_hash_and_revokes_previous_sessions() -> None:
@@ -73,12 +93,8 @@ def test_password_reset_changes_hash_and_revokes_previous_sessions() -> None:
     old_refresh = client.cookies.get("inventory_refresh")
     assert old_refresh
 
-    requested = client.post("/api/v1/auth/password-reset/request", json={"email": email})
-    assert requested.status_code == 200
-    code = re.search(r"\b(\d{6})\b", development_outbox[-1].text)
-    assert code
     changed = client.post("/api/v1/auth/password-reset/confirm", json={
-        "email": email, "code": code.group(1), "newPassword": "senha-nova-segura-456",
+        "email": email, "recoveryPin": "38427105", "newPassword": "senha-nova-segura-456",
         "passwordConfirmation": "senha-nova-segura-456",
     })
     assert changed.status_code == 200
@@ -89,6 +105,32 @@ def test_password_reset_changes_hash_and_revokes_previous_sessions() -> None:
     assert logged_in.status_code == 200
     assert logged_in.json()["user"]["id"] == account["user"]["id"]
     assert auth["Authorization"].startswith("Bearer ")
+
+
+def test_existing_account_configures_recovery_np_after_login() -> None:
+    email = "conta-anterior@gerdau.com.br"
+    account, _ = register_verified(client, email)
+    dependency = app.dependency_overrides[get_session]()
+    session = next(dependency)
+    try:
+        user = session.scalar(select(UserRow).where(UserRow.email == email))
+        assert user is not None
+        user.recovery_pin_hash = None
+        session.commit()
+    finally:
+        dependency.close()
+
+    logged_in = client.post("/api/v1/auth/login", json={
+        "email": email, "password": "senha-segura-123",
+    })
+    assert logged_in.status_code == 200
+    assert logged_in.json()["user"]["recoveryPinConfigured"] is False
+    configured = client.post("/api/v1/auth/recovery-pin", json={
+        "recoveryPin": "10572843", "recoveryPinConfirmation": "10572843",
+    }, headers={"Authorization": f"Bearer {logged_in.json()['accessToken']}"})
+    assert configured.status_code == 200
+    assert configured.json()["id"] == account["user"]["id"]
+    assert configured.json()["recoveryPinConfigured"] is True
 
 
 def test_participation_code_hides_internal_access_and_finished_history_needs_no_token() -> None:

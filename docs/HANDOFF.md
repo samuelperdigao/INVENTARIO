@@ -4,13 +4,13 @@
 
 A branch `feat/fluxo-acesso-compartilhamento-v1` contém a nova entrada pública e o fluxo operacional autenticado. As rotas são `/` (landing), `/acesso`, `/dashboard`, `/historico`, `/historico/[inventoryId]` e `/inventarios/[inventoryId]`.
 
-O cadastro aceita apenas `@gerdau.com.br`, não cria equipe e exige confirmação por código. Recuperação de senha revoga sessões anteriores. A migration `0005_access_sharing` preserva contas antigas como verificadas e adiciona desafios de autenticação, participantes, tentativas de entrada, código ativo e usuário finalizador.
+O cadastro aceita qualquer e-mail válido, não cria equipe e libera a conta imediatamente. O NP pessoal de oito dígitos é informado e confirmado no cadastro, fica somente como hash protegido e permite recuperar a senha sem envio de código. Cinco erros bloqueiam a recuperação por quinze minutos; uma troca válida revoga sessões anteriores. A migration `0006_recovery_pin` adiciona o novo segredo e os controles de tentativas.
 
 O primeiro sync de um inventário novo ainda exige equipe e gera o código amigável. Um participante autenticado envia os seis dígitos a `POST /api/v1/inventories/join`; o backend registra sua entrada e devolve UUID e token opaco somente para uso interno do cliente. Ao finalizar, o código é removido. Relatório, exportação e e-mail de inventário finalizado autorizam por criador, equipe ou participante sem solicitar token manual.
 
-O envio transacional está implementado por SMTP. `console` existe somente para desenvolvimento e testes; produção exige `INVENTORY_EMAIL_MODE=smtp`, host, porta, remetente e transporte TLS/SSL. Não há provedor real configurado nesta branch.
+O envio de relatórios está implementado por SMTP. Cadastro e recuperação não usam SMTP. `console` existe somente para desenvolvimento e testes; produção ainda exige configuração protegida caso o envio opcional de relatórios permaneça habilitado.
 
-Validações locais: lint, typecheck, 13 Vitest, 25 Pytest, build Next, Alembic SQLite até `0005` e geração SQL PostgreSQL passaram. Os três testes Playwright foram adaptados, mas o Chromium não pôde ser baixado neste ambiente por timeout; executar `pnpm exec playwright install chromium` e `pnpm e2e` em ambiente com o navegador disponível.
+Validações locais após a troca para NP: lint, typecheck, 13 Vitest, 26 Pytest, build Next e ciclo Alembic SQLite até `0006` passaram. Os três testes Playwright foram adaptados, mas o Chromium não pôde ser baixado neste ambiente por timeout; executar `pnpm exec playwright install chromium` e `pnpm e2e` em ambiente com o navegador disponível.
 
 ## V1 estrutural — checkpoint local de relatório e encerramento
 

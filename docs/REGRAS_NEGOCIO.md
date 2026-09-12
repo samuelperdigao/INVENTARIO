@@ -58,11 +58,11 @@
 ## Identidade, equipes e acesso central
 
 - Criar, editar e excluir lançamentos continua local e offline; autenticação só é necessária no momento posterior da sincronização central.
-- Uma conta aceita somente e-mail normalizado sob o domínio exato `@gerdau.com.br`, nome visível e senha armazenada exclusivamente como hash `scrypt` com salt individual. A senha nunca integra a sincronização, o IndexedDB ou o banco em texto puro.
+- Uma conta aceita qualquer endereço de e-mail normalizado e sintaticamente válido, sem restrição de domínio, além de nome visível e senha armazenada exclusivamente como hash `scrypt` com salt individual. A senha nunca integra a sincronização, o IndexedDB ou o banco em texto puro.
 - O cadastro não cria equipe. A conta só é liberada depois da confirmação do código de seis dígitos enviado por e-mail. O código expira, possui limite de tentativas e fica armazenado somente como HMAC.
 - Recuperação de senha usa outro código expirável; ao trocar a senha, todas as sessões renováveis anteriores são revogadas.
 - Equipes são criadas ou associadas explicitamente. Uma equipe tem membros `ADMIN` (responsável) ou `OPERATOR`.
 - Inventário central pertence a uma equipe e registra o usuário que o publicou inicialmente. Um membro pode sincronizar inventários de sua equipe; só `ADMIN` pode incluir membros.
 - `POST /api/v1/sync` exige bearer token válido e token interno do inventário. Na criação central, também exige associação à equipe; participantes registrados podem sincronizar com seu token individual. UUID, código amigável ou cursor isoladamente não concedem leitura nem escrita.
 - Se o inventário não pertencer à equipe autorizada, a API responde como não encontrado, sem confirmar sua existência. Conflitos, idempotência, tombstones e `syncBaseRevision` mantêm as mesmas regras da Fase 2.
-- Esta regra de identidade e autorização está encerrada e validada localmente na Fase 2.1. A próxima etapa não altera o domínio: apenas valida a mesma proteção em PostgreSQL, HTTPS e domínio reais.
+- Na V1, o controle de acesso não depende do domínio do e-mail. A proteção é baseada em verificação do endereço, autenticação, associação explícita à equipe, autorização por papel e distribuição controlada do link do sistema.

@@ -11,6 +11,13 @@ import {
 
 type View = "login" | "register" | "verify" | "forgot" | "reset";
 
+function userFacingMessage(text: string): string {
+  return text
+    .replaceAll("e-mail corporativo", "e-mail")
+    .replaceAll("conta corporativa", "conta")
+    .replaceAll(" @gerdau.com.br", "");
+}
+
 export function AuthFlow() {
   const router = useRouter();
   const [view, setView] = useState<View>("login");
@@ -44,13 +51,13 @@ export function AuthFlow() {
           email: submittedEmail,
           password: String(form.get("password") ?? ""),
         });
-        setEmail(submittedEmail); setMessage(result); setView("verify");
+        setEmail(submittedEmail); setMessage(userFacingMessage(result)); setView("verify");
       } else if (view === "verify") {
         await verifyEmail({ email: submittedEmail, code: String(form.get("code") ?? "") });
         router.replace("/dashboard");
       } else if (view === "forgot") {
         const result = await requestPasswordReset(submittedEmail);
-        setEmail(submittedEmail); setMessage(result); setView("reset");
+        setEmail(submittedEmail); setMessage(userFacingMessage(result)); setView("reset");
       } else {
         const result = await confirmPasswordReset({
           email: submittedEmail,
@@ -58,10 +65,11 @@ export function AuthFlow() {
           newPassword: String(form.get("newPassword") ?? ""),
           passwordConfirmation: String(form.get("passwordConfirmation") ?? ""),
         });
-        setMessage(result); setView("login");
+        setMessage(userFacingMessage(result)); setView("login");
       }
     } catch (cause) {
-      const text = cause instanceof Error ? cause.message : "Não foi possível concluir a solicitação.";
+      const rawText = cause instanceof Error ? cause.message : "Não foi possível concluir a solicitação.";
+      const text = userFacingMessage(rawText);
       setError(text);
       if (view === "login" && text.includes("Confirme seu e-mail")) setView("verify");
     } finally { setBusy(false); }
@@ -69,8 +77,11 @@ export function AuthFlow() {
 
   async function resend(): Promise<void> {
     setBusy(true); setError(undefined);
-    try { setMessage(await resendVerificationCode(email)); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível reenviar o código."); }
+    try { setMessage(userFacingMessage(await resendVerificationCode(email))); }
+    catch (cause) {
+      const text = cause instanceof Error ? cause.message : "Não foi possível reenviar o código.";
+      setError(userFacingMessage(text));
+    }
     finally { setBusy(false); }
   }
 

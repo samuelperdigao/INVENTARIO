@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
-  confirmPasswordReset, loginAccount, registerAccount, requestPasswordReset,
-  resendVerificationCode, restoreSession, verifyEmail,
+  confirmPasswordReset, loginAccount, registerAccount, restoreSession,
 } from "@/lib/auth-client";
 
-type View = "login" | "register" | "verify" | "forgot" | "reset";
+type View = "login" | "register" | "forgot";
 
 function userFacingMessage(text: string): string {
   return text
@@ -46,47 +45,36 @@ export function AuthFlow() {
         await loginAccount({ email: submittedEmail, password: String(form.get("password") ?? "") });
         router.replace("/dashboard");
       } else if (view === "register") {
-        const result = await registerAccount({
+        const password = String(form.get("password") ?? "");
+        await registerAccount({
           displayName: String(form.get("displayName") ?? ""),
           email: submittedEmail,
-          password: String(form.get("password") ?? ""),
+          password,
         });
-        setEmail(submittedEmail); setMessage(userFacingMessage(result)); setView("verify");
-      } else if (view === "verify") {
-        await verifyEmail({ email: submittedEmail, code: String(form.get("code") ?? "") });
+        await loginAccount({ email: submittedEmail, password });
         router.replace("/dashboard");
-      } else if (view === "forgot") {
-        const result = await requestPasswordReset(submittedEmail);
-        setEmail(submittedEmail); setMessage(userFacingMessage(result)); setView("reset");
       } else {
         const result = await confirmPasswordReset({
           email: submittedEmail,
-          code: String(form.get("code") ?? ""),
           newPassword: String(form.get("newPassword") ?? ""),
           passwordConfirmation: String(form.get("passwordConfirmation") ?? ""),
         });
-        setMessage(userFacingMessage(result)); setView("login");
+        setEmail(submittedEmail);
+        setMessage(userFacingMessage(result));
+        setView("login");
       }
     } catch (cause) {
       const rawText = cause instanceof Error ? cause.message : "Não foi possível concluir a solicitação.";
-      const text = userFacingMessage(rawText);
-      setError(text);
-      if (view === "login" && text.includes("Confirme seu e-mail")) setView("verify");
+      setError(userFacingMessage(rawText));
     } finally { setBusy(false); }
   }
 
-  async function resend(): Promise<void> {
-    setBusy(true); setError(undefined);
-    try { setMessage(userFacingMessage(await resendVerificationCode(email))); }
-    catch (cause) {
-      const text = cause instanceof Error ? cause.message : "Não foi possível reenviar o código.";
-      setError(userFacingMessage(text));
-    }
-    finally { setBusy(false); }
-  }
-
-  const title = view === "login" ? "Acesse sua conta" : view === "register" ? "Crie seu acesso" : view === "verify" ? "Confirme seu e-mail" : view === "forgot" ? "Recupere sua senha" : "Defina uma nova senha";
-  const description = view === "login" ? "Entre com o e-mail usado no seu cadastro para acessar os inventários." : view === "register" ? "O cadastro aceita qualquer e-mail válido e não cria uma equipe automaticamente." : view === "verify" ? "Digite o código de seis números enviado ao seu e-mail." : view === "forgot" ? "Enviaremos um código de recuperação para o e-mail cadastrado." : "Confirme o código recebido e escolha uma senha segura.";
+  const title = view === "login" ? "Acesse sua conta" : view === "register" ? "Crie seu acesso" : "Defina uma nova senha";
+  const description = view === "login"
+    ? "Entre com o e-mail usado no seu cadastro para acessar os inventários."
+    : view === "register"
+      ? "Crie sua conta diretamente. Não é necessário confirmar código por e-mail."
+      : "Informe o e-mail cadastrado e escolha sua nova senha.";
 
   return (
     <main className="auth-shell">
@@ -95,8 +83,8 @@ export function AuthFlow() {
           <span className="brand-mark beam-mark" aria-hidden="true"><span /></span>
           <span><strong>INVENTARIO</strong><small>Laminação de Perfis</small></span>
         </Link>
-        <div><p className="eyebrow light-eyebrow">Acesso seguro</p><h1>Controle que acompanha a operação.</h1><p>Dados preservados no dispositivo, sincronização protegida e relatórios oficiais em um só fluxo.</p></div>
-        <ul className="auth-benefits"><li>Cadastro com qualquer e-mail válido</li><li>Conta confirmada por código</li><li>Sessões renováveis e revogáveis</li></ul>
+        <div><p className="eyebrow light-eyebrow">Acesso simples</p><h1>Controle que acompanha a operação.</h1><p>Dados preservados no dispositivo, sincronização protegida e relatórios oficiais em um só fluxo.</p></div>
+        <ul className="auth-benefits"><li>Cadastro direto, sem código</li><li>Recuperação de senha simplificada</li><li>Sessões renováveis e revogáveis</li></ul>
       </section>
 
       <section className="auth-main">
@@ -109,16 +97,14 @@ export function AuthFlow() {
             {view === "register" ? <label>Nome completo<input name="displayName" autoComplete="name" required maxLength={120} placeholder="Como você quer ser chamado" /></label> : null}
             <label>E-mail<input name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" placeholder="seuemail@exemplo.com" /></label>
             {view === "login" || view === "register" ? <label>Senha<input name="password" type="password" required minLength={view === "register" ? 12 : 1} autoComplete={view === "register" ? "new-password" : "current-password"} placeholder={view === "register" ? "Mínimo de 12 caracteres" : "Sua senha"} /></label> : null}
-            {view === "verify" || view === "reset" ? <label>Código de 6 números<input className="code-input" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required placeholder="000000" /></label> : null}
-            {view === "reset" ? <><label>Nova senha<input name="newPassword" type="password" autoComplete="new-password" minLength={12} required /></label><label>Confirmar nova senha<input name="passwordConfirmation" type="password" autoComplete="new-password" minLength={12} required /></label></> : null}
-            <button className="primary" type="submit" disabled={busy}>{busy ? "Aguarde…" : view === "login" ? "Entrar" : view === "register" ? "Cadastrar e enviar código" : view === "verify" ? "Confirmar e acessar" : view === "forgot" ? "Enviar código" : "Atualizar senha"}</button>
+            {view === "forgot" ? <><label>Nova senha<input name="newPassword" type="password" autoComplete="new-password" minLength={12} required placeholder="Mínimo de 12 caracteres" /></label><label>Confirmar nova senha<input name="passwordConfirmation" type="password" autoComplete="new-password" minLength={12} required placeholder="Repita a nova senha" /></label></> : null}
+            <button className="primary" type="submit" disabled={busy}>{busy ? "Aguarde…" : view === "login" ? "Entrar" : view === "register" ? "Criar conta" : "Atualizar senha"}</button>
           </form>
           {message ? <p className="notice" role="status">{message}</p> : null}
           {error ? <p className="error" role="alert">{error}</p> : null}
           <div className="auth-links">
             {view === "login" ? <><button type="button" onClick={() => changeView("forgot")}>Esqueci minha senha</button><button type="button" onClick={() => changeView("register")}>Criar conta</button></> : null}
-            {view === "register" || view === "forgot" || view === "reset" ? <button type="button" onClick={() => changeView("login")}>Voltar para o login</button> : null}
-            {view === "verify" ? <><button type="button" disabled={busy || !email} onClick={() => void resend()}>Reenviar código</button><button type="button" onClick={() => changeView("login")}>Voltar para o login</button></> : null}
+            {view === "register" || view === "forgot" ? <button type="button" onClick={() => changeView("login")}>Voltar para o login</button> : null}
           </div>
         </div>
       </section>

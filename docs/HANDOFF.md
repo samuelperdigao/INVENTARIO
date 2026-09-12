@@ -6,7 +6,7 @@ A branch `feat/fluxo-acesso-compartilhamento-v1` contém a nova entrada pública
 
 O cadastro aceita qualquer e-mail válido, não cria equipe e libera a conta imediatamente. O NP pessoal de oito dígitos é informado e confirmado no cadastro, fica somente como hash protegido e permite recuperar a senha sem envio de código. Cinco erros bloqueiam a recuperação por quinze minutos; uma troca válida revoga sessões anteriores. A migration `0007_recovery_pin` adiciona o novo segredo e os controles de tentativas.
 
-O primeiro sync de um inventário novo ainda exige equipe e gera o código amigável. Um participante autenticado envia os seis dígitos a `POST /api/v1/inventories/join`; o backend registra sua entrada e devolve UUID e token opaco somente para uso interno do cliente. Ao finalizar, o código é removido. Relatório, exportação e e-mail de inventário finalizado autorizam por criador, equipe ou participante sem solicitar token manual.
+Atualização de 12/09/2026: qualquer conta autenticada pode iniciar e sincronizar um inventário próprio sem equipe. O inventário permanece ligado ao criador por `owner_user_id`; `team_id` é opcional. O primeiro sync gera o código amigável de seis dígitos para colaboração. Um participante autenticado envia os seis dígitos a `POST /api/v1/inventories/join`; o backend registra sua entrada e devolve UUID e token opaco somente para uso interno do cliente. Ao finalizar, o código é removido. Relatório, exportação e e-mail de inventário finalizado autorizam por criador, equipe ou participante sem solicitar token manual.
 
 O envio de relatórios está implementado por SMTP. Cadastro e recuperação não usam SMTP. `console` existe somente para desenvolvimento e testes; produção ainda exige configuração protegida caso o envio opcional de relatórios permaneça habilitado.
 
@@ -45,7 +45,7 @@ Fase 1 está concluída e preservada. A Fase 2.1 acrescentou identidade, equipes
 - Serwist gera o shell offline apenas em build de produção.
 - FastAPI em `backend/`, com SQLAlchemy, Alembic e persistência central para inventários, lançamentos, eventos e conflitos.
 - Identidade local com senha `scrypt`, bearer token curto e sessão opaca revogável em cookie `HttpOnly`; a sessão é renovada sem persistir segredo no IndexedDB.
-- Equipes com membros `ADMIN` e `OPERATOR`; `inventories.team_id` protege a sincronização contra IDOR e mantém `owner_user_id` para rastrear a publicação inicial.
+- Equipes com membros `ADMIN` e `OPERATOR`; `inventories.team_id` é opcional. `owner_user_id` autoriza o criador inclusive quando não existe equipe, enquanto inventários associados continuam protegidos por equipe e tokens internos.
 - Motor Python em `backend/app/engine.py`, separado do contrato HTTP.
 
 ## Principais arquivos e módulos
@@ -129,7 +129,7 @@ Persistem dois avisos de depreciação de dependências ao usar `pytest`. A auto
 - Validação operacional em ambiente real.
 - FASE 2.2 — Infraestrutura real de produção: provisionar PostgreSQL gerenciado; executar `alembic upgrade head` no PostgreSQL real; definir segredos de produção; configurar domínio/HTTPS e CORS final; publicar frontend/backend; realizar smoke test; e validar autenticação e sincronização no ambiente publicado.
 - A validação local cobriu SQLite e geração de SQL PostgreSQL, mas não existe PostgreSQL, Docker, domínio, certificado ou conta de deploy disponível neste host. Não marcar nenhum desses itens como validado antes da execução no ambiente real.
-- Definir procedimento administrativo para associar inventários herdados que ficaram com `team_id` nulo; eles são deliberadamente inacessíveis até esse backfill seguro.
+- Definir procedimento administrativo para inventários herdados sem `owner_user_id`; inventários individuais novos com `team_id` nulo são suportados e não exigem backfill de equipe.
 - Provisionamento e validação real da infraestrutura publicada; exportações, finalização e histórico foram concluídos localmente neste checkpoint.
 
 ## Próxima tarefa exata

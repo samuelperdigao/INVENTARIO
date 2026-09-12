@@ -63,7 +63,7 @@ export function TeamPanel() {
       </section>
 
       <section className="card section-card stack">
-        <div className="section-header"><div><p className="eyebrow">Permissões</p><h2>Adicionar membro</h2><p className="muted">O usuário precisa ter criado e verificado a conta com e-mail @gerdau.com.br.</p></div></div>
+        <div className="section-header"><div><p className="eyebrow">Permissões</p><h2>Adicionar membro</h2><p className="muted">O usuário precisa ter criado e verificado a conta com um e-mail válido.</p></div></div>
         {message ? <p className="notice" role="status">{message}</p> : null}
         {error ? <p className="error" role="alert">{error}</p> : null}
         <form className="stack" onSubmit={(event) => void submit(event)}>
@@ -72,8 +72,8 @@ export function TeamPanel() {
               {adminTeams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
             </select>
           </label>
-          <label>E-mail corporativo
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nome@gerdau.com.br" required autoComplete="email" />
+          <label>E-mail
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="usuario@exemplo.com" required autoComplete="email" />
           </label>
           <label>Perfil
             <select value={role} onChange={(event) => setRole(event.target.value as "ADMIN" | "OPERATOR")}>

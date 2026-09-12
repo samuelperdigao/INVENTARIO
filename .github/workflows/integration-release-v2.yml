@@ -83,8 +83,11 @@ jobs:
           )
 
           endpoint = '''\n\n@app.get("/api/v1/inventories/{inventory_id}/lots/{lot}", response_model=list[SyncEntry])\ndef inventory_lot_matches(\n    inventory_id: str,\n    lot: str,\n    exclude_entry_id: str | None = Query(default=None, alias="excludeEntryId"),\n    sync_token: str = Header(min_length=32, alias="X-Inventory-Sync-Token"),\n    user: UserRow = Depends(get_current_user),\n    session: Session = Depends(get_session),\n) -> list[dict[str, object]]:\n    if not lot.isdigit() or len(lot) > 255:\n        raise HTTPException(status_code=422, detail="O lote deve conter somente números.")\n    inventory = _inventory_access(session, inventory_id, user, sync_token, require_token=True)\n    statement = select(InventoryEntryRow).where(\n        InventoryEntryRow.inventory_id == inventory.id,\n        InventoryEntryRow.lot == lot,\n        InventoryEntryRow.tombstone.is_(False),\n    )\n    if exclude_entry_id:\n        statement = statement.where(InventoryEntryRow.id != exclude_entry_id)\n    rows = session.scalars(statement.order_by(InventoryEntryRow.created_at)).all()\n    return [_entry_record(session, row) for row in rows]\n'''
-          replace_once("\n\ndef _central_report(session: Session, inventory: InventoryRow) -> dict[str, object]:", endpoint + "\n\ndef _central_report(session: Session, inventory: InventoryRow) -> dict[str, object]:", "duplicate endpoint")
-
+          replace_once(
+              "\n\ndef _central_report(session: Session, inventory: InventoryRow) -> dict[str, object]:",
+              endpoint + "\n\ndef _central_report(session: Session, inventory: InventoryRow) -> dict[str, object]:",
+              "duplicate endpoint",
+          )
           replace_once(
               "        (AnalysisEntry(side=row.side, bay=row.bay, lot=row.lot, quantity=row.quantity) for row in rows),\n    )\n\n\ndef _history_item",
               "        (\n            AnalysisEntry(side=row.side, bay=row.bay, layer=row.layer, lot=row.lot, quantity=row.quantity)\n            for row in rows\n        ),\n    )\n\n\ndef _history_item",
@@ -95,7 +98,6 @@ jobs:
               "        (\n            AnalysisEntry(side=row.side, bay=row.bay, layer=row.layer, lot=row.lot, quantity=row.quantity)\n            for row in rows\n        ),\n        now,\n",
               "finalization layer",
           )
-
           path.write_text(text, encoding="utf-8")
           PY
 
@@ -123,27 +125,6 @@ jobs:
           fi
           git add app/landing.module.css components/landing-brand.tsx
           git commit -m "merge: integrate official landing hero"
-
-      - name: Update integration status documentation
-        shell: bash
-        run: |
-          if ! grep -q "Integração INVENTARIO V2" docs/STATUS.md; then
-            cat >> docs/STATUS.md <<'EOF'
-
-## Integração INVENTARIO V2 — 2026-09-12
-
-- Consolidação executada sobre a `main` mais recente.
-- Incorporadas as mudanças válidas de `feat/camadas-duplicidade-lote-v2` e `feat/landing-hero-banner-redesign`.
-- Preservadas as implementações já promovidas de autenticação, compartilhamento, frontend branco/azul e polimento de motion.
-- Migration adicionada: `0006_inventory_entry_layers.py`, encadeada após `0005_access_sharing`.
-- Duplicidade de lote passa a preservar registros separados, autoria quando disponível, localização por lado/vão/camada e confirmação explícita.
-- Relatórios continuam consolidando o mesmo lote fisicamente fragmentado.
-- Landing Page remove o hero fictício antigo e passa a priorizar o banner oficial quando o asset `/public/brand/inventario-banner.png` estiver presente.
-- O asset binário oficial do banner ainda não está versionado no repositório; o componente mantém fallback para não quebrar o frontend.
-EOF
-          fi
-          git add docs/STATUS.md
-          git commit -m "docs: record inventory v2 integration"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4

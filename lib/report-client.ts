@@ -12,6 +12,12 @@ const mediaTypes: Record<ReportFormat, string> = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 };
 
+const formatLabels: Record<ReportFormat, string> = {
+  pdf: "PDF",
+  xlsx: "Excel",
+  docx: "Word",
+};
+
 function filenameFrom(response: Response, format: ReportFormat): string {
   const disposition = response.headers.get("content-disposition") ?? "";
   const match = disposition.match(/filename="?([^";]+)"?/i);
@@ -47,26 +53,27 @@ export async function downloadReport(inventoryId: string, format: ReportFormat, 
   downloadFile(await fetchReportFile(inventoryId, format, syncToken));
 }
 
-export async function sharePdfReport(inventoryId: string, syncToken?: string): Promise<"shared" | "downloaded"> {
-  const file = await fetchReportFile(inventoryId, "pdf", syncToken);
-  const shareData: ShareData = { title: "Relatório de inventário", text: "Relatório final do inventário.", files: [file] };
+export async function shareReport(
+  inventoryId: string,
+  format: ReportFormat,
+  syncToken?: string,
+): Promise<"shared" | "downloaded"> {
+  const file = await fetchReportFile(inventoryId, format, syncToken);
+  const shareData: ShareData = {
+    title: `Inventário em ${formatLabels[format]}`,
+    text: `Relatório final do inventário em ${formatLabels[format]}.`,
+    files: [file],
+  };
+
   if (typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare(shareData)) {
     await navigator.share(shareData);
     return "shared";
   }
+
   downloadFile(file);
   return "downloaded";
 }
 
-export async function emailReports(inventoryId: string, formats: ReportFormat[]): Promise<string> {
-  const session = await getAuthenticatedSession();
-  const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventoryId}/email`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.accessToken}` },
-    body: JSON.stringify({ formats }),
-  });
-  const body = await response.json().catch(() => undefined) as { message?: string; detail?: string } | undefined;
-  if (!response.ok) throw new Error(body?.detail ?? "Não foi possível enviar os relatórios por e-mail.");
-  return body?.message ?? "Relatório enviado por e-mail.";
+export async function sharePdfReport(inventoryId: string, syncToken?: string): Promise<"shared" | "downloaded"> {
+  return shareReport(inventoryId, "pdf", syncToken);
 }

@@ -3,6 +3,7 @@
 import { getAuthenticatedSession } from "@/lib/auth-client";
 
 export type ReportFormat = "pdf" | "xlsx" | "docx";
+export type ShareReportResult = "shared" | "downloaded" | "cancelled";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 
@@ -24,14 +25,42 @@ function filenameFrom(response: Response, format: ReportFormat): string {
   return match?.[1] ?? `Inventario.${format}`;
 }
 
+function isDomExceptionNamed(cause: unknown, ...names: string[]): boolean {
+  return cause instanceof DOMException && names.includes(cause.name);
+}
+
+function isPermissionDenied(cause: unknown): boolean {
+  if (isDomExceptionNamed(cause, "NotAllowedError", "SecurityError")) return true;
+  if (!(cause instanceof Error)) return false;
+  return /permission denied|not allowed|permission policy/i.test(cause.message);
+}
+
+export function reportErrorMessage(cause: unknown, fallback = "Não foi possível concluir a operação."): string {
+  if (!(cause instanceof Error)) return fallback;
+  if (isDomExceptionNamed(cause, "AbortError")) return "Compartilhamento cancelado.";
+  if (isPermissionDenied(cause)) return "O navegador não permitiu compartilhar este arquivo.";
+  if (/failed to fetch|networkerror|load failed/i.test(cause.message)) {
+    return "Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.";
+  }
+  if (/permission denied/i.test(cause.message)) return "Permissão negada pelo navegador.";
+  return cause.message || fallback;
+}
+
 export async function fetchReportFile(inventoryId: string, format: ReportFormat, syncToken?: string): Promise<File> {
   const session = await getAuthenticatedSession();
   const headers: Record<string, string> = { Authorization: `Bearer ${session.accessToken}` };
   if (syncToken) headers["X-Inventory-Sync-Token"] = syncToken;
-  const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventoryId}/exports/${format}`, {
-    credentials: "include",
-    headers,
-  });
+
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventoryId}/exports/${format}`, {
+      credentials: "include",
+      headers,
+    });
+  } catch (cause) {
+    throw new Error(reportErrorMessage(cause, "Não foi possível buscar o arquivo do inventário."));
+  }
+
   if (!response.ok) {
     const body = await response.json().catch(() => undefined) as { detail?: string } | undefined;
     throw new Error(body?.detail ?? "Não foi possível gerar o relatório.");
@@ -57,7 +86,7 @@ export async function shareReport(
   inventoryId: string,
   format: ReportFormat,
   syncToken?: string,
-): Promise<"shared" | "downloaded"> {
+): Promise<ShareReportResult> {
   const file = await fetchReportFile(inventoryId, format, syncToken);
   const shareData: ShareData = {
     title: `Inventário em ${formatLabels[format]}`,
@@ -65,15 +94,29 @@ export async function shareReport(
     files: [file],
   };
 
-  if (typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare(shareData)) {
-    await navigator.share(shareData);
-    return "shared";
+  if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function" || !navigator.canShare(shareData)) {
+    downloadFile(file);
+    return "downloaded";
   }
 
-  downloadFile(file);
-  return "downloaded";
+  try {
+    await navigator.share(shareData);
+    return "shared";
+  } catch (cause) {
+    if (isDomExceptionNamed(cause, "AbortError")) return "cancelled";
+
+    // Alguns navegadores/ambientes anunciam suporte ao arquivo em canShare,
+    // mas recusam a abertura do painel nativo com NotAllowedError/Permission denied.
+    // Nesses casos, preserve a ação do usuário baixando o arquivo escolhido.
+    if (isPermissionDenied(cause) || isDomExceptionNamed(cause, "TypeError")) {
+      downloadFile(file);
+      return "downloaded";
+    }
+
+    throw new Error(reportErrorMessage(cause, "Não foi possível compartilhar o inventário."));
+  }
 }
 
-export async function sharePdfReport(inventoryId: string, syncToken?: string): Promise<"shared" | "downloaded"> {
+export async function sharePdfReport(inventoryId: string, syncToken?: string): Promise<ShareReportResult> {
   return shareReport(inventoryId, "pdf", syncToken);
 }

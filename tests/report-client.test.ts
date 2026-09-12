@@ -1,9 +1,9 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 import {
-  prepareReportsForSharing,
+  prepareResourcesForSharing,
   reportErrorMessage,
-  sharePreparedReport,
+  sharePreparedResource,
 } from "@/lib/report-client";
 
 vi.mock("@/lib/auth-client", () => ({
@@ -19,59 +19,55 @@ function reportResponse(filename: string, contentType: string): Response {
   });
 }
 
-it("prepara os arquivos antes do clique de compartilhamento", async () => {
+function shareLinkResponse(path: string): Response {
+  return new Response(JSON.stringify({ path }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+it("prepara PDF como arquivo e Excel/Word como links", async () => {
+  vi.stubGlobal("window", { location: { origin: "https://inventario-lpe.vercel.app" } });
   vi.stubGlobal("fetch", vi.fn()
     .mockResolvedValueOnce(reportResponse("Inventario.pdf", "application/pdf"))
-    .mockResolvedValueOnce(reportResponse("Inventario.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-    .mockResolvedValueOnce(reportResponse("Inventario.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")));
+    .mockResolvedValueOnce(shareLinkResponse("/api/v1/shared/exports/inventory-id/xlsx?expires=1&signature=a"))
+    .mockResolvedValueOnce(shareLinkResponse("/api/v1/shared/exports/inventory-id/docx?expires=1&signature=b")));
 
-  const files = await prepareReportsForSharing("inventory-id");
+  const resources = await prepareResourcesForSharing("inventory-id");
 
-  expect(files.pdf?.name).toBe("Inventario.pdf");
-  expect(files.xlsx?.name).toBe("Inventario.xlsx");
-  expect(files.docx?.name).toBe("Inventario.docx");
+  expect(resources.pdf?.name).toBe("Inventario.pdf");
+  expect(resources.xlsx).toContain("/backend-api/api/v1/shared/exports/inventory-id/xlsx");
+  expect(resources.docx).toContain("/backend-api/api/v1/shared/exports/inventory-id/docx");
 });
 
-it("chama o compartilhamento nativo imediatamente para Excel já preparado", async () => {
-  const file = new File([new Uint8Array([1, 2, 3])], "Inventario.xlsx", {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
+it("compartilha PDF como arquivo nativo", async () => {
+  const file = new File([new Uint8Array([1])], "Inventario.pdf", { type: "application/pdf" });
   const share = vi.fn().mockResolvedValue(undefined);
   vi.stubGlobal("navigator", { share, canShare: vi.fn().mockReturnValue(true) });
 
-  const resultPromise = sharePreparedReport(file, "xlsx");
-  expect(share).toHaveBeenCalledOnce();
+  const resultPromise = sharePreparedResource(file, "pdf");
+  expect(share).toHaveBeenCalledWith(expect.objectContaining({ files: [file] }));
   await expect(resultPromise).resolves.toBe("shared");
 });
 
-it("informa indisponibilidade sem baixar quando o navegador não suporta arquivo", async () => {
-  const file = new File([new Uint8Array([1])], "Inventario.docx", {
-    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  });
-  vi.stubGlobal("navigator", { share: vi.fn(), canShare: vi.fn().mockReturnValue(false) });
-  const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+it("compartilha Excel como link pelo menu nativo", async () => {
+  const share = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal("navigator", { share });
+  const url = "https://inventario-lpe.vercel.app/backend-api/api/v1/shared/exports/id/xlsx?expires=1&signature=x";
 
-  await expect(sharePreparedReport(file, "docx")).resolves.toBe("unsupported");
-  expect(click).not.toHaveBeenCalled();
+  const resultPromise = sharePreparedResource(url, "xlsx");
+  expect(share).toHaveBeenCalledWith(expect.objectContaining({ url }));
+  await expect(resultPromise).resolves.toBe("shared");
 });
 
-it("trata cancelamento sem baixar o arquivo", async () => {
-  const file = new File([new Uint8Array([1])], "Inventario.pdf", { type: "application/pdf" });
+it("trata cancelamento do compartilhamento", async () => {
   const share = vi.fn().mockRejectedValue(new DOMException("Share canceled", "AbortError"));
-  vi.stubGlobal("navigator", { share, canShare: vi.fn().mockReturnValue(true) });
-  const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+  vi.stubGlobal("navigator", { share });
 
-  await expect(sharePreparedReport(file, "pdf")).resolves.toBe("cancelled");
-  expect(click).not.toHaveBeenCalled();
+  await expect(sharePreparedResource("https://example.com/file", "docx")).resolves.toBe("cancelled");
 });
 
-it("traduz bloqueio de permissão do navegador para português", async () => {
-  const file = new File([new Uint8Array([1])], "Inventario.xlsx", {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const share = vi.fn().mockRejectedValue(new DOMException("Permission denied", "NotAllowedError"));
-  vi.stubGlobal("navigator", { share, canShare: vi.fn().mockReturnValue(true) });
-
-  await expect(sharePreparedReport(file, "xlsx")).rejects.toThrow("O navegador bloqueou o compartilhamento nativo");
+it("traduz falhas técnicas para português", () => {
+  expect(reportErrorMessage(new DOMException("Permission denied", "NotAllowedError"))).toContain("O navegador bloqueou o compartilhamento nativo");
   expect(reportErrorMessage(new TypeError("Failed to fetch"))).toBe("Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.");
 });

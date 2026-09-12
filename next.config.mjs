@@ -5,10 +5,15 @@ const withSerwist = withSerwistInit({
   swDest: "public/sw.js",
 });
 
-const backendProxyUrl = (process.env.BACKEND_PROXY_URL ?? "http://localhost:8000").replace(/\/$/, "");
+const productionApi = "https://inventory-api-6o8h.onrender.com";
+const backendProxyUrl = (process.env.BACKEND_PROXY_URL ?? (process.env.NODE_ENV === "production" ? productionApi : "http://localhost:8000")).replace(/\/$/, "");
 
 const nextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
+  env: {
+    NEXT_PUBLIC_ANALYSIS_API_BASE_URL: process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? (process.env.NODE_ENV === "production" ? "/backend-api" : "http://localhost:8000"),
+    NEXT_PUBLIC_SYNC_API_BASE_URL: process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? (process.env.NODE_ENV === "production" ? "/backend-api" : "http://localhost:8000"),
+  },
   async rewrites() {
     return [
       {

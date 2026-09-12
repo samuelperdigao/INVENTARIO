@@ -3,7 +3,8 @@
 import { getAuthenticatedSession } from "@/lib/auth-client";
 
 export type ReportFormat = "pdf" | "xlsx" | "docx";
-export type ShareReportResult = "shared" | "downloaded" | "cancelled";
+export type ShareReportResult = "shared" | "cancelled" | "unsupported";
+export type PreparedReports = Partial<Record<ReportFormat, File>>;
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 
@@ -38,11 +39,12 @@ function isPermissionDenied(cause: unknown): boolean {
 export function reportErrorMessage(cause: unknown, fallback = "Não foi possível concluir a operação."): string {
   if (!(cause instanceof Error)) return fallback;
   if (isDomExceptionNamed(cause, "AbortError")) return "Compartilhamento cancelado.";
-  if (isPermissionDenied(cause)) return "O navegador não permitiu compartilhar este arquivo.";
+  if (isPermissionDenied(cause)) {
+    return "O navegador bloqueou o compartilhamento nativo. Tente novamente pelo navegador do celular.";
+  }
   if (/failed to fetch|networkerror|load failed/i.test(cause.message)) {
     return "Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.";
   }
-  if (/permission denied/i.test(cause.message)) return "Permissão negada pelo navegador.";
   return cause.message || fallback;
 }
 
@@ -68,6 +70,41 @@ export async function fetchReportFile(inventoryId: string, format: ReportFormat,
   return new File([await response.blob()], filenameFrom(response, format), { type: mediaTypes[format] });
 }
 
+export async function prepareReportsForSharing(
+  inventoryId: string,
+  formats: ReportFormat[] = ["pdf", "xlsx", "docx"],
+  syncToken?: string,
+): Promise<PreparedReports> {
+  const entries = await Promise.all(
+    formats.map(async (format) => [format, await fetchReportFile(inventoryId, format, syncToken)] as const),
+  );
+  return Object.fromEntries(entries) as PreparedReports;
+}
+
+export function sharePreparedReport(file: File, format: ReportFormat): Promise<ShareReportResult> {
+  const shareData: ShareData = {
+    title: `Inventário em ${formatLabels[format]}`,
+    text: `Relatório final do inventário em ${formatLabels[format]}.`,
+    files: [file],
+  };
+
+  if (typeof navigator.share !== "function") {
+    return Promise.resolve("unsupported");
+  }
+  if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
+    return Promise.resolve("unsupported");
+  }
+
+  // navigator.share() é chamado imediatamente, sem nenhum await anterior,
+  // preservando a ativação transitória gerada pelo toque/clique do usuário.
+  return navigator.share(shareData)
+    .then(() => "shared" as const)
+    .catch((cause: unknown) => {
+      if (isDomExceptionNamed(cause, "AbortError")) return "cancelled" as const;
+      throw new Error(reportErrorMessage(cause, "Não foi possível abrir o compartilhamento nativo."));
+    });
+}
+
 export function downloadFile(file: File): void {
   const url = URL.createObjectURL(file);
   const anchor = document.createElement("a");
@@ -80,43 +117,4 @@ export function downloadFile(file: File): void {
 
 export async function downloadReport(inventoryId: string, format: ReportFormat, syncToken?: string): Promise<void> {
   downloadFile(await fetchReportFile(inventoryId, format, syncToken));
-}
-
-export async function shareReport(
-  inventoryId: string,
-  format: ReportFormat,
-  syncToken?: string,
-): Promise<ShareReportResult> {
-  const file = await fetchReportFile(inventoryId, format, syncToken);
-  const shareData: ShareData = {
-    title: `Inventário em ${formatLabels[format]}`,
-    text: `Relatório final do inventário em ${formatLabels[format]}.`,
-    files: [file],
-  };
-
-  if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function" || !navigator.canShare(shareData)) {
-    downloadFile(file);
-    return "downloaded";
-  }
-
-  try {
-    await navigator.share(shareData);
-    return "shared";
-  } catch (cause) {
-    if (isDomExceptionNamed(cause, "AbortError")) return "cancelled";
-
-    // Alguns navegadores/ambientes anunciam suporte ao arquivo em canShare,
-    // mas recusam a abertura do painel nativo com NotAllowedError/Permission denied.
-    // Nesses casos, preserve a ação do usuário baixando o arquivo escolhido.
-    if (isPermissionDenied(cause) || isDomExceptionNamed(cause, "TypeError")) {
-      downloadFile(file);
-      return "downloaded";
-    }
-
-    throw new Error(reportErrorMessage(cause, "Não foi possível compartilhar o inventário."));
-  }
-}
-
-export async function sharePdfReport(inventoryId: string, syncToken?: string): Promise<ShareReportResult> {
-  return shareReport(inventoryId, "pdf", syncToken);
 }

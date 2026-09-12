@@ -33,7 +33,7 @@ def upgrade() -> None:
         )
         batch_op.create_index("ix_inventory_entries_layer", ["layer"])
         batch_op.create_index("ix_inventory_entries_created_by_user_id", ["created_by_user_id"])
-    op.alter_column("inventory_entries", "duplicate_confirmed", server_default=None)
+        batch_op.alter_column("duplicate_confirmed", server_default=None)
 
 
 def downgrade() -> None:

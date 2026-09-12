@@ -147,7 +147,13 @@ def _record_conflict(
     return {"entityType": entity_type, "entityId": entity_id, "serverRecord": server_record}
 
 
-def _create_inventory(session: Session, incoming: SyncInventory, sync_token: str, team_id: str, owner_user_id: str) -> InventoryRow:
+def _create_inventory(
+    session: Session,
+    incoming: SyncInventory,
+    sync_token: str,
+    team_id: str | None,
+    owner_user_id: str,
+) -> InventoryRow:
     row = InventoryRow(
         id=str(incoming.id),
         date=incoming.date,
@@ -266,8 +272,6 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
     if inventory is None:
         if payload.inventory is None:
             raise SyncNotFoundError()
-        if team_id is None:
-            raise SyncNotFoundError()
         inventory = _create_inventory(session, payload.inventory, sync_token, team_id, actor_user_id)
         acknowledged_inventory = True
     else:
@@ -277,11 +281,12 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
                 InventoryParticipantRow.user_id == actor_user_id,
             )
         )
+        owner_access = inventory.owner_user_id == actor_user_id
         team_access = inventory.team_id == team_id and team_id is not None
         participant_access = participant is not None and hmac.compare_digest(participant.access_token_hash, _hash_token(sync_token))
-        if not team_access and not participant_access:
+        if not owner_access and not team_access and not participant_access:
             raise SyncNotFoundError()
-        if team_access and not hmac.compare_digest(inventory.sync_token_hash, _hash_token(sync_token)):
+        if (owner_access or team_access) and not hmac.compare_digest(inventory.sync_token_hash, _hash_token(sync_token)):
             raise SyncAuthorizationError()
         if participant_access and participant is not None:
             participant.last_accessed_at = datetime.now(timezone.utc)

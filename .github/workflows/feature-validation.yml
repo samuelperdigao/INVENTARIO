@@ -13,12 +13,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
+      - run: npm install
+      - name: Validate frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            npm run lint
+            npm run typecheck
+            npm test
+            npm run build
+          } 2>&1 | tee frontend-validation.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-validation-log
+          path: frontend-validation.log
 
   backend:
     runs-on: ubuntu-latest
@@ -34,4 +44,13 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r requirements.txt
-      - run: pytest -q
+      - name: Validate backend
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest -q 2>&1 | tee backend-validation.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-validation-log
+          path: backend/backend-validation.log

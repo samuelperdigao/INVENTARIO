@@ -6,10 +6,18 @@ import { getAuthenticatedContext } from "@/lib/auth-client";
 import { markInventoryFinished } from "@/lib/inventory-repository";
 import { syncInventory } from "@/lib/sync-client";
 import type { Inventory } from "@/lib/models";
-import { downloadReport, reportErrorMessage, shareReport, type ReportFormat } from "@/lib/report-client";
+import {
+  downloadReport,
+  prepareReportsForSharing,
+  reportErrorMessage,
+  sharePreparedReport,
+  type PreparedReports,
+  type ReportFormat,
+} from "@/lib/report-client";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 
+const formats: ReportFormat[] = ["pdf", "xlsx", "docx"];
 const formatLabel: Record<ReportFormat, string> = {
   pdf: "PDF",
   xlsx: "Excel",
@@ -20,6 +28,8 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
   const [shareOpen, setShareOpen] = useState(false);
+  const [preparingShare, setPreparingShare] = useState(false);
+  const [preparedReports, setPreparedReports] = useState<PreparedReports>({});
 
   async function headers(): Promise<Record<string, string>> {
     const auth = await getAuthenticatedContext();
@@ -50,20 +60,55 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
     finally { setBusy(false); }
   }
 
-  async function shareAction(format: ReportFormat): Promise<void> {
-    setBusy(true); setMessage(undefined);
+  async function toggleShare(): Promise<void> {
+    if (shareOpen) {
+      setShareOpen(false);
+      return;
+    }
+
+    setShareOpen(true);
+    if (formats.every((format) => preparedReports[format])) return;
+
+    setPreparingShare(true);
+    setMessage("Preparando os arquivos para o compartilhamento nativo…");
     try {
-      const result = await shareReport(inventory.id, format);
-      if (result === "shared") {
-        setMessage(`Inventário compartilhado em ${formatLabel[format]}.`);
-      } else if (result === "cancelled") {
-        setMessage("Compartilhamento cancelado.");
-      } else {
-        setMessage(`O navegador não permitiu o compartilhamento nativo. O arquivo ${formatLabel[format]} foi baixado para você compartilhar manualmente.`);
-      }
-    } catch (cause) { setMessage(reportErrorMessage(cause, "Não foi possível compartilhar o inventário.")); }
-    finally { setBusy(false); }
+      const files = await prepareReportsForSharing(inventory.id, formats);
+      setPreparedReports(files);
+      setMessage("Arquivos prontos. Escolha PDF, Excel ou Word para abrir o compartilhamento do celular.");
+    } catch (cause) {
+      setMessage(reportErrorMessage(cause, "Não foi possível preparar os arquivos para compartilhamento."));
+    } finally {
+      setPreparingShare(false);
+    }
   }
+
+  function shareAction(format: ReportFormat): void {
+    const file = preparedReports[format];
+    if (!file) {
+      setMessage("Aguarde a preparação do arquivo antes de compartilhar.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage(undefined);
+
+    // A chamada abaixo abre navigator.share() imediatamente dentro do clique.
+    // Não há fetch/await antes dela, preservando a permissão temporária do navegador.
+    void sharePreparedReport(file, format)
+      .then((result) => {
+        if (result === "shared") {
+          setMessage(`Inventário compartilhado em ${formatLabel[format]}.`);
+        } else if (result === "cancelled") {
+          setMessage("Compartilhamento cancelado.");
+        } else {
+          setMessage(`O compartilhamento nativo de ${formatLabel[format]} não está disponível neste navegador. Tente pelo Chrome do celular.`);
+        }
+      })
+      .catch((cause) => setMessage(reportErrorMessage(cause, "Não foi possível abrir o compartilhamento nativo.")))
+      .finally(() => setBusy(false));
+  }
+
+  const shareReady = formats.every((format) => preparedReports[format]);
 
   return <section className="card section-card panel-card stack" aria-label="Finalização e exportações">
     <div className="section-header">
@@ -82,26 +127,27 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
       <button
         className="primary"
         type="button"
-        disabled={busy}
+        disabled={busy || preparingShare}
         aria-expanded={shareOpen}
-        onClick={() => setShareOpen((current) => !current)}
+        aria-busy={preparingShare}
+        onClick={() => void toggleShare()}
       >
-        Compartilhar inventário
+        {preparingShare ? "Preparando compartilhamento…" : "Compartilhar inventário"}
       </button>
 
       {shareOpen ? <div className="details-box">
         <div className="details-content stack">
           <div>
             <h3>Escolha o formato</h3>
-            <p className="muted">No celular, o sistema abre os aplicativos disponíveis para compartilhar o arquivo escolhido.</p>
+            <p className="muted">Os arquivos são preparados antes. Ao tocar no formato, o menu nativo do celular abre imediatamente.</p>
           </div>
           <div className="export-grid">
-            {(["pdf", "xlsx", "docx"] as ReportFormat[]).map((format) => <button
+            {formats.map((format) => <button
               className="secondary"
               type="button"
-              disabled={busy}
+              disabled={busy || preparingShare || !shareReady}
               key={format}
-              onClick={() => void shareAction(format)}
+              onClick={() => shareAction(format)}
             >
               Compartilhar {formatLabel[format]}
             </button>)}
@@ -113,7 +159,7 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
         <summary>Baixar arquivo</summary>
         <div className="details-content">
           <div className="export-grid">
-            {(["pdf", "xlsx", "docx"] as ReportFormat[]).map((format) => <button
+            {formats.map((format) => <button
               className="secondary"
               type="button"
               disabled={busy}
@@ -127,6 +173,6 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
       </details>
     </div> : <p className="notice">Antes de finalizar, confira os lançamentos, sincronize e atualize a análise para reduzir retrabalho.</p>}
 
-    {message ? <p className={message.startsWith("Inventário") || message.endsWith("baixado.") || message === "Compartilhamento cancelado." || message.startsWith("O navegador não permitiu") ? "notice" : "error"} role="status">{message}</p> : null}
+    {message ? <p className={message.startsWith("Inventário") || message.endsWith("baixado.") || message === "Compartilhamento cancelado." || message.startsWith("Preparando") || message.startsWith("Arquivos prontos") ? "notice" : "error"} role="status">{message}</p> : null}
   </section>;
 }

@@ -26,28 +26,38 @@ class AnalysisEntry:
     bay: str
     lot: str
     quantity: int
+    layer: str | None = None
 
 
 def _natural_key(value: str) -> list[object]:
     return [int(part) if part.isdigit() else part.casefold() for part in re.split(r"(\d+)", value)]
 
 
-def _location_sort_key(location: tuple[str, str]) -> tuple[int, list[object]]:
-    side, bay = location
-    return (0 if side == "EF" else 1, _natural_key(bay))
+def _location_sort_key(location: tuple[str, str, str]) -> tuple[int, list[object], list[object]]:
+    side, bay, layer = location
+    return (0 if side == "EF" else 1, _natural_key(bay), _natural_key(layer))
 
 
 def _location_label(location: dict[str, object]) -> str:
-    return f"{location['side']} · Vão {location['bay']}"
+    layer = location.get("layer")
+    suffix = f" · Camada {layer}" if layer else ""
+    return f"{location['side']} · Vão {location['bay']}{suffix}"
+
+
+def _location_record(side: str, bay: str, layer: str, quantity: int) -> dict[str, object]:
+    record: dict[str, object] = {"side": side, "bay": bay, "quantity": quantity}
+    if layer:
+        record["layer"] = layer
+    return record
 
 
 def analyze_entries(inventory_id: str, revision: int, entries: Iterable[AnalysisEntry]) -> dict[str, object]:
     """Consolida os locais e aplica as regras de classificação do contrato."""
 
-    quantities: dict[str, dict[tuple[str, str], int]] = defaultdict(lambda: defaultdict(int))
+    quantities: dict[str, dict[tuple[str, str, str], int]] = defaultdict(lambda: defaultdict(int))
     for entry in entries:
         lot = entry.lot.strip()
-        location = (entry.side, entry.bay.strip())
+        location = (entry.side, entry.bay.strip(), (entry.layer or "").strip())
         quantities[lot][location] += entry.quantity
 
     lots: list[dict[str, object]] = []
@@ -63,10 +73,10 @@ def analyze_entries(inventory_id: str, revision: int, entries: Iterable[Analysis
 
     for lot in sorted(quantities, key=_natural_key):
         locations = [
-            {"side": side, "bay": bay, "quantity": quantity}
-            for (side, bay), quantity in sorted(quantities[lot].items(), key=lambda item: _location_sort_key(item[0]))
+            _location_record(side, bay, layer, quantity)
+            for (side, bay, layer), quantity in sorted(quantities[lot].items(), key=lambda item: _location_sort_key(item[0]))
         ]
-        total_quantity = sum(location["quantity"] for location in locations)
+        total_quantity = sum(int(location["quantity"]) for location in locations)
         fragmented = len(locations) > 1
         classification: Classification = "OK"
         primary_location: dict[str, object] | None = None
@@ -122,4 +132,3 @@ def analyze_entries(inventory_id: str, revision: int, entries: Iterable[Analysis
         "lots": lots,
         "summary": summary,
     }
-

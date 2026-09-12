@@ -32,7 +32,9 @@ def _natural_key(value: str) -> list[object]:
 def _location(location: dict[str, Any] | None) -> str:
     if not location:
         return "—"
-    return f"{location['side']} · Vão {location['bay']}"
+    layer = location.get("layer")
+    suffix = f" · Camada {layer}" if layer else ""
+    return f"{location['side']} · Vão {location['bay']}{suffix}"
 
 
 def build_consolidated_report(
@@ -47,10 +49,23 @@ def build_consolidated_report(
     analysis = analyze_entries(inventory_id, revision, raw_entries)
     analysis["generatedAt"] = (generated_at or datetime.now().astimezone()).isoformat()
     records = [
-        {"side": entry.side, "bay": entry.bay.strip(), "lot": entry.lot.strip(), "quantity": entry.quantity}
+        {
+            "side": entry.side,
+            "bay": entry.bay.strip(),
+            "layer": entry.layer.strip() if entry.layer else None,
+            "lot": entry.lot.strip(),
+            "quantity": entry.quantity,
+        }
         for entry in raw_entries
     ]
-    records.sort(key=lambda record: (0 if record["side"] == "EF" else 1, _natural_key(record["bay"]), _natural_key(record["lot"])))
+    records.sort(
+        key=lambda record: (
+            0 if record["side"] == "EF" else 1,
+            _natural_key(record["bay"]),
+            _natural_key(record["layer"] or ""),
+            _natural_key(record["lot"]),
+        )
+    )
     analysis["inventoryDate"] = inventory_date
     analysis["records"] = records
     analysis["totalPieces"] = sum(record["quantity"] for record in records)
@@ -91,10 +106,10 @@ def _fit_columns(sheet) -> None:
 def export_xlsx(report: dict[str, Any]) -> bytes:
     workbook = Workbook()
     workbook.remove(workbook.active)
-    inventory = _workbook_sheet(workbook, "INVENTÁRIO", ["Lado", "Vão", "Lote", "Quantidade de peças"])
+    inventory = _workbook_sheet(workbook, "INVENTÁRIO", ["Lado", "Vão", "Camada", "Lote", "Quantidade de peças"])
     for record in report["records"]:
-        inventory.append([record["side"], record["bay"], record["lot"], record["quantity"]])
-        inventory.cell(inventory.max_row, 3).number_format = "@"
+        inventory.append([record["side"], record["bay"], record.get("layer") or "—", record["lot"], record["quantity"]])
+        inventory.cell(inventory.max_row, 4).number_format = "@"
 
     lots = _workbook_sheet(workbook, "LOTES CONSOLIDADOS", ["Lote", "Total físico", "Quantidade de locais", "Classificação", "Local principal"])
     for lot in report["lots"]:
@@ -134,7 +149,7 @@ def export_pdf(report: dict[str, Any]) -> bytes:
     story = [Paragraph("Relatório de Inventário", styles["Title"]), Paragraph(f"Data do inventário: {report['inventoryDate']} · Gerado em: {report['generatedAt']}", styles["Normal"]), Spacer(1, 0.35 * cm)]
     summary = report["summary"]
     story += [Paragraph("Resumo geral", styles["Heading2"]), _pdf_table([["Registros", "Lotes", "Peças", "Fragmentados", "Solteiras", "Deslocados", "Ambíguos"], [report["totalRecords"], summary["lotsAnalyzed"], report["totalPieces"], summary["fragmentedLots"], summary["loosePieces"], summary["displacedGroups"], summary["ambiguousDistributions"]]], [2.2 * cm] * 7), Spacer(1, 0.35 * cm)]
-    story += [Paragraph("Inventário organizado", styles["Heading2"]), _pdf_table([["Lado", "Vão", "Lote", "Quantidade"]] + [[item["side"], item["bay"], item["lot"], item["quantity"]] for item in report["records"]], [2 * cm, 2 * cm, 8 * cm, 3 * cm]), PageBreak(), Paragraph("Divergências e recomendações", styles["Heading2"])]
+    story += [Paragraph("Inventário organizado", styles["Heading2"]), _pdf_table([["Lado", "Vão", "Camada", "Lote", "Quantidade"]] + [[item["side"], item["bay"], item.get("layer") or "—", item["lot"], item["quantity"]] for item in report["records"]], [1.6 * cm, 1.6 * cm, 2.2 * cm, 7.2 * cm, 2.7 * cm]), PageBreak(), Paragraph("Divergências e recomendações", styles["Heading2"])]
     divergence_rows = [["Lote", "Principal", "Divergente", "Classificação", "Recomendação"]]
     for item in _divergences(report): divergence_rows.append([item["lot"], f"{_location(item['primary'])} ({item['primary']['quantity']})", f"{_location(item['other'])} ({item['other']['quantity']})", item["classification"], item["recommendation"]])
     if len(divergence_rows) == 1: divergence_rows.append(["—", "—", "—", "Sem divergências", "Nenhuma ação necessária."])
@@ -155,12 +170,12 @@ def export_docx(report: dict[str, Any]) -> bytes:
     document.add_paragraph(f"Registros: {report['totalRecords']} | Lotes: {summary['lotsAnalyzed']} | Peças: {report['totalPieces']}")
     document.add_paragraph(f"Fragmentados: {summary['fragmentedLots']} | Peças solteiras: {summary['loosePieces']} | Grupos deslocados: {summary['displacedGroups']} | Ambíguos: {summary['ambiguousDistributions']}")
     document.add_heading("Registros", level=1)
-    table = document.add_table(rows=1, cols=4)
+    table = document.add_table(rows=1, cols=5)
     table.style = "Table Grid"
-    for cell, value in zip(table.rows[0].cells, ["Lado", "Vão", "Lote", "Quantidade"]): cell.text = value
+    for cell, value in zip(table.rows[0].cells, ["Lado", "Vão", "Camada", "Lote", "Quantidade"]): cell.text = value
     for item in report["records"]:
         cells = table.add_row().cells
-        for cell, value in zip(cells, [item["side"], item["bay"], item["lot"], str(item["quantity"])]): cell.text = value
+        for cell, value in zip(cells, [item["side"], item["bay"], item.get("layer") or "—", item["lot"], str(item["quantity"])]): cell.text = value
     document.add_heading("Lotes fragmentados e divergências", level=1)
     divergences = _divergences(report)
     if not divergences: document.add_paragraph("Nenhuma divergência operacional identificada.")

@@ -9,6 +9,9 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
 
+Layer = Literal["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"]
+
+
 class ApiModel(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
@@ -23,7 +26,8 @@ class PreviewEntry(ApiModel):
     id: UUID
     side: Literal["EF", "DE"]
     bay: str = Field(min_length=1, max_length=100)
-    lot: str = Field(min_length=1, max_length=255)
+    layer: Layer | None = None
+    lot: str = Field(min_length=1, max_length=255, pattern=r"^\d+$")
     quantity: StrictInt = Field(gt=0)
 
 
@@ -35,6 +39,7 @@ class AnalysisPreviewRequest(ApiModel):
 class AnalysisLocation(ApiModel):
     side: Literal["EF", "DE"]
     bay: str
+    layer: Layer | None = None
     quantity: StrictInt = Field(gt=0)
 
 
@@ -90,8 +95,12 @@ class SyncEntry(ApiModel):
     inventoryId: UUID
     side: Literal["EF", "DE"]
     bay: str = Field(min_length=1, max_length=100)
-    lot: str = Field(min_length=1, max_length=255)
+    layer: Layer | None = None
+    lot: str = Field(min_length=1, max_length=255, pattern=r"^\d+$")
     quantity: StrictInt = Field(gt=0)
+    createdByUserId: UUID | None = None
+    createdByName: str | None = Field(default=None, max_length=120)
+    duplicateConfirmed: bool = False
     createdAt: datetime
     updatedAt: datetime
     revision: StrictInt = Field(ge=1)

@@ -25,6 +25,8 @@ export function groupEntries(entries: InventoryEntry[]): EntryGroup[] {
         .map(([bay, bayEntries]) => ({
           bay,
           entries: [...bayEntries].sort((left, right) => {
+            const byLayer = naturalCollator.compare(left.layer ?? "", right.layer ?? "");
+            if (byLayer !== 0) return byLayer;
             const byLot = naturalCollator.compare(left.lot, right.lot);
             return byLot !== 0 ? byLot : naturalCollator.compare(left.createdAt, right.createdAt);
           }),
@@ -32,4 +34,3 @@ export function groupEntries(entries: InventoryEntry[]): EntryGroup[] {
     }];
   });
 }
-

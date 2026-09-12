@@ -33,7 +33,7 @@ from app.schemas import (
     AddTeamMemberRequest, AnalysisPreviewRequest, AnalysisReport, AuthResponse,
     AuthenticatedUser, ConfirmPasswordResetRequest, CreateTeamRequest, EmailCodeRequest,
     EmailReportRequest, FinalizeInventoryRequest, InventoryHistoryItem, JoinInventoryRequest,
-    JoinInventoryResponse, LoginRequest, MessageResponse, RegisterRequest, SyncRequest,
+    JoinInventoryResponse, LoginRequest, MessageResponse, RegisterRequest, SyncEntry, SyncRequest,
     SyncResponse, VerifyEmailRequest,
 )
 from app.share_service import (
@@ -46,6 +46,7 @@ from app.sync_service import (
     SyncFinalizationRequiredError,
     SyncFinalizedError,
     SyncNotFoundError,
+    _entry_record,
     synchronize,
 )
 
@@ -61,7 +62,7 @@ async def lifespan(_app: FastAPI):
 
 
 settings = get_settings()
-app = FastAPI(title="Inventário — análise e sincronização", version="0.4.0", lifespan=lifespan)
+app = FastAPI(title="Inventário — análise e sincronização", version="0.5.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
@@ -325,7 +326,10 @@ def preview_analysis(payload: AnalysisPreviewRequest) -> dict[str, object]:
     return analyze_entries(
         inventory_id=str(payload.inventory.id),
         revision=payload.inventory.revision,
-        entries=(AnalysisEntry(side=entry.side, bay=entry.bay, lot=entry.lot, quantity=entry.quantity) for entry in payload.entries),
+        entries=(
+            AnalysisEntry(side=entry.side, bay=entry.bay, layer=entry.layer, lot=entry.lot, quantity=entry.quantity)
+            for entry in payload.entries
+        ),
     )
 
 
@@ -380,6 +384,29 @@ def _inventory_access(
     return inventory
 
 
+@app.get("/api/v1/inventories/{inventory_id}/lots/{lot}", response_model=list[SyncEntry])
+def inventory_lot_matches(
+    inventory_id: str,
+    lot: str,
+    exclude_entry_id: str | None = Query(default=None, alias="excludeEntryId"),
+    sync_token: str = Header(min_length=32, alias="X-Inventory-Sync-Token"),
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> list[dict[str, object]]:
+    if not lot.isdigit() or len(lot) > 255:
+        raise HTTPException(status_code=422, detail="O lote deve conter somente números.")
+    inventory = _inventory_access(session, inventory_id, user, sync_token, require_token=True)
+    statement = select(InventoryEntryRow).where(
+        InventoryEntryRow.inventory_id == inventory.id,
+        InventoryEntryRow.lot == lot,
+        InventoryEntryRow.tombstone.is_(False),
+    )
+    if exclude_entry_id:
+        statement = statement.where(InventoryEntryRow.id != exclude_entry_id)
+    rows = session.scalars(statement.order_by(InventoryEntryRow.created_at)).all()
+    return [_entry_record(session, row) for row in rows]
+
+
 def _central_report(session: Session, inventory: InventoryRow) -> dict[str, object]:
     if inventory.report_snapshot is not None:
         return inventory.report_snapshot
@@ -393,7 +420,10 @@ def _central_report(session: Session, inventory: InventoryRow) -> dict[str, obje
         inventory.id,
         inventory.date.isoformat(),
         inventory.revision,
-        (AnalysisEntry(side=row.side, bay=row.bay, lot=row.lot, quantity=row.quantity) for row in rows),
+        (
+            AnalysisEntry(side=row.side, bay=row.bay, layer=row.layer, lot=row.lot, quantity=row.quantity)
+            for row in rows
+        ),
     )
 
 
@@ -461,7 +491,10 @@ def finalize_inventory(
         inventory.id,
         inventory.date.isoformat(),
         inventory.revision + 1,
-        (AnalysisEntry(side=row.side, bay=row.bay, lot=row.lot, quantity=row.quantity) for row in rows),
+        (
+            AnalysisEntry(side=row.side, bay=row.bay, layer=row.layer, lot=row.lot, quantity=row.quantity)
+            for row in rows
+        ),
         now,
     )
     inventory.status = "FINISHED"

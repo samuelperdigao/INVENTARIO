@@ -1,4 +1,6 @@
 export type Side = "EF" | "DE";
+export const INVENTORY_LAYERS = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"] as const;
+export type InventoryLayer = (typeof INVENTORY_LAYERS)[number];
 export type SyncStatus = "PENDING" | "SYNCED" | "ERROR";
 export type AnalysisClassification =
   | "OK"
@@ -32,13 +34,19 @@ export interface InventoryEntry extends LocalRecord {
   inventoryId: string;
   side: Side;
   bay: string;
+  /** Registros legados podem não possuir camada. */
+  layer?: InventoryLayer;
   lot: string;
   quantity: number;
+  createdByUserId?: string;
+  createdByName?: string;
+  duplicateConfirmed?: boolean;
 }
 
 export interface EntryDraft {
   side: Side;
   bay: string;
+  layer: InventoryLayer;
   lot: string;
   quantity: number;
 }
@@ -46,6 +54,7 @@ export interface EntryDraft {
 export interface AnalysisLocation {
   side: Side;
   bay: string;
+  layer?: InventoryLayer;
   quantity: number;
 }
 

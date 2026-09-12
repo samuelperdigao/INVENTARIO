@@ -9,8 +9,9 @@ import { EntryList } from "@/components/entry-list";
 import { FinalizationPanel } from "@/components/finalization-panel";
 import { SyncPanel } from "@/components/sync-panel";
 import { getCurrentUser } from "@/lib/auth-client";
+import { findRemoteDuplicateLotEntries } from "@/lib/duplicate-client";
 import { formatBrazilianDate } from "@/lib/local-date";
-import { createEntry, getInventory, listActiveEntries, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
+import { createEntry, DuplicateLotError, getInventory, listActiveEntries, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
 import type { EntryDraft, Inventory, InventoryEntry } from "@/lib/models";
 
 export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
@@ -48,6 +49,14 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
 
   async function saveEntry(draft: EntryDraft, entryId?: string, allowDuplicate = false): Promise<void> {
     setError(undefined);
+    const currentInventory = inventory ?? await getInventory(inventoryId);
+    if (!currentInventory) throw new Error("Inventário não encontrado neste dispositivo.");
+
+    if (!allowDuplicate) {
+      const remoteDuplicates = await findRemoteDuplicateLotEntries(currentInventory, draft.lot, entryId);
+      if (remoteDuplicates.length > 0) throw new DuplicateLotError(remoteDuplicates);
+    }
+
     const user = getCurrentUser();
     if (entryId) {
       await updateEntry(entryId, draft, { allowDuplicate });

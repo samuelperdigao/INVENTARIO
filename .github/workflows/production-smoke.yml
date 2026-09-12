@@ -60,7 +60,7 @@ jobs:
             -X POST "$APP/backend-api/api/v1/auth/register" \
             --data '{"email":"smoke@example.com","password":"Smoke-Test-2026!Strong","passwordConfirmation":"Smoke-Test-2026!Strong","recoveryPin":"1234567","recoveryPinConfirmation":"1234567","displayName":"Smoke Test"}')
           test "$STATUS" = "422"
-          jq -e '.detail | strings | length > 0' /tmp/register.json >/dev/null
+          jq -e '.detail | length > 0' /tmp/register.json >/dev/null
 
           echo "Checking unauthenticated refresh boundary..."
           STATUS=$(curl -sS --max-time 30 -o /tmp/refresh.json -w '%{http_code}' \

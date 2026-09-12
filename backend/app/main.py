@@ -343,7 +343,7 @@ def _inventory_access(
     require_token: bool = False,
 ) -> InventoryRow:
     inventory = session.get(InventoryRow, inventory_id)
-    if inventory is None or inventory.team_id is None:
+    if inventory is None:
         raise HTTPException(status_code=404, detail="Inventário central não encontrado.")
     if not _authorized_for_inventory(session, inventory, user):
         raise HTTPException(status_code=404, detail="Inventário central não encontrado.")
@@ -710,8 +710,6 @@ def sync(
 ) -> dict[str, object]:
     try:
         team_id = _sync_team(session, user, str(payload.teamId) if payload.teamId else None)
-        if payload.inventory is not None and session.get(InventoryRow, str(payload.inventoryId)) is None and team_id is None:
-            raise HTTPException(status_code=422, detail="Sua conta precisa ser associada a uma equipe antes da primeira sincronização.")
         return synchronize(session, payload, sync_token, team_id=team_id, actor_user_id=user.id)
     except SyncNotFoundError as error:
         session.rollback()

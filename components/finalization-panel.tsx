@@ -6,13 +6,20 @@ import { getAuthenticatedContext } from "@/lib/auth-client";
 import { markInventoryFinished } from "@/lib/inventory-repository";
 import { syncInventory } from "@/lib/sync-client";
 import type { Inventory } from "@/lib/models";
-import { downloadReport, emailReports, sharePdfReport } from "@/lib/report-client";
+import { downloadReport, shareReport, type ReportFormat } from "@/lib/report-client";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
+
+const formatLabel: Record<ReportFormat, string> = {
+  pdf: "PDF",
+  xlsx: "Excel",
+  docx: "Word",
+};
 
 export function FinalizationPanel({ inventory, onFinished }: { inventory: Inventory; onFinished: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
+  const [shareOpen, setShareOpen] = useState(false);
 
   async function headers(): Promise<Record<string, string>> {
     const auth = await getAuthenticatedContext();
@@ -34,19 +41,23 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
     finally { setBusy(false); }
   }
 
-  async function exportAction(action: "xlsx" | "pdf" | "docx" | "share" | "email"): Promise<void> {
+  async function downloadAction(format: ReportFormat): Promise<void> {
     setBusy(true); setMessage(undefined);
     try {
-      if (action === "share") {
-        const result = await sharePdfReport(inventory.id);
-        setMessage(result === "shared" ? "PDF compartilhado." : "Compartilhamento nativo indisponível; o PDF foi baixado.");
-      } else if (action === "email") {
-        setMessage(await emailReports(inventory.id, ["pdf"]));
-      } else {
-        await downloadReport(inventory.id, action);
-        setMessage(`${action.toUpperCase()} baixado.`);
-      }
+      await downloadReport(inventory.id, format);
+      setMessage(`${formatLabel[format]} baixado.`);
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Não foi possível gerar a exportação."); }
+    finally { setBusy(false); }
+  }
+
+  async function shareAction(format: ReportFormat): Promise<void> {
+    setBusy(true); setMessage(undefined);
+    try {
+      const result = await shareReport(inventory.id, format);
+      setMessage(result === "shared"
+        ? `Inventário compartilhado em ${formatLabel[format]}.`
+        : `Compartilhamento nativo indisponível; o arquivo ${formatLabel[format]} foi baixado.`);
+    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Não foi possível compartilhar o inventário."); }
     finally { setBusy(false); }
   }
 
@@ -62,7 +73,56 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
       </div>
       {inventory.status === "OPEN" ? <button className="primary" type="button" disabled={busy} onClick={() => void finish()}>{busy ? "Processando…" : "Finalizar inventário"}</button> : <span className="micro-pill good">Finalizado</span>}
     </div>
-    {inventory.status === "FINISHED" ? <div className="export-grid"><button className="primary" type="button" disabled={busy} onClick={() => void exportAction("share")}>Compartilhar PDF</button><button className="secondary" type="button" disabled={busy} onClick={() => void exportAction("pdf")}>Baixar PDF</button><button className="secondary" type="button" disabled={busy} onClick={() => void exportAction("xlsx")}>Baixar Excel</button><button className="secondary" type="button" disabled={busy} onClick={() => void exportAction("docx")}>Baixar Word</button><button className="secondary" type="button" disabled={busy} onClick={() => void exportAction("email")}>Enviar PDF por e-mail</button></div> : <p className="notice">Antes de finalizar, confira os lançamentos, sincronize e atualize a análise para reduzir retrabalho.</p>}
-    {message ? <p className={message.startsWith("Inventário") ? "notice" : "error"} role="status">{message}</p> : null}
+
+    {inventory.status === "FINISHED" ? <div className="stack">
+      <button
+        className="primary"
+        type="button"
+        disabled={busy}
+        aria-expanded={shareOpen}
+        onClick={() => setShareOpen((current) => !current)}
+      >
+        Compartilhar inventário
+      </button>
+
+      {shareOpen ? <div className="details-box">
+        <div className="details-content stack">
+          <div>
+            <h3>Escolha o formato</h3>
+            <p className="muted">No celular, o sistema abre os aplicativos disponíveis para compartilhar o arquivo escolhido.</p>
+          </div>
+          <div className="export-grid">
+            {(["pdf", "xlsx", "docx"] as ReportFormat[]).map((format) => <button
+              className="secondary"
+              type="button"
+              disabled={busy}
+              key={format}
+              onClick={() => void shareAction(format)}
+            >
+              Compartilhar {formatLabel[format]}
+            </button>)}
+          </div>
+        </div>
+      </div> : null}
+
+      <details className="details-box">
+        <summary>Baixar arquivo</summary>
+        <div className="details-content">
+          <div className="export-grid">
+            {(["pdf", "xlsx", "docx"] as ReportFormat[]).map((format) => <button
+              className="secondary"
+              type="button"
+              disabled={busy}
+              key={format}
+              onClick={() => void downloadAction(format)}
+            >
+              Baixar {formatLabel[format]}
+            </button>)}
+          </div>
+        </div>
+      </details>
+    </div> : <p className="notice">Antes de finalizar, confira os lançamentos, sincronize e atualize a análise para reduzir retrabalho.</p>}
+
+    {message ? <p className={message.startsWith("Inventário") || message.endsWith("baixado.") ? "notice" : "error"} role="status">{message}</p> : null}
   </section>;
 }

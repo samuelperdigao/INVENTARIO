@@ -67,7 +67,18 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
 
   return (
     <main className="shell">
-      <div className="topbar"><div><Link className="muted" href="/">← Inventários</Link><h1>Inventário {formatBrazilianDate(inventory.date)}</h1></div><span className="muted">{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Local"}</span></div>
+      <header className="inventory-header">
+        <div className="inventory-header-row">
+          <div>
+            <Link className="back-link" href="/">‹ Inventários</Link>
+            <p className="eyebrow">Inventário em operação</p>
+            <h1>Inventário {formatBrazilianDate(inventory.date)}</h1>
+            <p className="muted">Registre cada ocorrência individualmente. A consolidação acontece somente na análise.</p>
+          </div>
+          <span className="status-pill">{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span>
+        </div>
+      </header>
+
       {error && <p className="error" role="alert">{error}</p>}
       <div className="stack">
         {inventory.status === "OPEN" ? <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => setEditing(undefined)} /> : <p className="notice">Inventário finalizado: lançamentos preservados em modo somente leitura.</p>}

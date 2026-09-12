@@ -15,7 +15,7 @@
 - Gates finais da integração: `pnpm lint`, `pnpm typecheck`, Vitest, `pnpm build`, `pytest -q` e `alembic upgrade head` passaram no GitHub Actions.
 - Preview Vercel da branch integrada retornou status `success` no commit validado.
 
-## Fluxo de acesso e compartilhamento V1 — implementado na branch em 12/09/2026
+## Fluxo de acesso e compartilhamento V1 — publicado em produção em 12/09/2026
 
 - Landing pública em `/`, fluxo de acesso em `/acesso`, dashboard autenticado em `/dashboard` e histórico em `/historico`.
 - Cadastro com qualquer e-mail válido, sem criação automática de equipe e com acesso imediato, sem envio de código.
@@ -28,7 +28,9 @@
 - SMTP permanece isolado ao envio opcional de anexos de relatório. Cadastro e recuperação não dependem de e-mail transacional.
 - Gates executados após a integração com a `main`: lint, typecheck, 19 testes Vitest, 31 testes Pytest, build Next e ciclo Alembic SQLite `upgrade → downgrade 0006_entry_layers → upgrade 0007_recovery_pin` passaram.
 - Playwright foi atualizado para o novo login e participação, mas não foi executado neste ambiente porque o download do Chromium expirou novamente. A validação visual continua como limitação de ambiente, não como teste aprovado.
-- Pendência externa: aplicar `0007_recovery_pin` no PostgreSQL real e executar smoke test publicado. Provedor SMTP só é necessário para envio opcional de relatórios.
+- A migration `0007_recovery_pin` foi aplicada no PostgreSQL Neon principal. Por decisão operacional, as dez contas, equipes vinculadas e sessões antigas foram removidas; inventários e relatórios permaneceram armazenados sem vínculo com os usuários removidos.
+- Backend `https://inventory-api-6o8h.onrender.com` e frontend `https://inventario-lpe.vercel.app` estão publicados. O workflow `Production Smoke` validou healthcheck, páginas públicas, proxy da API, cabeçalhos de segurança, NP de oito dígitos e fronteira de sessão sem autenticação.
+- Provedor SMTP só é necessário para envio opcional de relatórios.
 
 ## V1 estrutural — concluída localmente em 11/09/2026
 

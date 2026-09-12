@@ -12,6 +12,8 @@ O envio de relatórios está implementado por SMTP. Cadastro e recuperação nã
 
 Validações locais após integrar a troca para NP sobre a `main`: lint, typecheck, 19 Vitest, 31 Pytest, build Next e ciclo Alembic SQLite até `0007_recovery_pin` passaram. Os três testes Playwright foram adaptados, mas o Chromium não pôde ser baixado neste ambiente por timeout; executar `pnpm exec playwright install chromium` e `pnpm e2e` em ambiente com o navegador disponível.
 
+A migration `0007_recovery_pin` foi aplicada no Neon principal. As contas e equipes antigas foram zeradas por decisão operacional, preservando os inventários sem vínculo com os usuários removidos. A API está em `https://inventory-api-6o8h.onrender.com`, o frontend em `https://inventario-lpe.vercel.app` e o workflow `Production Smoke` passou após a publicação.
+
 ## V1 estrutural — checkpoint local de relatório e encerramento
 
 Esta etapa acrescentou a parte estrutural restante da V1 sem redesenhar o frontend: modelo consolidado único, Excel/PDF/Word, finalização central e histórico. A migration `0004_inventory_reports_finalization` acrescenta `finalized_at` e `report_snapshot` a `inventories`.

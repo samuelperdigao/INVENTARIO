@@ -27,7 +27,7 @@ Inclui criação e reabertura de inventários locais, lançamentos individuais, 
 
 O backend usa SQLAlchemy e a migração Alembic `0001_central_sync` para inventários, lançamentos, eventos incrementais e conflitos. PostgreSQL é obrigatório em produção; SQLite é apenas conveniência de desenvolvimento local.
 
-Fase 1, Fase 2.1 de segurança e as funcionalidades estruturais da V1 estão implementadas e validadas localmente. PostgreSQL real, HTTPS/CORS do domínio publicado, deploy público e validação em dispositivos físicos permanecem pendentes antes de qualquer exposição pública. A próxima etapa é a validação publicada da infraestrutura preparada.
+Fase 1, Fase 2.1 de segurança e as funcionalidades estruturais da V1 estão implementadas. O frontend e a API estão publicados com HTTPS, a migration atual foi aplicada no PostgreSQL Neon e o smoke test de produção está ativo. A validação em dispositivos físicos permanece pendente.
 
 ## Requisitos
 

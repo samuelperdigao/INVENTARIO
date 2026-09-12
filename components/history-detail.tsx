@@ -6,10 +6,18 @@ import { useEffect, useState } from "react";
 
 import { getAuthenticatedSession, restoreSession } from "@/lib/auth-client";
 import { formatBrazilianDate } from "@/lib/local-date";
-import { downloadReport, reportErrorMessage, shareReport, type ReportFormat } from "@/lib/report-client";
+import {
+  downloadReport,
+  prepareReportsForSharing,
+  reportErrorMessage,
+  sharePreparedReport,
+  type PreparedReports,
+  type ReportFormat,
+} from "@/lib/report-client";
 import type { AnalysisClassification, AnalysisLocation, AnalysisSummary } from "@/lib/models";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
+const formats: ReportFormat[] = ["pdf", "xlsx", "docx"];
 
 const formatLabel: Record<ReportFormat, string> = {
   pdf: "PDF",
@@ -36,6 +44,8 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
   const [shareOpen, setShareOpen] = useState(false);
+  const [preparingShare, setPreparingShare] = useState(false);
+  const [preparedReports, setPreparedReports] = useState<PreparedReports>({});
 
   useEffect(() => {
     let active = true;
@@ -59,12 +69,52 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
     finally { setBusy(undefined); }
   }
 
-  async function shareAction(format: ReportFormat): Promise<string> {
-    const result = await shareReport(inventoryId, format);
-    if (result === "shared") return `Inventário compartilhado em ${formatLabel[format]}.`;
-    if (result === "cancelled") return "Compartilhamento cancelado.";
-    return `O navegador não permitiu o compartilhamento nativo. O arquivo ${formatLabel[format]} foi baixado para você compartilhar manualmente.`;
+  async function toggleShare(): Promise<void> {
+    if (shareOpen) {
+      setShareOpen(false);
+      return;
+    }
+
+    setShareOpen(true);
+    if (formats.every((format) => preparedReports[format])) return;
+
+    setPreparingShare(true);
+    setMessage("Preparando os arquivos para o compartilhamento nativo…");
+    setError(undefined);
+    try {
+      const files = await prepareReportsForSharing(inventoryId, formats);
+      setPreparedReports(files);
+      setMessage("Arquivos prontos. Escolha PDF, Excel ou Word para abrir o compartilhamento do celular.");
+    } catch (cause) {
+      setError(reportErrorMessage(cause, "Não foi possível preparar os arquivos para compartilhamento."));
+    } finally {
+      setPreparingShare(false);
+    }
   }
+
+  function shareAction(format: ReportFormat): void {
+    const file = preparedReports[format];
+    if (!file) {
+      setError("Aguarde a preparação do arquivo antes de compartilhar.");
+      return;
+    }
+
+    setBusy(`share-${format}`);
+    setMessage(undefined);
+    setError(undefined);
+
+    // sharePreparedReport chama navigator.share() imediatamente neste clique.
+    void sharePreparedReport(file, format)
+      .then((result) => {
+        if (result === "shared") setMessage(`Inventário compartilhado em ${formatLabel[format]}.`);
+        else if (result === "cancelled") setMessage("Compartilhamento cancelado.");
+        else setError(`O compartilhamento nativo de ${formatLabel[format]} não está disponível neste navegador. Tente pelo Chrome do celular.`);
+      })
+      .catch((cause) => setError(reportErrorMessage(cause, "Não foi possível abrir o compartilhamento nativo.")))
+      .finally(() => setBusy(undefined));
+  }
+
+  const shareReady = formats.every((format) => preparedReports[format]);
 
   return <main className="shell">
     <header className="page-topbar"><Link className="back-link" href="/historico">‹ Voltar ao histórico</Link><div><p className="eyebrow">Relatório oficial</p><h1>{report ? `Inventário ${formatBrazilianDate(report.inventoryDate)}` : "Abrindo inventário…"}</h1><p className="muted">Modo somente leitura. O snapshot final permanece preservado.</p></div></header>
@@ -76,13 +126,13 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
       <section className="card section-card stack">
         <div><p className="eyebrow">Arquivos</p><h2>Compartilhar ou baixar</h2><p className="muted">Escolha o formato do inventário. No celular, o compartilhamento abre os aplicativos disponíveis no aparelho.</p></div>
 
-        <button className="primary" disabled={Boolean(busy)} aria-expanded={shareOpen} onClick={() => setShareOpen((current) => !current)}>Compartilhar inventário</button>
+        <button className="primary" disabled={Boolean(busy) || preparingShare} aria-expanded={shareOpen} aria-busy={preparingShare} onClick={() => void toggleShare()}>{preparingShare ? "Preparando compartilhamento…" : "Compartilhar inventário"}</button>
 
         {shareOpen ? <div className="details-box">
           <div className="details-content stack">
-            <div><h3>Escolha o formato</h3><p className="muted">PDF é ideal para leitura; Excel para análise; Word para edição.</p></div>
+            <div><h3>Escolha o formato</h3><p className="muted">Os arquivos são preparados antes. Ao tocar no formato, o menu nativo do celular abre imediatamente.</p></div>
             <div className="export-grid">
-              {(["pdf", "xlsx", "docx"] as ReportFormat[]).map((format) => <button className="secondary" disabled={Boolean(busy)} key={format} onClick={() => void run(`share-${format}`, () => shareAction(format))}>Compartilhar {formatLabel[format]}</button>)}
+              {formats.map((format) => <button className="secondary" disabled={Boolean(busy) || preparingShare || !shareReady} key={format} onClick={() => shareAction(format)}>Compartilhar {formatLabel[format]}</button>)}
             </div>
           </div>
         </div> : null}
@@ -91,7 +141,7 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
           <summary>Baixar arquivo</summary>
           <div className="details-content">
             <div className="export-grid">
-              {(["pdf", "xlsx", "docx"] as ReportFormat[]).map((format) => <button className="secondary" disabled={Boolean(busy)} key={format} onClick={() => void run(format, async () => { await downloadReport(inventoryId, format); return `${formatLabel[format]} baixado.`; })}>Baixar {formatLabel[format]}</button>)}
+              {formats.map((format) => <button className="secondary" disabled={Boolean(busy)} key={format} onClick={() => void run(format, async () => { await downloadReport(inventoryId, format); return `${formatLabel[format]} baixado.`; })}>Baixar {formatLabel[format]}</button>)}
             </div>
           </div>
         </details>

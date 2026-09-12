@@ -1,0 +1,77 @@
+name: Production Smoke
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate backend, frontend proxy and auth lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          API="https://inventory-api-6o8h.onrender.com"
+          APP="https://inventario-prod.onrender.com"
+
+          echo "Waiting for backend..."
+          for attempt in {1..18}; do
+            if curl -fsS --max-time 20 "$API/healthz" | grep -q '"status":"ok"'; then
+              break
+            fi
+            if [ "$attempt" -eq 18 ]; then
+              echo "Backend healthcheck failed"
+              exit 1
+            fi
+            sleep 10
+          done
+
+          echo "Waiting for frontend..."
+          for attempt in {1..18}; do
+            if curl -fsS --max-time 20 "$APP/" -o /tmp/home.html; then
+              break
+            fi
+            if [ "$attempt" -eq 18 ]; then
+              echo "Frontend failed"
+              exit 1
+            fi
+            sleep 10
+          done
+
+          echo "Checking same-origin backend proxy..."
+          curl -fsS --max-time 30 "$APP/backend-api/healthz" | grep -q '"status":"ok"'
+
+          echo "Checking security headers..."
+          curl -fsSI --max-time 30 "$API/healthz" | grep -qi '^strict-transport-security:'
+          curl -fsSI --max-time 30 "$APP/" | grep -qi '^strict-transport-security:'
+
+          echo "Checking register -> refresh -> logout through frontend proxy..."
+          EMAIL="smoke-$(date +%s)-${RANDOM}@example.com"
+          PASSWORD="Smoke-Test-2026!Strong"
+
+          REGISTER=$(curl -fsS --max-time 30 \
+            -c /tmp/cookies.txt \
+            -H 'Content-Type: application/json' \
+            -X POST "$APP/backend-api/api/v1/auth/register" \
+            --data "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"displayName\":\"Smoke Test\",\"teamName\":\"Smoke Team\"}")
+
+          echo "$REGISTER" | jq -e '.accessToken | strings | length > 20' >/dev/null
+          echo "$REGISTER" | jq -e '.user.teams | length == 1' >/dev/null
+
+          REFRESH=$(curl -fsS --max-time 30 \
+            -b /tmp/cookies.txt -c /tmp/cookies.txt \
+            -H 'Content-Type: application/json' \
+            -X POST "$APP/backend-api/api/v1/auth/refresh" \
+            --data '{}')
+          echo "$REFRESH" | jq -e '.accessToken | strings | length > 20' >/dev/null
+
+          curl -fsS --max-time 30 \
+            -b /tmp/cookies.txt \
+            -X POST "$APP/backend-api/api/v1/auth/logout" \
+            -o /dev/null
+
+          echo "Production smoke test passed."

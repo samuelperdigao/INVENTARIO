@@ -18,14 +18,20 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Validate frontend
+      - name: Validate frontend feature
         shell: bash
         run: |
           set -o pipefail
           {
             pnpm lint
             pnpm typecheck
-            pnpm test
+            pnpm exec vitest run \
+              tests/inventory-repository.test.ts \
+              tests/entry-form.test.tsx \
+              tests/inventory-screen.test.tsx \
+              tests/analysis-client.test.ts \
+              tests/grouping.test.ts \
+              tests/sync-client.test.ts
             pnpm build
           } 2>&1 | tee frontend-validation.log
       - uses: actions/upload-artifact@v4

@@ -6,7 +6,7 @@ import { getAuthenticatedContext } from "@/lib/auth-client";
 import { markInventoryFinished } from "@/lib/inventory-repository";
 import { syncInventory } from "@/lib/sync-client";
 import type { Inventory } from "@/lib/models";
-import { downloadReport, shareReport, type ReportFormat } from "@/lib/report-client";
+import { downloadReport, reportErrorMessage, shareReport, type ReportFormat } from "@/lib/report-client";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 
@@ -37,7 +37,7 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
       await markInventoryFinished(inventory.id, body.revision);
       await onFinished();
       setMessage("Inventário finalizado. O relatório e as exportações estão preservados.");
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Não foi possível finalizar o inventário."); }
+    } catch (cause) { setMessage(reportErrorMessage(cause, "Não foi possível finalizar o inventário.")); }
     finally { setBusy(false); }
   }
 
@@ -46,7 +46,7 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
     try {
       await downloadReport(inventory.id, format);
       setMessage(`${formatLabel[format]} baixado.`);
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Não foi possível gerar a exportação."); }
+    } catch (cause) { setMessage(reportErrorMessage(cause, "Não foi possível gerar a exportação.")); }
     finally { setBusy(false); }
   }
 
@@ -54,10 +54,14 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
     setBusy(true); setMessage(undefined);
     try {
       const result = await shareReport(inventory.id, format);
-      setMessage(result === "shared"
-        ? `Inventário compartilhado em ${formatLabel[format]}.`
-        : `Compartilhamento nativo indisponível; o arquivo ${formatLabel[format]} foi baixado.`);
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Não foi possível compartilhar o inventário."); }
+      if (result === "shared") {
+        setMessage(`Inventário compartilhado em ${formatLabel[format]}.`);
+      } else if (result === "cancelled") {
+        setMessage("Compartilhamento cancelado.");
+      } else {
+        setMessage(`O navegador não permitiu o compartilhamento nativo. O arquivo ${formatLabel[format]} foi baixado para você compartilhar manualmente.`);
+      }
+    } catch (cause) { setMessage(reportErrorMessage(cause, "Não foi possível compartilhar o inventário.")); }
     finally { setBusy(false); }
   }
 
@@ -123,6 +127,6 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
       </details>
     </div> : <p className="notice">Antes de finalizar, confira os lançamentos, sincronize e atualize a análise para reduzir retrabalho.</p>}
 
-    {message ? <p className={message.startsWith("Inventário") || message.endsWith("baixado.") ? "notice" : "error"} role="status">{message}</p> : null}
+    {message ? <p className={message.startsWith("Inventário") || message.endsWith("baixado.") || message === "Compartilhamento cancelado." || message.startsWith("O navegador não permitiu") ? "notice" : "error"} role="status">{message}</p> : null}
   </section>;
 }

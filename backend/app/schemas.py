@@ -162,7 +162,7 @@ class VerifyEmailRequest(EmailCodeRequest):
     code: str = Field(pattern=r"^\d{6}$")
 
 
-class ConfirmPasswordResetRequest(VerifyEmailRequest):
+class ConfirmPasswordResetRequest(EmailCodeRequest):
     newPassword: str = Field(min_length=12, max_length=256)
     passwordConfirmation: str = Field(min_length=12, max_length=256)
 
@@ -182,7 +182,7 @@ class LoginRequest(ApiModel):
     password: str = Field(min_length=1, max_length=256)
 
 
-class TeamMember(ApiModel):
+class AuthTeam(ApiModel):
     id: UUID
     name: str
     role: Literal["ADMIN", "OPERATOR"]
@@ -193,7 +193,7 @@ class AuthenticatedUser(ApiModel):
     email: str
     displayName: str
     emailVerified: bool
-    teams: list[TeamMember]
+    teams: list[AuthTeam]
 
 
 class AuthResponse(ApiModel):
@@ -214,26 +214,26 @@ class FinalizeInventoryRequest(ApiModel):
     revision: StrictInt = Field(ge=1)
 
 
-class InventoryHistoryItem(ApiModel):
-    id: UUID
-    date: date
-    status: Literal["OPEN", "FINISHED"]
-    revision: StrictInt = Field(ge=1)
-    finalizedAt: datetime | None = None
-    summary: AnalysisSummary | None = None
-    createdByUserId: UUID | None = None
-    finalizedByUserId: UUID | None = None
-    createdByName: str | None = None
-    finalizedByName: str | None = None
-
-
 class JoinInventoryRequest(ApiModel):
     code: str = Field(pattern=r"^\d{6}$")
 
 
 class JoinInventoryResponse(ApiModel):
     inventoryId: UUID
-    accessToken: str = Field(min_length=32)
+    accessToken: str
+
+
+class InventoryHistoryItem(ApiModel):
+    id: UUID
+    date: date
+    status: Literal["OPEN", "FINISHED"]
+    revision: StrictInt
+    finalizedAt: datetime | None = None
+    summary: dict[str, Any] | None = None
+    createdByUserId: UUID | None = None
+    createdByName: str | None = None
+    finalizedByUserId: UUID | None = None
+    finalizedByName: str | None = None
 
 
 class EmailReportRequest(ApiModel):

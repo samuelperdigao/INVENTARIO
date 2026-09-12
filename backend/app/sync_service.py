@@ -5,13 +5,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import hmac
+import secrets
 from typing import Any, Literal
 from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.persistence import InventoryEntryRow, InventoryRow, SyncConflictRow, SyncEventRow
+from app.persistence import InventoryEntryRow, InventoryParticipantRow, InventoryRow, SyncConflictRow, SyncEventRow
 from app.schemas import SyncEntry, SyncInventory, SyncRequest
 
 EntityType = Literal["inventory", "entry"]
@@ -35,6 +36,14 @@ class SyncFinalizationRequiredError(Exception):
 
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _new_participation_code(session: Session) -> str:
+    for _ in range(50):
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        if session.scalar(select(InventoryRow.id).where(InventoryRow.participation_code == code)) is None:
+            return code
+    raise RuntimeError("Não foi possível gerar um código de participação único.")
 
 
 def _timestamp(value: datetime | None) -> str | None:
@@ -137,6 +146,8 @@ def _create_inventory(session: Session, incoming: SyncInventory, sync_token: str
         sync_token_hash=_hash_token(sync_token),
         team_id=team_id,
         owner_user_id=owner_user_id,
+        participation_code=_new_participation_code(session),
+        finalized_by_user_id=None,
     )
     session.add(row)
     session.flush()
@@ -222,7 +233,7 @@ def _apply_entry(
     )
 
 
-def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team_id: str, actor_user_id: str) -> dict[str, Any]:
+def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team_id: str | None, actor_user_id: str) -> dict[str, Any]:
     """Aplica apenas alterações pendentes e devolve alterações desde o cursor.
 
     A igualdade de revisão torna repetição segura. Um ``syncBaseRevision`` que
@@ -239,15 +250,27 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
     if inventory is None:
         if payload.inventory is None:
             raise SyncNotFoundError()
+        if team_id is None:
+            raise SyncNotFoundError()
         inventory = _create_inventory(session, payload.inventory, sync_token, team_id, actor_user_id)
         acknowledged_inventory = True
     else:
-        # Uma referência válida não revela inventário de outra equipe. O
-        # chamador já teve a associação com ``team_id`` validada na borda HTTP.
-        if inventory.team_id != team_id:
+        participant = session.scalar(
+            select(InventoryParticipantRow).where(
+                InventoryParticipantRow.inventory_id == inventory.id,
+                InventoryParticipantRow.user_id == actor_user_id,
+            )
+        )
+        team_access = inventory.team_id == team_id and team_id is not None
+        participant_access = participant is not None and hmac.compare_digest(participant.access_token_hash, _hash_token(sync_token))
+        if not team_access and not participant_access:
             raise SyncNotFoundError()
-        if not hmac.compare_digest(inventory.sync_token_hash, _hash_token(sync_token)):
+        if team_access and not hmac.compare_digest(inventory.sync_token_hash, _hash_token(sync_token)):
             raise SyncAuthorizationError()
+        if participant_access and participant is not None:
+            participant.last_accessed_at = datetime.now(timezone.utc)
+        if inventory.status == "OPEN" and inventory.participation_code is None:
+            inventory.participation_code = _new_participation_code(session)
         acknowledged_inventory = False
 
     if inventory.status == "FINISHED" and (payload.inventory is not None or payload.entries):
@@ -325,4 +348,5 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
         "entries": returned_entries,
         "acknowledged": {"inventory": acknowledged_inventory, "entryIds": acknowledged_entry_ids},
         "conflicts": conflicts,
+        "participationCode": inventory.participation_code if inventory.status == "OPEN" else None,
     }

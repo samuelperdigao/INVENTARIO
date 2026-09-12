@@ -5,8 +5,8 @@ import { ServiceWorkerRegistration } from "@/components/service-worker-registrat
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Inventário offline",
-  description: "Lançamento local de inventário e análise determinística.",
+  title: "INVENTARIO | Laminação de Perfis",
+  description: "Controle, conferência e relatórios de inventário da Laminação de Perfis.",
   manifest: "/manifest.webmanifest",
 };
 
@@ -20,4 +20,3 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
-

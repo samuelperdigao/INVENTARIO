@@ -12,10 +12,12 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base, get_session
 from app.main import app
 import app.persistence as _persistence  # noqa: F401
+from app.email_service import development_outbox
 
 
 @pytest.fixture(autouse=True)
 def central_database() -> None:
+    development_outbox.clear()
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -34,5 +36,6 @@ def central_database() -> None:
     app.dependency_overrides[get_session] = get_testing_session
     yield
     app.dependency_overrides.clear()
+    development_outbox.clear()
     Base.metadata.drop_all(engine)
     engine.dispose()

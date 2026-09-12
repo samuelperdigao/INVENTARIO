@@ -1,0 +1,72 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+import { getAuthenticatedSession, restoreSession } from "@/lib/auth-client";
+import { formatBrazilianDate } from "@/lib/local-date";
+import { downloadReport, emailReports, sharePdfReport, type ReportFormat } from "@/lib/report-client";
+import type { AnalysisClassification, AnalysisLocation, AnalysisSummary } from "@/lib/models";
+
+const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
+
+interface ConsolidatedReport {
+  inventoryId: string;
+  inventoryDate: string;
+  generatedAt: string;
+  revision: number;
+  totalPieces: number;
+  totalRecords: number;
+  summary: AnalysisSummary;
+  records: Array<{ side: "EF" | "DE"; bay: string; lot: string; quantity: number }>;
+  lots: Array<{ lot: string; totalQuantity: number; locations: AnalysisLocation[]; classification: AnalysisClassification; recommendation?: string }>;
+}
+
+export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
+  const router = useRouter();
+  const [report, setReport] = useState<ConsolidatedReport>();
+  const [busy, setBusy] = useState<string>();
+  const [message, setMessage] = useState<string>();
+  const [error, setError] = useState<string>();
+  const [selectedFormats, setSelectedFormats] = useState<ReportFormat[]>(["pdf"]);
+  const [userEmail, setUserEmail] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void restoreSession().then(async (user) => {
+      if (!user) { router.replace("/acesso"); return; }
+      setUserEmail(user.email);
+      try {
+        const session = await getAuthenticatedSession();
+        const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventoryId}/report`, { credentials: "include", headers: { Authorization: `Bearer ${session.accessToken}` } });
+        const body = await response.json().catch(() => undefined) as ConsolidatedReport | { detail?: string } | undefined;
+        if (!response.ok || !body || !("inventoryDate" in body)) throw new Error(body && "detail" in body ? body.detail : "Não foi possível abrir o relatório.");
+        if (active) setReport(body);
+      } catch (cause) { if (active) setError(cause instanceof Error ? cause.message : "Não foi possível abrir o relatório."); }
+    });
+    return () => { active = false; };
+  }, [inventoryId, router]);
+
+  async function run(label: string, action: () => Promise<string | void>): Promise<void> {
+    setBusy(label); setMessage(undefined); setError(undefined);
+    try { setMessage((await action()) || "Ação concluída."); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível concluir a ação."); }
+    finally { setBusy(undefined); }
+  }
+
+  function toggleFormat(format: ReportFormat): void {
+    setSelectedFormats((current) => current.includes(format) ? current.filter((item) => item !== format) : [...current, format]);
+  }
+
+  return <main className="shell">
+    <header className="page-topbar"><Link className="back-link" href="/historico">‹ Voltar ao histórico</Link><div><p className="eyebrow">Relatório oficial</p><h1>{report ? `Inventário ${formatBrazilianDate(report.inventoryDate)}` : "Abrindo inventário…"}</h1><p className="muted">Modo somente leitura. O snapshot final permanece preservado.</p></div></header>
+    {error ? <p className="error" role="alert">{error}</p> : null}
+    {!report && !error ? <p className="muted">Carregando relatório central…</p> : null}
+    {report ? <div className="stack">
+      <section className="metric-grid" aria-label="Resumo final"><div className="metric-card"><span className="metric-label">Registros</span><span className="metric-value">{report.totalRecords}</span></div><div className="metric-card"><span className="metric-label">Lotes</span><span className="metric-value">{report.summary.lotsAnalyzed}</span></div><div className="metric-card"><span className="metric-label">Peças</span><span className="metric-value">{report.totalPieces}</span></div><div className="metric-card"><span className="metric-label">Fragmentados</span><span className="metric-value">{report.summary.fragmentedLots}</span></div></section>
+      <section className="card section-card stack"><div><p className="eyebrow">Arquivos</p><h2>Exportar ou compartilhar</h2><p className="muted">No celular, o compartilhamento em PDF abre os aplicativos disponíveis no sistema.</p></div><div className="export-grid"><button className="primary" disabled={Boolean(busy)} onClick={() => void run("share", async () => (await sharePdfReport(inventoryId)) === "shared" ? "PDF compartilhado." : "Compartilhamento nativo indisponível; o PDF foi baixado.")}>Compartilhar PDF</button>{(["pdf", "xlsx", "docx"] as ReportFormat[]).map((format) => <button className="secondary" disabled={Boolean(busy)} key={format} onClick={() => void run(format, async () => { await downloadReport(inventoryId, format); return `${format.toUpperCase()} baixado.`; })}>Baixar {format.toUpperCase()}</button>)}</div><div className="email-box"><label>E-mail destinatário<input type="email" value={userEmail} readOnly aria-readonly="true" /></label><div className="format-checks">{(["pdf", "xlsx", "docx"] as ReportFormat[]).map((format) => <label key={format}><input type="checkbox" checked={selectedFormats.includes(format)} onChange={() => toggleFormat(format)} />{format.toUpperCase()}</label>)}</div><button className="secondary" disabled={Boolean(busy) || selectedFormats.length === 0} onClick={() => void run("email", () => emailReports(inventoryId, selectedFormats))}>Enviar por e-mail</button></div>{message ? <p className="notice" role="status">{message}</p> : null}</section>
+      <section className="card section-card stack"><div><p className="eyebrow">Conferência</p><h2>Lotes consolidados</h2></div><div className="report-table-wrap"><table className="report-table"><thead><tr><th>Lote</th><th>Total físico</th><th>Locais</th><th>Classificação</th></tr></thead><tbody>{report.lots.map((lot) => <tr key={lot.lot}><td>{lot.lot}</td><td>{lot.totalQuantity}</td><td>{lot.locations.map((location) => `${location.side} · ${location.bay} (${location.quantity})`).join(", ")}</td><td><span className={`classification-tag ${lot.classification === "OK" ? "good" : "attention"}`}>{lot.classification.replaceAll("_", " ")}</span></td></tr>)}</tbody></table></div></section>
+    </div> : null}
+  </main>;
+}

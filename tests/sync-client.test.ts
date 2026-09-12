@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { db } from "@/lib/db";
 import { createEntry, createInventory } from "@/lib/inventory-repository";
-import { listSyncConflicts, resolveConflict, syncInventory } from "@/lib/sync-client";
+import { joinInventoryByCode, listSyncConflicts, resolveConflict, syncInventory } from "@/lib/sync-client";
 
 vi.mock("@/lib/auth-client", () => ({
   getAuthenticatedContext: vi.fn().mockResolvedValue({ accessToken: "test-access-token", teamId: "00000000-0000-4000-8000-000000000001" }),
@@ -57,4 +57,23 @@ it("mantém as duas versões quando o servidor reporta um conflito", async () =>
 
   await resolveConflict(inventory.id, conflicts[0].id, "local");
   expect((await db.entries.get(entry.id))).toMatchObject({ lot: "LOCAL", revision: 3, syncBaseRevision: 2, syncStatus: "PENDING" });
+});
+
+it("entra por seis dígitos e guarda somente o token interno retornado", async () => {
+  const inventoryId = "00000000-0000-4000-8000-000000000010";
+  const entryId = "00000000-0000-4000-8000-000000000011";
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify({ inventoryId, accessToken: "secure-participant-token-with-more-than-32-characters" }), { status: 200 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ ...response(inventoryId, entryId), participationCode: "482731" }), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const joined = await joinInventoryByCode("482731");
+
+  expect(joined.inventoryId).toBe(inventoryId);
+  expect(fetchMock.mock.calls[0][0]).toContain("/api/v1/inventories/join");
+  expect(fetchMock.mock.calls[0][1]?.body).toBe(JSON.stringify({ code: "482731" }));
+  expect(await db.inventories.get(inventoryId)).toMatchObject({
+    participationCode: "482731",
+    syncToken: "secure-participant-token-with-more-than-32-characters",
+  });
 });

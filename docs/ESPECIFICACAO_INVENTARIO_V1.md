@@ -1566,3 +1566,46 @@ SEGURANÇA
 ```
 
 Qualquer decisão técnica futura deverá preservar esses princípios.
+
+---
+
+# 51. ACESSO, PARTICIPAÇÃO E COMPARTILHAMENTO
+
+## Entrada e identidade
+
+- `/` é a Landing Page pública e `/dashboard` é a área operacional autenticada;
+- cadastro aceita exclusivamente o domínio exato `@gerdau.com.br`;
+- cadastro não cria equipe automaticamente;
+- senha é persistida somente como hash `scrypt` com salt individual;
+- a conta exige confirmação por código aleatório de seis números;
+- códigos de verificação e recuperação expiram, têm limite de tentativas e são armazenados somente como HMAC;
+- redefinir a senha revoga todas as sessões renováveis anteriores;
+- perfil não sensível pode permanecer no dispositivo para reabrir dados locais offline, mas bearer token nunca é persistido.
+
+## Participação
+
+- UUID e tokens internos não aparecem no fluxo normal do usuário;
+- o primeiro sync de inventário aberto cria um código de participação de exatamente seis números;
+- o código é único entre inventários ativos e deixa de existir na finalização;
+- participar exige usuário autenticado e recebe proteção contra tentativas repetidas;
+- o backend registra cada participante e emite um token opaco individual de alta entropia;
+- o código amigável identifica o inventário, mas nunca substitui autenticação, autorização ou token interno.
+
+## Histórico e autoria
+
+- `owner_user_id` representa o criador e é equivalente a `created_by_user_id` nesta versão;
+- `finalized_by_user_id` registra quem encerrou o inventário;
+- **Meus inventários** reúne finalizados criados ou acessados pelo usuário;
+- **Inventários da equipe** exige associação à equipe escolhida;
+- o snapshot final é imutável e serve como fonte oficial para consulta e novas exportações;
+- inventário finalizado pode ser lido e exportado pelo usuário autorizado sem informar token manualmente.
+
+## Compartilhamento e e-mail
+
+- PDF é o formato padrão de compartilhamento móvel;
+- a interface usa `navigator.share()` apenas quando `navigator.canShare()` aceita o arquivo;
+- sem suporte nativo, o sistema baixa o documento;
+- PDF, XLSX e DOCX podem ser enviados ao e-mail da conta autenticada;
+- o destinatário não é confiado ao frontend;
+- verificação, recuperação e relatórios usam a mesma infraestrutura SMTP do backend;
+- credenciais e configuração do provedor nunca integram o bundle público.

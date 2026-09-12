@@ -106,6 +106,7 @@ export async function markInventoryFinished(inventoryId: string, revision: numbe
       revision,
       syncBaseRevision: revision,
       syncStatus: "SYNCED",
+      participationCode: undefined,
       updatedAt: new Date().toISOString(),
     });
   });

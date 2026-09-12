@@ -29,7 +29,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Fase 2.1 — segurança de acesso
 
-- Sincronização central exige bearer token de usuário, associação à equipe e o código de sincronização do inventário. O código é apenas uma segunda prova de posse e nunca autenticação.
+- Sincronização central exige bearer token e token interno do inventário. A criação central exige equipe; um participante já registrado pode usar seu token individual. O código amigável de seis dígitos nunca é autenticação.
 - Senhas usam `scrypt`; o token de acesso é curto e o token de renovação é opaco, revogável e enviado somente em cookie `HttpOnly`.
 - Em produção, `INVENTORY_ENV=production`, `INVENTORY_DATABASE_URL` PostgreSQL, `INVENTORY_AUTH_SECRET` forte e `INVENTORY_CORS_ORIGINS` HTTPS explícitas são obrigatórios. Não contorne as validações de inicialização.
 - Toda mudança de schema deve passar por Alembic. Inventários herdados sem `team_id` são preservados, mas devem ser associados administrativamente antes de qualquer acesso central.
@@ -38,6 +38,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## V1 estrutural — relatório, finalização e histórico
 
 - Exportações, finalização e histórico foram autorizados e implementados localmente após a Fase 2.1. O backend é a autoridade para finalizar, armazenar o snapshot do relatório e servir exportações; nunca “finalize” apenas no IndexedDB.
-- Uma finalização exige inventário central sincronizado, sessão, equipe e código de sincronização. Ela é irreversível nesta V1: não invente reabertura.
+- Uma finalização exige inventário central sincronizado, sessão, autorização e token interno. Ela é irreversível nesta V1: não invente reabertura.
 - Excel, PDF e Word devem receber exclusivamente o modelo em `backend/app/reports.py`; regras de classificação continuam em `backend/app/engine.py`.
 - A migration `0004_inventory_reports_finalization` é obrigatória junto às anteriores antes da API publicada. PostgreSQL real e deploy continuam pendências externas.
+
+## Fluxo de acesso e compartilhamento V1
+
+- Cadastro aceita somente o domínio exato `@gerdau.com.br`, exige verificação por código e não cria equipe automaticamente.
+- A migration `0005_access_sharing` é obrigatória. `owner_user_id` continua equivalente ao criador; `finalized_by_user_id` registra o encerramento.
+- Nunca mostre UUID ou token interno no fluxo normal. O usuário informa apenas o código de participação de seis dígitos; o backend emite token opaco individual e registra o participante.
+- Relatórios finalizados autorizados não exigem token manual. Itens abertos e sincronização continuam protegidos por token interno.
+- Produção exige SMTP protegido e configurado somente no backend. O modo `console` é estritamente local.

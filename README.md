@@ -1,15 +1,23 @@
 # Inventário offline
 
+## Fluxo de acesso e compartilhamento
+
+A rota `/` é uma apresentação pública. O sistema operacional fica em `/dashboard` e exige uma conta confirmada. O cadastro aceita exclusivamente endereços `@gerdau.com.br`, envia um código numérico de seis dígitos e não cria uma equipe automaticamente. A associação a uma equipe permanece explícita e administrativa.
+
+O acesso em outro dispositivo usa somente o código de participação de seis dígitos exibido depois da primeira sincronização. O backend resolve o UUID, registra o participante e emite um token interno aleatório exclusivo para aquela conta. O código expira quando o inventário é finalizado e nunca substitui autenticação ou autorização.
+
+Inventários finalizados aparecem em **Meus inventários** e **Inventários da equipe**. O snapshot oficial é somente leitura; usuários autorizados podem consultar e reexportar sem informar token manualmente. No celular, **Compartilhar PDF** usa a Web Share API quando o sistema aceita arquivos e baixa o documento como fallback.
+
 ## Relatório, exportações e finalização
 
 O backend produz um único modelo consolidado a partir dos lançamentos individuais e das regras do motor. Esse mesmo modelo gera Excel, PDF e Word; nenhum formato recalcula classificações.
 
 - `POST /api/v1/inventories/{inventoryId}/finalize`: exige bearer token, equipe, código `X-Inventory-Sync-Token` e a revisão central atual. Gera o snapshot, registra a data/hora e deixa o inventário `FINISHED`.
-- `GET /api/v1/inventories/history?teamId=...`: lista finalizados da equipe autenticada.
+- `GET /api/v1/inventories/history?scope=mine|team&teamId=...`: lista finalizados próprios ou da equipe.
 - `GET /api/v1/inventories/{inventoryId}/report`: devolve o relatório central.
 - `GET /api/v1/inventories/{inventoryId}/exports/{xlsx|pdf|docx}`: baixa `Inventario_DD-MM-AAAA.<formato>`.
 
-Relatório e exportações exigem autenticação, autorização de equipe e código de sincronização. A finalização é irreversível na V1; não há reabertura aprovada. Rode a migration `0004_inventory_reports_finalization` com o mesmo comando Alembic antes de iniciar qualquer API publicada.
+Relatórios de inventários abertos ainda exigem o token interno; inventários finalizados exigem somente autenticação e autorização. A finalização é irreversível na V1; não há reabertura aprovada. Rode as migrations até `0005_access_sharing` antes de iniciar qualquer API publicada.
 
 Aplicação mobile-first para registrar inventários físicos sem rede e solicitar uma análise determinística ao FastAPI quando estiver online.
 
@@ -82,6 +90,17 @@ INVENTORY_AUTH_SECRET=<segredo gerado pelo provedor ou aleatorio com pelo menos 
 INVENTORY_ACCESS_TOKEN_MINUTES=15
 INVENTORY_REFRESH_SESSION_DAYS=14
 INVENTORY_CORS_ORIGINS=https://app.seu-dominio.example
+INVENTORY_EMAIL_MODE=smtp
+INVENTORY_SMTP_HOST=<host do provedor>
+INVENTORY_SMTP_PORT=587
+INVENTORY_SMTP_USERNAME=<usuário do provedor>
+INVENTORY_SMTP_PASSWORD=<secret do provedor>
+INVENTORY_SMTP_FROM_EMAIL=<remetente autorizado>
+INVENTORY_SMTP_SECURITY=starttls
+INVENTORY_VERIFICATION_CODE_MINUTES=10
+INVENTORY_PASSWORD_RESET_CODE_MINUTES=10
+INVENTORY_AUTH_CODE_MAX_ATTEMPTS=5
+INVENTORY_EMAIL_ATTACHMENT_MAX_MB=15
 ```
 
 Configure na Vercel **antes do build de producao**:
@@ -97,7 +116,7 @@ As duas variaveis `NEXT_PUBLIC_*` sao URLs publicas compiladas no bundle; nunca 
 ### Ordem de deploy
 
 1. Criar o projeto Neon e obter a connection string com SSL; cadastra-la apenas como `INVENTORY_DATABASE_URL` no Render.
-2. Em terminal confiavel, com a connection string somente no ambiente do processo, executar `backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head` contra o Neon e confirmar `0004_inventory_reports_finalization (head)`.
+2. Em terminal confiavel, com a connection string somente no ambiente do processo, executar `backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head` contra o Neon e confirmar `0005_access_sharing (head)`.
 3. Criar a Blueprint Render a partir de `render.yaml`, informar os secrets solicitados e aguardar `/healthz` retornar 200.
 4. Criar o projeto Vercel apontando para a raiz do repositorio, definir as variaveis acima e publicar o build.
 5. Associar `api.seu-dominio.example` ao Render e `app.seu-dominio.example` a Vercel; concluir os registros DNS e aguardar os certificados TLS automaticos.
@@ -111,15 +130,17 @@ Depois de os dominios responderem por HTTPS, registrar com resultado real: `GET 
 
 ## Sincronização entre dispositivos
 
-No inventário, use **Sincronizar agora** quando houver conexão. O primeiro envio cria o inventário central; reenvios são idempotentes. Em **Conectar este inventário em outro dispositivo**, o criador encontra o ID e o código de sincronização. No segundo dispositivo, informe ambos na tela inicial.
+No inventário, use **Sincronizar agora** quando houver conexão. O primeiro envio cria o inventário central e devolve um código aleatório de seis dígitos. No outro dispositivo, o usuário autenticado informa apenas esse código. O backend registra a entrada e entrega ao cliente um token interno de alta entropia, que não é exibido na interface.
 
-O código é uma credencial: não o publique nem o envie por canal inseguro. Quando duas alterações partem da mesma revisão, o sistema registra as duas versões e pede que o operador escolha qual manter; não aplica "última gravação vence" silenciosamente.
+O código identifica apenas inventários abertos e recebe limite de tentativas. Autenticação e token interno continuam obrigatórios. Quando duas alterações partem da mesma revisão, o sistema registra as duas versões e pede que o operador escolha qual manter; não aplica "última gravação vence" silenciosamente.
 
 ## Conta, equipe e acesso à sincronização
 
-O lançamento operacional continua disponível localmente e offline, mesmo sem conta. Antes da primeira sincronização, crie uma conta e sua equipe na tela inicial. A senha é armazenada no servidor somente como hash `scrypt`; o navegador mantém o token de acesso apenas em memória e renova a sessão com cookie `HttpOnly`.
+O lançamento operacional continua disponível localmente e offline. O perfil não sensível da última conta verificada é mantido localmente para reabrir dados do dispositivo sem rede; tokens de acesso nunca são persistidos. Antes da primeira sincronização de um inventário novo, a conta precisa estar associada a uma equipe. A senha é armazenada somente como hash `scrypt`, o bearer token permanece em memória e a sessão renovável usa cookie `HttpOnly`.
 
-Para acessar um inventário central, a API exige três verificações: sessão de usuário válida, associação à equipe do inventário e o código de sincronização. Conhecer um UUID ou o código não dá acesso a outra equipe. Responsáveis (`ADMIN`) podem incluir membros; operadores (`OPERATOR`) podem sincronizar, mas não administram integrantes.
+Cadastro, confirmação e recuperação usam uma infraestrutura única de e-mail. Em desenvolvimento, `INVENTORY_EMAIL_MODE=console` registra a mensagem em uma caixa local e no log para teste. Em produção, a API exige `smtp`, transporte protegido e remetente configurado. A escolha e as credenciais reais do provedor continuam uma pendência externa.
+
+Para sincronizar um inventário central, a API exige sessão válida e token interno. A criação também exige associação à equipe; quem entra pelo código recebe um token individual ligado à própria conta. Conhecer UUID ou os seis dígitos isoladamente não concede acesso. Responsáveis (`ADMIN`) podem incluir membros; operadores (`OPERATOR`) podem sincronizar, mas não administram integrantes.
 
 A configuração de produção, a ordem de migrations e os smoke tests estão na seção **Publicacao controlada (Fase 2.2)** acima. Em produção, a API recusa SQLite, segredo curto/padrão e CORS com curinga ou HTTP. Publique frontend e API atrás de HTTPS; cookies de renovação ficam `Secure` nesse ambiente.
 

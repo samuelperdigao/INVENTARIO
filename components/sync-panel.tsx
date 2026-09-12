@@ -15,6 +15,7 @@ export function SyncPanel({ inventory, onSynced }: { inventory: Inventory; onSyn
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string>();
   const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
+  const [copied, setCopied] = useState(false);
 
   async function refreshConflicts(): Promise<void> {
     setConflicts(await listSyncConflicts(inventory.id));
@@ -55,6 +56,17 @@ export function SyncPanel({ inventory, onSynced }: { inventory: Inventory; onSyn
     setMessage(choice === "local" ? "Sua versão será enviada na próxima sincronização." : "A versão central foi aplicada neste dispositivo.");
   }
 
+  async function copyCode(): Promise<void> {
+    if (!inventory.participationCode) return;
+    try {
+      await navigator.clipboard.writeText(inventory.participationCode);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setMessage("Não foi possível copiar automaticamente. Selecione os seis números exibidos.");
+    }
+  }
+
   return (
     <section className="card section-card panel-card stack" aria-label="Sincronização">
       <div className="section-header">
@@ -72,13 +84,10 @@ export function SyncPanel({ inventory, onSynced }: { inventory: Inventory; onSyn
       <button className="secondary" type="button" onClick={() => void handleSync()} disabled={loading}>{loading ? "Sincronizando…" : "Sincronizar agora"}</button>
       {message ? <p className={message.startsWith("Sincronização") ? "notice" : "error"} role="status">{message}</p> : null}
 
-      {inventory.syncToken ? <details className="details-box">
-        <summary>Conectar este inventário em outro dispositivo</summary>
-        <div className="details-content">
-          <p className="muted">No outro dispositivo, informe estes dois valores na tela inicial. Trate o código como uma senha.</p>
-          <p><strong>ID:</strong> <code>{inventory.id}</code><br /><strong>Código:</strong> <code>{inventory.syncToken}</code></p>
-        </div>
-      </details> : null}
+      {inventory.status === "OPEN" ? <div className="participation-box">
+        <div><p className="eyebrow">Código de participação</p><strong className="participation-code">{inventory.participationCode ?? "Sincronize para gerar"}</strong><p className="muted">Compartilhe apenas estes seis números. IDs e tokens técnicos permanecem protegidos internamente.</p></div>
+        {inventory.participationCode ? <button className="secondary" type="button" onClick={() => void copyCode()}>{copied ? "Copiado" : "Copiar código"}</button> : null}
+      </div> : null}
 
       {conflicts.length > 0 ? <div className="stack" aria-label="Conflitos de sincronização">
         <p className="error">{conflicts.length} conflito(s) aguardando decisão. Os dois dados foram preservados.</p>

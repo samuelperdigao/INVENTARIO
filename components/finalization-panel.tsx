@@ -6,6 +6,7 @@ import { getAuthenticatedContext } from "@/lib/auth-client";
 import { markInventoryFinished } from "@/lib/inventory-repository";
 import { syncInventory } from "@/lib/sync-client";
 import type { Inventory } from "@/lib/models";
+import { downloadReport, emailReports, sharePdfReport } from "@/lib/report-client";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 
@@ -33,13 +34,18 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
     finally { setBusy(false); }
   }
 
-  async function download(format: "xlsx" | "pdf" | "docx"): Promise<void> {
+  async function exportAction(action: "xlsx" | "pdf" | "docx" | "share" | "email"): Promise<void> {
     setBusy(true); setMessage(undefined);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventory.id}/exports/${format}`, { credentials: "include", headers: await headers() });
-      if (!response.ok) throw new Error("Não foi possível gerar a exportação.");
-      const url = URL.createObjectURL(await response.blob());
-      const anchor = document.createElement("a"); anchor.href = url; anchor.download = `Inventario.${format}`; anchor.click(); URL.revokeObjectURL(url);
+      if (action === "share") {
+        const result = await sharePdfReport(inventory.id);
+        setMessage(result === "shared" ? "PDF compartilhado." : "Compartilhamento nativo indisponível; o PDF foi baixado.");
+      } else if (action === "email") {
+        setMessage(await emailReports(inventory.id, ["pdf"]));
+      } else {
+        await downloadReport(inventory.id, action);
+        setMessage(`${action.toUpperCase()} baixado.`);
+      }
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Não foi possível gerar a exportação."); }
     finally { setBusy(false); }
   }
@@ -56,7 +62,7 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
       </div>
       {inventory.status === "OPEN" ? <button className="primary" type="button" disabled={busy} onClick={() => void finish()}>{busy ? "Processando…" : "Finalizar inventário"}</button> : <span className="micro-pill good">Finalizado</span>}
     </div>
-    {inventory.status === "FINISHED" ? <div className="entry-actions"><button className="secondary" type="button" disabled={busy} onClick={() => void download("xlsx")}>Excel</button><button className="secondary" type="button" disabled={busy} onClick={() => void download("pdf")}>PDF</button><button className="secondary" type="button" disabled={busy} onClick={() => void download("docx")}>Word</button></div> : <p className="notice">Antes de finalizar, confira os lançamentos, sincronize e atualize a análise para reduzir retrabalho.</p>}
+    {inventory.status === "FINISHED" ? <div className="export-grid"><button className="primary" type="button" disabled={busy} onClick={() => void exportAction("share")}>Compartilhar PDF</button><button className="secondary" type="button" disabled={busy} onClick={() => void exportAction("pdf")}>Baixar PDF</button><button className="secondary" type="button" disabled={busy} onClick={() => void exportAction("xlsx")}>Baixar Excel</button><button className="secondary" type="button" disabled={busy} onClick={() => void exportAction("docx")}>Baixar Word</button><button className="secondary" type="button" disabled={busy} onClick={() => void exportAction("email")}>Enviar PDF por e-mail</button></div> : <p className="notice">Antes de finalizar, confira os lançamentos, sincronize e atualize a análise para reduzir retrabalho.</p>}
     {message ? <p className={message.startsWith("Inventário") ? "notice" : "error"} role="status">{message}</p> : null}
   </section>;
 }

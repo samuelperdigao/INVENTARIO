@@ -1,5 +1,17 @@
 # Handoff
 
+## Checkpoint — acesso, participação e compartilhamento
+
+A branch `feat/fluxo-acesso-compartilhamento-v1` contém a nova entrada pública e o fluxo operacional autenticado. As rotas são `/` (landing), `/acesso`, `/dashboard`, `/historico`, `/historico/[inventoryId]` e `/inventarios/[inventoryId]`.
+
+O cadastro aceita apenas `@gerdau.com.br`, não cria equipe e exige confirmação por código. Recuperação de senha revoga sessões anteriores. A migration `0005_access_sharing` preserva contas antigas como verificadas e adiciona desafios de autenticação, participantes, tentativas de entrada, código ativo e usuário finalizador.
+
+O primeiro sync de um inventário novo ainda exige equipe e gera o código amigável. Um participante autenticado envia os seis dígitos a `POST /api/v1/inventories/join`; o backend registra sua entrada e devolve UUID e token opaco somente para uso interno do cliente. Ao finalizar, o código é removido. Relatório, exportação e e-mail de inventário finalizado autorizam por criador, equipe ou participante sem solicitar token manual.
+
+O envio transacional está implementado por SMTP. `console` existe somente para desenvolvimento e testes; produção exige `INVENTORY_EMAIL_MODE=smtp`, host, porta, remetente e transporte TLS/SSL. Não há provedor real configurado nesta branch.
+
+Validações locais: lint, typecheck, 13 Vitest, 25 Pytest, build Next, Alembic SQLite até `0005` e geração SQL PostgreSQL passaram. Os três testes Playwright foram adaptados, mas o Chromium não pôde ser baixado neste ambiente por timeout; executar `pnpm exec playwright install chromium` e `pnpm e2e` em ambiente com o navegador disponível.
+
 ## V1 estrutural — checkpoint local de relatório e encerramento
 
 Esta etapa acrescentou a parte estrutural restante da V1 sem redesenhar o frontend: modelo consolidado único, Excel/PDF/Word, finalização central e histórico. A migration `0004_inventory_reports_finalization` acrescenta `finalized_at` e `report_snapshot` a `inventories`.
@@ -57,7 +69,7 @@ Fase 1 está concluída e preservada. A Fase 2.1 acrescentou identidade, equipes
 - Sincronização manual segura entre dispositivos: dados pendentes são enviados depois de preservados no IndexedDB; alterações centrais são buscadas por cursor.
 - Repetição de envio não duplica entidades; IDs e revisões já aceitos são reconhecidos de modo idempotente.
 - Conflitos de edição preservam o payload local e o central, são registrados no banco e exigem que o operador mantenha uma das versões.
-- Outro dispositivo pode conectar o inventário com o ID e o código de sincronização exibidos pelo criador.
+- Outro dispositivo conecta o inventário com seis dígitos; UUID e token interno não aparecem no fluxo normal.
 
 ## Motor de análise
 

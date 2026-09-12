@@ -5,7 +5,7 @@
 - O modelo consolidado único contém registros individuais ordenados, lotes consolidados, locais, classificação, local principal, divergências, recomendações e resumo. Excel, PDF e Word apenas o apresentam.
 - A finalização é central e exige uma revisão sincronizada. Ela gera e preserva o snapshot do relatório, registra `finalized_at`, muda o estado para `FINISHED` e bloqueia novas alterações por sincronização.
 - A V1 não define reabertura. Um inventário `FINISHED` é somente leitura no dispositivo e no servidor; os registros históricos permanecem preservados.
-- Histórico lista somente inventários `FINISHED` da equipe autenticada. Ler relatório ou exportar exige também o código de sincronização do inventário, sem revelar inventários de outra equipe.
+- Histórico possui dois escopos: inventários criados ou acessados pelo usuário e inventários finalizados da equipe selecionada. Relatório e exportação de item `FINISHED` exigem autenticação e autorização, mas não solicitam token manual ao usuário.
 
 ## Produção e transporte
 
@@ -46,7 +46,9 @@
 ## Sincronização central
 
 - A fonte de verdade da operação continua sendo IndexedDB: todo lançamento, edição e tombstone é concluído localmente antes de qualquer chamada de rede.
-- Cada inventário possui um código de sincronização gerado localmente. O servidor armazena apenas o hash desse código e exige o valor no cabeçalho para ler ou gravar aquele inventário. O código deve ser tratado como senha ao conectá-lo em outro dispositivo.
+- Cada inventário mantém um token interno de sincronização gerado localmente. O servidor armazena somente seu hash. O usuário visualiza apenas um código aleatório de participação com seis dígitos, único entre inventários ativos e removido na finalização.
+- Participar exige conta verificada e código ativo. O backend registra o usuário e emite um token interno aleatório exclusivo, cujo hash fica associado ao participante. O código amigável jamais é aceito como token de sincronização.
+- Dez tentativas inválidas de participação em quinze minutos bloqueiam temporariamente novas tentativas da conta.
 - O dispositivo guarda sua identidade e o cursor de eventos somente no IndexedDB. O cursor permite buscar apenas as alterações centrais ainda não recebidas.
 - Todo registro tem `revision` e `syncBaseRevision`. O servidor aceita uma alteração somente quando a revisão-base corresponde à versão central; repetir uma requisição já aceita é idempotente e não cria duplicata.
 - Inclusões usam IDs UUIDv7 gerados no cliente. Tombstones também são sincronizados; uma exclusão não some por falta temporária de rede.
@@ -56,9 +58,11 @@
 ## Identidade, equipes e acesso central
 
 - Criar, editar e excluir lançamentos continua local e offline; autenticação só é necessária no momento posterior da sincronização central.
-- Uma conta possui e-mail normalizado, nome visível e senha armazenada exclusivamente como hash `scrypt` com salt individual. A senha nunca integra a sincronização, o IndexedDB ou o banco em texto puro.
-- Ao criar uma conta, o sistema cria sua primeira equipe e a associação `ADMIN`. Uma equipe tem membros `ADMIN` (responsável) ou `OPERATOR`.
+- Uma conta aceita somente e-mail normalizado sob o domínio exato `@gerdau.com.br`, nome visível e senha armazenada exclusivamente como hash `scrypt` com salt individual. A senha nunca integra a sincronização, o IndexedDB ou o banco em texto puro.
+- O cadastro não cria equipe. A conta só é liberada depois da confirmação do código de seis dígitos enviado por e-mail. O código expira, possui limite de tentativas e fica armazenado somente como HMAC.
+- Recuperação de senha usa outro código expirável; ao trocar a senha, todas as sessões renováveis anteriores são revogadas.
+- Equipes são criadas ou associadas explicitamente. Uma equipe tem membros `ADMIN` (responsável) ou `OPERATOR`.
 - Inventário central pertence a uma equipe e registra o usuário que o publicou inicialmente. Um membro pode sincronizar inventários de sua equipe; só `ADMIN` pode incluir membros.
-- `POST /api/v1/sync` exige simultaneamente bearer token válido, associação à equipe escolhida e `X-Inventory-Sync-Token`. UUID, código de sincronização ou cursor isoladamente não concedem leitura nem escrita.
+- `POST /api/v1/sync` exige bearer token válido e token interno do inventário. Na criação central, também exige associação à equipe; participantes registrados podem sincronizar com seu token individual. UUID, código amigável ou cursor isoladamente não concedem leitura nem escrita.
 - Se o inventário não pertencer à equipe autorizada, a API responde como não encontrado, sem confirmar sua existência. Conflitos, idempotência, tombstones e `syncBaseRevision` mantêm as mesmas regras da Fase 2.
 - Esta regra de identidade e autorização está encerrada e validada localmente na Fase 2.1. A próxima etapa não altera o domínio: apenas valida a mesma proteção em PostgreSQL, HTTPS e domínio reais.

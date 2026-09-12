@@ -17,6 +17,17 @@ class Settings:
     auth_secret: str
     access_token_minutes: int
     refresh_session_days: int
+    email_mode: str
+    smtp_host: str | None
+    smtp_port: int
+    smtp_username: str | None
+    smtp_password: str | None
+    smtp_from_email: str | None
+    smtp_security: str
+    verification_code_minutes: int
+    password_reset_code_minutes: int
+    auth_code_max_attempts: int
+    email_attachment_max_mb: int
 
     @property
     def is_production(self) -> bool:
@@ -41,6 +52,17 @@ def get_settings() -> Settings:
         auth_secret=secret,
         access_token_minutes=int(os.getenv("INVENTORY_ACCESS_TOKEN_MINUTES", "15")),
         refresh_session_days=int(os.getenv("INVENTORY_REFRESH_SESSION_DAYS", "14")),
+        email_mode=os.getenv("INVENTORY_EMAIL_MODE", "console").lower(),
+        smtp_host=os.getenv("INVENTORY_SMTP_HOST"),
+        smtp_port=int(os.getenv("INVENTORY_SMTP_PORT", "587")),
+        smtp_username=os.getenv("INVENTORY_SMTP_USERNAME"),
+        smtp_password=os.getenv("INVENTORY_SMTP_PASSWORD"),
+        smtp_from_email=os.getenv("INVENTORY_SMTP_FROM_EMAIL"),
+        smtp_security=os.getenv("INVENTORY_SMTP_SECURITY", "starttls").lower(),
+        verification_code_minutes=int(os.getenv("INVENTORY_VERIFICATION_CODE_MINUTES", "10")),
+        password_reset_code_minutes=int(os.getenv("INVENTORY_PASSWORD_RESET_CODE_MINUTES", "10")),
+        auth_code_max_attempts=int(os.getenv("INVENTORY_AUTH_CODE_MAX_ATTEMPTS", "5")),
+        email_attachment_max_mb=int(os.getenv("INVENTORY_EMAIL_ATTACHMENT_MAX_MB", "15")),
     )
     if settings.is_production:
         if not database_url.startswith("postgresql+"):
@@ -49,4 +71,14 @@ def get_settings() -> Settings:
             raise RuntimeError("INVENTORY_AUTH_SECRET forte é obrigatório em produção.")
         if not settings.cors_origins or any(origin == "*" or not origin.startswith("https://") for origin in settings.cors_origins):
             raise RuntimeError("INVENTORY_CORS_ORIGINS deve listar somente origens HTTPS explícitas em produção.")
+        if settings.email_mode != "smtp":
+            raise RuntimeError("INVENTORY_EMAIL_MODE=smtp é obrigatório em produção.")
+        if not settings.smtp_host or not settings.smtp_from_email:
+            raise RuntimeError("Servidor SMTP e remetente são obrigatórios em produção.")
+        if settings.smtp_security not in {"starttls", "ssl"}:
+            raise RuntimeError("INVENTORY_SMTP_SECURITY deve proteger o transporte em produção.")
+    if settings.email_mode not in {"console", "smtp"}:
+        raise RuntimeError("INVENTORY_EMAIL_MODE deve ser console ou smtp.")
+    if settings.smtp_security not in {"starttls", "ssl", "none"}:
+        raise RuntimeError("INVENTORY_SMTP_SECURITY deve ser starttls, ssl ou none.")
     return settings

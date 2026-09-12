@@ -1,10 +1,24 @@
 # Status do Projeto
 
+## Fluxo de acesso e compartilhamento V1 — implementado na branch em 12/09/2026
+
+- Landing pública em `/`, fluxo de acesso em `/acesso`, dashboard autenticado em `/dashboard` e histórico em `/historico`.
+- Cadastro restrito ao domínio exato `@gerdau.com.br`, sem criação automática de equipe, com senha `scrypt`, confirmação por código de seis dígitos, expiração, cinco tentativas e intervalo mínimo entre emissões.
+- Recuperação de senha por código, confirmação da nova senha e revogação de todas as sessões renováveis anteriores.
+- Migration `0005_access_sharing`: `users.email_verified_at`, código ativo de participação, autoria da finalização, desafios de autenticação, participantes por inventário e auditoria de tentativas.
+- Participação simplificada: a interface mostra somente seis dígitos; o backend resolve o UUID, registra o usuário e emite token interno de alta entropia exclusivo. Dez falhas em quinze minutos causam bloqueio temporário.
+- Histórico dividido em **Meus inventários** e **Inventários da equipe**. Snapshots finalizados continuam imutáveis e podem ser consultados/exportados por usuário autorizado sem token manual.
+- Compartilhamento prioriza PDF por Web Share API, validado com `navigator.canShare()`; dispositivos sem suporte recebem download. PDF, XLSX e DOCX permanecem disponíveis.
+- Infraestrutura SMTP reutilizável atende verificação, recuperação e anexos de relatório. O destinatário do relatório vem da conta autenticada e nunca do frontend.
+- Gates executados nesta branch: lint, typecheck, 13 testes Vitest, 25 testes Pytest, build Next e migrations SQLite/PostgreSQL até `0005` passaram.
+- Playwright foi atualizado para o novo login e participação, mas não foi executado neste ambiente porque o download do Chromium expirou três vezes. A validação visual pelo navegador conectado também não alcançou o servidor local; ambos permanecem como limitação de ambiente, não como teste aprovado.
+- Pendência externa: escolher/provisionar o provedor SMTP autorizado, configurar remetente e credenciais no Render, aplicar `0005` no PostgreSQL real e executar smoke test publicado.
+
 ## V1 estrutural — concluída localmente em 11/09/2026
 
 - Foi adicionada a migration Alembic `0004_inventory_reports_finalization`: estado `FINISHED`, instante de finalização, snapshot do relatório e índice de histórico.
 - `backend/app/reports.py` fornece o modelo consolidado único. Excel (`openpyxl`), PDF (`reportlab`) e Word (`python-docx`) consomem o mesmo modelo; os arquivos não repetem regras de análise.
-- A API agora finaliza somente inventário sincronizado e autorizado, bloqueia mutações posteriores, lista histórico por equipe e protege relatório/exportações por bearer token, associação à equipe e código de sincronização.
+- A API finaliza somente inventário sincronizado e autorizado, bloqueia mutações posteriores e preserva relatório/exportações. A etapa nova retirou a exigência de token manual para consultar itens finalizados autorizados.
 - A sincronização não aceita criar ou alterar o status para `FINISHED`: essa transição existe somente no endpoint protegido de finalização.
 - A interface mantém o desenho existente: finalização, downloads e consulta de histórico foram incluídos como controles operacionais mínimos. Inventário finalizado é somente leitura localmente.
 - Gates desta alteração: `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` (10), `pytest backend/tests` (19), `pnpm build`, `pnpm e2e` (3) e `alembic upgrade head` em SQLite temporário passaram. Os dois avisos conhecidos de depreciação do TestClient permanecem sem falha funcional.
@@ -36,7 +50,7 @@ Fase 2.1 — identidade, equipes e endurecimento de infraestrutura. Encerrada e 
 - API `POST /api/v1/sync` com lote de alterações, cursor incremental, IDs UUID gerados no cliente, idempotência por revisão e tombstones.
 - Código de sincronização por inventário, guardado no IndexedDB e persistido no servidor apenas como hash; não há listagem global de inventários.
 - Detecção e auditoria de conflitos no servidor e no IndexedDB, com escolha explícita entre versão local e central.
-- Conexão de um segundo dispositivo por ID e código de sincronização, preservando o fluxo de lançamento offline.
+- Conexão de outro dispositivo por código amigável de seis dígitos, com UUID e token interno resolvidos sem exposição na interface.
 
 ## Validado
 
@@ -60,13 +74,13 @@ Fase 2.1 — identidade, equipes e endurecimento de infraestrutura. Encerrada e 
 - Não há bloqueadores conhecidos para a implementação local da Fase 2.
 - O `TestClient` das dependências FastAPI/Starlette emite dois avisos de depreciação durante `pytest`; a suíte passa e não há impacto funcional observado.
 - O navegador interno do Codex não concluiu IndexedDB durante a inspeção, mas o Chromium local e os fluxos Playwright concluíram; isso é limitação do ambiente de automação, não uma compatibilidade móvel validada.
-- Ainda não há rate limiting, recuperação de senha, convite por e-mail ou auditoria operacional completa; eles não devem ser confundidos com a base de identidade e equipes entregue nesta fase.
+- Ainda não há convite de equipe por e-mail, rate limiting distribuído por IP ou auditoria operacional completa. Recuperação de senha e limite de tentativas de participação já foram implementados.
 
 ## Fase 2.1 — concluído localmente
 
 - Registro e login por e-mail/senha, hash `scrypt`, access token assinado de curta duração e sessão renovável revogável em cookie `HttpOnly`.
-- Modelo `User → Team → TeamMember → Inventory`, com papéis `ADMIN` e `OPERATOR`; a criação da conta inicia uma equipe com o responsável como `ADMIN`.
-- Sincronização exige usuário autenticado, associação à equipe e código de sincronização; inventário de outra equipe retorna 404 mesmo que UUID e código sejam conhecidos.
+- Modelo `User → Team → TeamMember → Inventory`, com papéis `ADMIN` e `OPERATOR`; cadastro novo não cria equipe automaticamente.
+- Sincronização exige usuário autenticado e token interno; criação central exige equipe e participantes registrados usam token individual. Inventário não autorizado retorna 404 mesmo quando o UUID é conhecido.
 - CORS usa origens explícitas e credenciais; em `production` a API recusa SQLite, segredo fraco e origem não HTTPS/curinga.
 - Migrations `0002_auth_teams_access` e `0003_team_member_role_constraint` aplicadas com sucesso em SQLite limpo até `head`; o ciclo `downgrade 0001_central_sync → upgrade head` também passou. Inventários antigos permanecem com associação nula e bloqueados no central até associação administrativa planejada.
 - Alembic também gerou com sucesso o SQL do dialeto PostgreSQL para `upgrade head`; isso valida a geração, não substitui a execução contra uma instância PostgreSQL real.

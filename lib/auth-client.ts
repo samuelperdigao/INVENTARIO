@@ -10,6 +10,7 @@ export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
+  emailVerified: boolean;
   teams: AuthTeam[];
 }
 
@@ -19,8 +20,21 @@ interface AuthResponse {
 }
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
+const cachedUserKey = "inventory-cached-user";
 let accessToken: string | undefined;
 let currentUser: AuthUser | undefined;
+
+function cacheUser(user: AuthUser): void {
+  if (typeof window !== "undefined") window.localStorage.setItem(cachedUserKey, JSON.stringify(user));
+}
+
+function cachedUser(): AuthUser | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(cachedUserKey);
+    return raw ? JSON.parse(raw) as AuthUser : undefined;
+  } catch { return undefined; }
+}
 
 async function authRequest(path: string, init: RequestInit = {}): Promise<AuthResponse> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
@@ -35,11 +49,40 @@ async function authRequest(path: string, init: RequestInit = {}): Promise<AuthRe
   const result = await response.json() as AuthResponse;
   accessToken = result.accessToken;
   currentUser = result.user;
+  cacheUser(result.user);
   return result;
 }
 
-export async function registerAccount(input: { email: string; password: string; displayName: string; teamName: string }): Promise<AuthUser> {
-  return (await authRequest("/api/v1/auth/register", { method: "POST", body: JSON.stringify(input) })).user;
+async function messageRequest(path: string, body: object): Promise<string> {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const result = await response.json().catch(() => undefined) as { message?: string; detail?: string } | undefined;
+  if (!response.ok) throw new Error(result?.detail ?? "Não foi possível concluir a solicitação.");
+  return result?.message ?? "Solicitação concluída.";
+}
+
+export async function registerAccount(input: { email: string; password: string; displayName: string }): Promise<string> {
+  return messageRequest("/api/v1/auth/register", input);
+}
+
+export async function verifyEmail(input: { email: string; code: string }): Promise<AuthUser> {
+  return (await authRequest("/api/v1/auth/verify-email", { method: "POST", body: JSON.stringify(input) })).user;
+}
+
+export async function resendVerificationCode(email: string): Promise<string> {
+  return messageRequest("/api/v1/auth/verification/resend", { email });
+}
+
+export async function requestPasswordReset(email: string): Promise<string> {
+  return messageRequest("/api/v1/auth/password-reset/request", { email });
+}
+
+export async function confirmPasswordReset(input: { email: string; code: string; newPassword: string; passwordConfirmation: string }): Promise<string> {
+  return messageRequest("/api/v1/auth/password-reset/confirm", input);
 }
 
 export async function loginAccount(input: { email: string; password: string }): Promise<AuthUser> {
@@ -51,18 +94,22 @@ export async function restoreSession(): Promise<AuthUser | undefined> {
     return (await authRequest("/api/v1/auth/refresh", { method: "POST", body: "{}" })).user;
   } catch {
     accessToken = undefined;
-    currentUser = undefined;
-    return undefined;
+    currentUser = currentUser ?? cachedUser();
+    return currentUser;
   }
 }
 
 export async function getAuthenticatedContext(): Promise<{ accessToken: string; teamId: string }> {
+  const session = await getAuthenticatedSession();
+  const selectedTeamId = typeof window === "undefined" ? undefined : window.sessionStorage.getItem("inventory-active-team");
+  const team = session.user.teams.find((candidate) => candidate.id === selectedTeamId) ?? session.user.teams[0];
+  return { accessToken: session.accessToken, teamId: team?.id ?? "" };
+}
+
+export async function getAuthenticatedSession(): Promise<{ accessToken: string; user: AuthUser }> {
   if (!accessToken || !currentUser) await restoreSession();
   if (!accessToken || !currentUser) throw new Error("Entre na sua conta antes de sincronizar. Seus dados locais continuam preservados.");
-  const selectedTeamId = typeof window === "undefined" ? undefined : window.sessionStorage.getItem("inventory-active-team");
-  const team = currentUser.teams.find((candidate) => candidate.id === selectedTeamId) ?? currentUser.teams[0];
-  if (!team) throw new Error("Sua conta não possui uma equipe para sincronizar.");
-  return { accessToken, teamId: team.id };
+  return { accessToken, user: currentUser };
 }
 
 export function getCurrentUser(): AuthUser | undefined {
@@ -74,7 +121,14 @@ export function selectActiveTeam(teamId: string): void {
 }
 
 export async function logoutAccount(): Promise<void> {
-  await fetch(`${apiBaseUrl}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
-  accessToken = undefined;
-  currentUser = undefined;
+  try {
+    await fetch(`${apiBaseUrl}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
+  } finally {
+    accessToken = undefined;
+    currentUser = undefined;
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem("inventory-active-team");
+      window.localStorage.removeItem(cachedUserKey);
+    }
+  }
 }

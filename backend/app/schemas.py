@@ -136,13 +136,36 @@ class SyncResponse(ApiModel):
     entries: list[SyncEntry]
     acknowledged: SyncAcknowledgement
     conflicts: list[SyncConflict]
+    participationCode: str | None = Field(default=None, pattern=r"^\d{6}$")
 
 
 class RegisterRequest(ApiModel):
     email: str = Field(min_length=3, max_length=320)
     password: str = Field(min_length=12, max_length=256)
     displayName: str = Field(min_length=1, max_length=120)
-    teamName: str = Field(min_length=1, max_length=120)
+
+
+class EmailCodeRequest(ApiModel):
+    email: str = Field(min_length=3, max_length=320)
+
+
+class VerifyEmailRequest(EmailCodeRequest):
+    code: str = Field(pattern=r"^\d{6}$")
+
+
+class ConfirmPasswordResetRequest(VerifyEmailRequest):
+    newPassword: str = Field(min_length=12, max_length=256)
+    passwordConfirmation: str = Field(min_length=12, max_length=256)
+
+    @model_validator(mode="after")
+    def passwords_match(self) -> "ConfirmPasswordResetRequest":
+        if self.newPassword != self.passwordConfirmation:
+            raise ValueError("As senhas informadas não coincidem.")
+        return self
+
+
+class MessageResponse(ApiModel):
+    message: str
 
 
 class LoginRequest(ApiModel):
@@ -160,6 +183,7 @@ class AuthenticatedUser(ApiModel):
     id: UUID
     email: str
     displayName: str
+    emailVerified: bool
     teams: list[TeamMember]
 
 
@@ -188,3 +212,26 @@ class InventoryHistoryItem(ApiModel):
     revision: StrictInt = Field(ge=1)
     finalizedAt: datetime | None = None
     summary: AnalysisSummary | None = None
+    createdByUserId: UUID | None = None
+    finalizedByUserId: UUID | None = None
+    createdByName: str | None = None
+    finalizedByName: str | None = None
+
+
+class JoinInventoryRequest(ApiModel):
+    code: str = Field(pattern=r"^\d{6}$")
+
+
+class JoinInventoryResponse(ApiModel):
+    inventoryId: UUID
+    accessToken: str = Field(min_length=32)
+
+
+class EmailReportRequest(ApiModel):
+    formats: list[Literal["pdf", "xlsx", "docx"]] = Field(min_length=1, max_length=3)
+
+    @model_validator(mode="after")
+    def unique_formats(self) -> "EmailReportRequest":
+        if len(set(self.formats)) != len(self.formats):
+            raise ValueError("Não repita formatos de relatório.")
+        return self

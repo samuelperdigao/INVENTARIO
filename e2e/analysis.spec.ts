@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { login, seedUsers } from "./helpers";
 
 test("envia lançamentos ao motor online e identifica o cache quando fica offline", async ({ page, context }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Iniciar inventário" }).click();
+  const { ownerEmail } = seedUsers("analise");
+  await login(page, ownerEmail);
+  await page.getByRole("button", { name: "Iniciar novo inventário" }).click();
 
   await page.getByRole("button", { name: "DE" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("15");

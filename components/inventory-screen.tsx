@@ -66,14 +66,14 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   }
 
   if (loading) return <main className="shell"><p className="muted">Abrindo inventário local…</p></main>;
-  if (!inventory) return <main className="shell"><p className="error" role="alert">{error ?? "Inventário não encontrado."}</p><Link className="secondary" href="/">Voltar</Link></main>;
+  if (!inventory) return <main className="shell"><p className="error" role="alert">{error ?? "Inventário não encontrado."}</p><Link className="secondary" href="/dashboard">Voltar</Link></main>;
 
   return (
     <main className="shell">
       <header className="inventory-header">
         <div className="inventory-header-row">
           <div className="inventory-header-copy">
-            <Link className="back-link" href="/">‹ Inventários</Link>
+            <Link className="back-link" href="/dashboard">‹ Painel</Link>
             <p className="eyebrow">Inventário em operação</p>
             <h1>Inventário {formatBrazilianDate(inventory.date)}</h1>
             <p className="muted">Registre cada ocorrência individualmente. A consolidação acontece somente na análise e no relatório final.</p>

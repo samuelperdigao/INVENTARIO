@@ -1,0 +1,67 @@
+.dashboardShell {
+  width: min(100%, 1480px);
+}
+
+@media (min-width: 1180px) {
+  .dashboardShell {
+    padding-inline: 32px;
+  }
+
+  .dashboardShell :global(.dashboard-topbar) {
+    margin-bottom: 24px;
+  }
+
+  .dashboardShell :global(.dashboard-hero) {
+    min-height: 184px;
+    padding: 32px 36px;
+  }
+
+  .dashboardShell :global(.dashboard-hero h1) {
+    font-size: clamp(2rem, 2.35vw, 2.8rem);
+  }
+
+  .dashboardShell :global(.quick-actions) {
+    margin: 30px 0 24px;
+  }
+
+  .dashboardShell :global(.action-grid) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .dashboardShell :global(.action-card) {
+    min-height: 124px;
+    padding: 20px;
+    align-items: flex-start;
+  }
+
+  .dashboardShell :global(.dashboard-grid) {
+    grid-template-columns: minmax(0, 1.55fr) minmax(360px, .75fr);
+    gap: 22px;
+  }
+
+  .dashboardShell :global(.section-card) {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 1600px) {
+  .dashboardShell {
+    width: min(100%, 1540px);
+    padding-inline: 40px;
+  }
+
+  .dashboardShell :global(.action-grid) {
+    gap: 18px;
+  }
+
+  .dashboardShell :global(.dashboard-grid) {
+    gap: 26px;
+  }
+}
+
+@media (max-width: 1179px) and (min-width: 1021px) {
+  .dashboardShell :global(.action-grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

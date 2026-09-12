@@ -65,6 +65,28 @@ async function messageRequest(path: string, body: object): Promise<string> {
   return result?.message ?? "Solicitação concluída.";
 }
 
+async function authorizedUserRequest(path: string, body: object): Promise<AuthUser> {
+  const session = await getAuthenticatedSession();
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+  const result = await response.json().catch(() => undefined) as AuthUser | { detail?: string } | undefined;
+  if (!response.ok) {
+    const detail = result && "detail" in result ? result.detail : undefined;
+    throw new Error(detail ?? "Não foi possível concluir a solicitação.");
+  }
+  const user = result as AuthUser;
+  currentUser = user;
+  cacheUser(user);
+  return user;
+}
+
 export async function registerAccount(input: { email: string; password: string; displayName: string }): Promise<string> {
   return messageRequest("/api/v1/auth/register", input);
 }
@@ -118,6 +140,14 @@ export function getCurrentUser(): AuthUser | undefined {
 
 export function selectActiveTeam(teamId: string): void {
   if (typeof window !== "undefined") window.sessionStorage.setItem("inventory-active-team", teamId);
+}
+
+export async function addTeamMember(teamId: string, input: { email: string; role: "ADMIN" | "OPERATOR" }): Promise<AuthUser> {
+  return authorizedUserRequest(`/api/v1/teams/${teamId}/members`, input);
+}
+
+export async function createTeam(name: string): Promise<AuthUser> {
+  return authorizedUserRequest("/api/v1/teams", { name });
 }
 
 export async function logoutAccount(): Promise<void> {

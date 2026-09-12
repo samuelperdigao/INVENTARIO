@@ -5,8 +5,18 @@ const withSerwist = withSerwistInit({
   swDest: "public/sw.js",
 });
 
+const backendProxyUrl = (process.env.BACKEND_PROXY_URL ?? "http://localhost:8000").replace(/\/$/, "");
+
 const nextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
+  async rewrites() {
+    return [
+      {
+        source: "/backend-api/:path*",
+        destination: `${backendProxyUrl}/:path*`,
+      },
+    ];
+  },
   async headers() {
     const headers = [
       { key: "X-Content-Type-Options", value: "nosniff" },

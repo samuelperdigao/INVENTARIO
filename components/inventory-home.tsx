@@ -69,36 +69,77 @@ export function InventoryHome() {
 
   return (
     <main className="shell">
-      <div className="topbar">
-        <div>
-          <h1>Inventários</h1>
-          <p className="muted">Lançamentos funcionam offline neste dispositivo.</p>
+      <section className="hero" aria-labelledby="inventory-title">
+        <div className="hero-copy">
+          <div className="app-brand">
+            <div className="brand-mark" aria-hidden="true">IN</div>
+            <div>
+              <p className="eyebrow">Controle operacional</p>
+              <h1 id="inventory-title">Inventários</h1>
+            </div>
+          </div>
+          <p className="muted" style={{ marginTop: 12 }}>Registre os lotes com rapidez. Os lançamentos continuam disponíveis mesmo sem conexão.</p>
         </div>
-        <button className="primary" type="button" onClick={() => void handleCreate()} disabled={creating}>
-          {creating ? "Criando…" : "Iniciar inventário"}
-        </button>
-      </div>
+        <div className="hero-actions">
+          <button className="primary" type="button" onClick={() => void handleCreate()} disabled={creating}>
+            {creating ? "Criando…" : "Iniciar inventário"}
+          </button>
+        </div>
+      </section>
+
       {error && <p className="error" role="alert">{error}</p>}
-      {loading ? <p className="muted">Carregando inventários locais…</p> : null}
-      {!loading && inventories.length === 0 ? <p className="notice">Nenhum inventário aberto neste dispositivo.</p> : null}
-      <section className="stack" aria-label="Inventários locais abertos">
-        {[...inventories].reverse().map((inventory) => (
-          <Link className="card inventory-link" href={`/inventarios/${inventory.id}`} key={inventory.id}>
-            <strong>{labels.get(inventory.id)}</strong>
-            <span className="muted"> Aberto · {inventory.revision - 1} alteração(ões)</span>
-          </Link>
-        ))}
-      </section>
-      <AuthPanel />
-      <HistoryPanel />
-      <section className="card stack" aria-label="Conectar inventário">
-        <div><h2>Conectar outro dispositivo</h2><p className="muted">Informe o ID e o código de sincronização recebidos do dispositivo que criou o inventário.</p></div>
-        <form className="stack" onSubmit={(event) => void handleConnect(event)}>
-          <label>ID do inventário<input value={remoteInventoryId} onChange={(event) => setRemoteInventoryId(event.target.value)} required /></label>
-          <label>Código de sincronização<input value={accessCode} onChange={(event) => setAccessCode(event.target.value)} required /></label>
-          <button className="secondary" type="submit" disabled={connecting}>{connecting ? "Conectando…" : "Conectar inventário"}</button>
-        </form>
-      </section>
+
+      <div className="home-grid">
+        <div className="stack">
+          <section className="card section-card stack" aria-label="Inventários locais abertos">
+            <div className="section-header">
+              <div className="section-title">
+                <p className="eyebrow">Em andamento</p>
+                <h2>Inventários neste dispositivo</h2>
+                <p className="muted">Continue de onde parou, inclusive offline.</p>
+              </div>
+              {!loading ? <span className="status-pill">{inventories.length} aberto(s)</span> : null}
+            </div>
+
+            {loading ? <p className="muted">Carregando inventários locais…</p> : null}
+            {!loading && inventories.length === 0 ? <p className="notice">Nenhum inventário aberto neste dispositivo.</p> : null}
+
+            <div className="stack">
+              {[...inventories].reverse().map((inventory) => (
+                <Link className="card inventory-link inventory-card" href={`/inventarios/${inventory.id}`} key={inventory.id}>
+                  <div className="inventory-card-main">
+                    <strong>{labels.get(inventory.id)}</strong>
+                    <span className="muted">Aberto · {inventory.revision - 1} alteração(ões)</span>
+                  </div>
+                  <span className="chevron" aria-hidden="true">›</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <HistoryPanel />
+        </div>
+
+        <aside className="stack" aria-label="Acesso e conexão">
+          <AuthPanel />
+          <section className="card section-card stack" aria-label="Conectar inventário">
+            <div className="section-title">
+              <p className="eyebrow">Outro dispositivo</p>
+              <h2>Conectar inventário</h2>
+              <p className="muted">Use o ID e o código de sincronização recebidos do dispositivo que iniciou o inventário.</p>
+            </div>
+            <form className="stack" onSubmit={(event) => void handleConnect(event)}>
+              <label>ID do inventário
+                <input value={remoteInventoryId} onChange={(event) => setRemoteInventoryId(event.target.value)} required />
+              </label>
+              <label>Código de sincronização
+                <input value={accessCode} onChange={(event) => setAccessCode(event.target.value)} required />
+              </label>
+              <button className="secondary" type="submit" disabled={connecting}>{connecting ? "Conectando…" : "Conectar inventário"}</button>
+            </form>
+          </section>
+        </aside>
+      </div>
     </main>
   );
 }

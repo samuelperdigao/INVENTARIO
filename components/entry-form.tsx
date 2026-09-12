@@ -54,12 +54,17 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
   }
 
   return (
-    <form className="card stack" onSubmit={(event) => void handleSubmit(event)} aria-label="Novo registro">
-      <div className="topbar">
-        <h2>{editing ? "Editar registro" : "Novo registro"}</h2>
+    <form className="card section-card stack" onSubmit={(event) => void handleSubmit(event)} aria-label="Novo registro">
+      <div className="section-header">
+        <div className="section-title">
+          <p className="eyebrow">Lançamento</p>
+          <h2>{editing ? "Editar registro" : "Novo registro"}</h2>
+          <p className="muted">Informe a posição física do lote e a quantidade encontrada.</p>
+        </div>
         {editing && <button className="secondary" type="button" onClick={onCancelEdit}>Cancelar edição</button>}
       </div>
-      <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }}>
+
+      <fieldset className="fieldset-clean form-section">
         <legend>Lado</legend>
         <div className="side-options">
           {(["EF", "DE"] as Side[]).map((option) => (
@@ -75,15 +80,16 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
           ))}
         </div>
       </fieldset>
-      <div className="form-grid stack">
+
+      <div className="form-grid">
         <label className="field" htmlFor="bay">Vão
-          <input id="bay" name="bay" value={bay} onChange={(event) => setBay(event.target.value)} inputMode="numeric" autoComplete="off" />
+          <input id="bay" name="bay" value={bay} onChange={(event) => setBay(event.target.value)} inputMode="numeric" autoComplete="off" placeholder="Ex.: 15" />
         </label>
         <label className="field" htmlFor="lot">Lote
-          <input ref={lotInputRef} id="lot" name="lot" value={lot} onChange={(event) => setLot(event.target.value)} autoComplete="off" />
+          <input ref={lotInputRef} id="lot" name="lot" value={lot} onChange={(event) => setLot(event.target.value)} autoComplete="off" placeholder="Número do lote" />
         </label>
         <label className="field" htmlFor="quantity">Quantidade de peças
-          <input id="quantity" name="quantity" value={quantity} onChange={(event) => setQuantity(event.target.value)} inputMode="numeric" autoComplete="off" />
+          <input id="quantity" name="quantity" value={quantity} onChange={(event) => setQuantity(event.target.value)} inputMode="numeric" autoComplete="off" placeholder="Ex.: 20" />
         </label>
       </div>
       {error && <p className="error" role="alert">{error}</p>}

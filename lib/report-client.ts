@@ -10,7 +10,7 @@ export type PreparedShareResources = {
   docx?: string;
 };
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
+const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "/backend-api";
 
 const mediaTypes: Record<ReportFormat, string> = {
   pdf: "application/pdf",
@@ -41,11 +41,11 @@ function isPermissionDenied(cause: unknown): boolean {
 }
 
 export function reportErrorMessage(cause: unknown, fallback = "Não foi possível concluir a operação."): string {
-  if (!(cause instanceof Error)) return fallback;
   if (isDomExceptionNamed(cause, "AbortError")) return "Compartilhamento cancelado.";
   if (isPermissionDenied(cause)) {
     return "O navegador bloqueou o compartilhamento nativo. Tente novamente pelo navegador do celular.";
   }
+  if (!(cause instanceof Error)) return fallback;
   if (/failed to fetch|networkerror|load failed/i.test(cause.message)) {
     return "Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.";
   }

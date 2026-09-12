@@ -4,7 +4,11 @@ import { getAuthenticatedSession } from "@/lib/auth-client";
 
 export type ReportFormat = "pdf" | "xlsx" | "docx";
 export type ShareReportResult = "shared" | "cancelled" | "unsupported";
-export type PreparedReports = Partial<Record<ReportFormat, File>>;
+export type PreparedShareResources = {
+  pdf?: File;
+  xlsx?: string;
+  docx?: string;
+};
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 
@@ -48,16 +52,19 @@ export function reportErrorMessage(cause: unknown, fallback = "Não foi possíve
   return cause.message || fallback;
 }
 
-export async function fetchReportFile(inventoryId: string, format: ReportFormat, syncToken?: string): Promise<File> {
+async function authHeaders(syncToken?: string): Promise<Record<string, string>> {
   const session = await getAuthenticatedSession();
   const headers: Record<string, string> = { Authorization: `Bearer ${session.accessToken}` };
   if (syncToken) headers["X-Inventory-Sync-Token"] = syncToken;
+  return headers;
+}
 
+export async function fetchReportFile(inventoryId: string, format: ReportFormat, syncToken?: string): Promise<File> {
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventoryId}/exports/${format}`, {
       credentials: "include",
-      headers,
+      headers: await authHeaders(syncToken),
     });
   } catch (cause) {
     throw new Error(reportErrorMessage(cause, "Não foi possível buscar o arquivo do inventário."));
@@ -70,39 +77,74 @@ export async function fetchReportFile(inventoryId: string, format: ReportFormat,
   return new File([await response.blob()], filenameFrom(response, format), { type: mediaTypes[format] });
 }
 
-export async function prepareReportsForSharing(
-  inventoryId: string,
-  formats: ReportFormat[] = ["pdf", "xlsx", "docx"],
-  syncToken?: string,
-): Promise<PreparedReports> {
-  const entries = await Promise.all(
-    formats.map(async (format) => [format, await fetchReportFile(inventoryId, format, syncToken)] as const),
-  );
-  return Object.fromEntries(entries) as PreparedReports;
+function publicShareUrl(path: string): string {
+  if (apiBaseUrl.startsWith("/")) {
+    return `${window.location.origin}${apiBaseUrl}${path}`;
+  }
+  return `${apiBaseUrl.replace(/\/$/, "")}${path}`;
 }
 
-export function sharePreparedReport(file: File, format: ReportFormat): Promise<ShareReportResult> {
-  const shareData: ShareData = {
-    title: `Inventário em ${formatLabels[format]}`,
-    text: `Relatório final do inventário em ${formatLabels[format]}.`,
-    files: [file],
-  };
-
-  if (typeof navigator.share !== "function") {
-    return Promise.resolve("unsupported");
+export async function createTemporaryShareLink(
+  inventoryId: string,
+  format: "xlsx" | "docx",
+  syncToken?: string,
+): Promise<string> {
+  const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventoryId}/share-links/${format}`, {
+    method: "POST",
+    credentials: "include",
+    headers: await authHeaders(syncToken),
+  });
+  const body = await response.json().catch(() => undefined) as { path?: string; detail?: string } | undefined;
+  if (!response.ok || !body?.path) {
+    throw new Error(body?.detail ?? "Não foi possível preparar o compartilhamento do arquivo.");
   }
-  if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
-    return Promise.resolve("unsupported");
-  }
+  return publicShareUrl(body.path);
+}
 
-  // navigator.share() é chamado imediatamente, sem nenhum await anterior,
-  // preservando a ativação transitória gerada pelo toque/clique do usuário.
+export async function prepareResourcesForSharing(
+  inventoryId: string,
+  syncToken?: string,
+): Promise<PreparedShareResources> {
+  const [pdf, xlsx, docx] = await Promise.all([
+    fetchReportFile(inventoryId, "pdf", syncToken),
+    createTemporaryShareLink(inventoryId, "xlsx", syncToken),
+    createTemporaryShareLink(inventoryId, "docx", syncToken),
+  ]);
+  return { pdf, xlsx, docx };
+}
+
+function shareWithNative(shareData: ShareData): Promise<ShareReportResult> {
+  if (typeof navigator.share !== "function") return Promise.resolve("unsupported");
+
   return navigator.share(shareData)
     .then(() => "shared" as const)
     .catch((cause: unknown) => {
       if (isDomExceptionNamed(cause, "AbortError")) return "cancelled" as const;
       throw new Error(reportErrorMessage(cause, "Não foi possível abrir o compartilhamento nativo."));
     });
+}
+
+export function sharePreparedResource(
+  resource: File | string,
+  format: ReportFormat,
+): Promise<ShareReportResult> {
+  if (resource instanceof File) {
+    const shareData: ShareData = {
+      title: `Inventário em ${formatLabels[format]}`,
+      text: `Relatório final do inventário em ${formatLabels[format]}.`,
+      files: [resource],
+    };
+    if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [resource] })) {
+      return Promise.resolve("unsupported");
+    }
+    return shareWithNative(shareData);
+  }
+
+  return shareWithNative({
+    title: `Inventário em ${formatLabels[format]}`,
+    text: `Acesse o arquivo ${formatLabels[format]} do inventário:`,
+    url: resource,
+  });
 }
 
 export function downloadFile(file: File): void {

@@ -42,7 +42,7 @@ def test_xlsx_has_operational_tabs_layer_and_lot_as_text() -> None:
     inventory = workbook["INVENTÁRIO"]
     lot_cell = next(cell for cell in inventory["D"] if cell.value == "000123")
     assert lot_cell.number_format == "@"
-    assert inventory["C2"].value in {"A1", "A2"}
+    assert inventory.cell(lot_cell.row, 3).value in {"A1", "A2"}
     assert workbook["RESUMO"]["B3"].value == 9
 
 

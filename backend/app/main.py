@@ -128,8 +128,15 @@ def register(payload: RegisterRequest, response: Response, session: Session = De
     now = datetime.now(timezone.utc)
     user = UserRow(id=str(uuid4()), email=email, display_name=payload.displayName.strip(), password_hash=hash_password(payload.password), created_at=now)
     team = TeamRow(id=str(uuid4()), name=payload.teamName.strip(), created_by_user_id=user.id, created_at=now)
-    session.add_all([user, team, TeamMemberRow(id=str(uuid4()), team_id=team.id, user_id=user.id, role="ADMIN", created_at=now)])
+    membership = TeamMemberRow(id=str(uuid4()), team_id=team.id, user_id=user.id, role="ADMIN", created_at=now)
     try:
+        # Os mapeamentos não possuem relationships ORM; flushes explícitos garantem
+        # a ordem das FKs no PostgreSQL (users -> teams -> team_members).
+        session.add(user)
+        session.flush()
+        session.add(team)
+        session.flush()
+        session.add(membership)
         session.flush()
         return _auth_response(session, user, response)
     except IntegrityError as error:
@@ -177,7 +184,10 @@ def me(user: UserRow = Depends(get_current_user), session: Session = Depends(get
 def create_team(payload: CreateTeamRequest, user: UserRow = Depends(get_current_user), session: Session = Depends(get_session)) -> dict[str, object]:
     now = datetime.now(timezone.utc)
     team = TeamRow(id=str(uuid4()), name=payload.name.strip(), created_by_user_id=user.id, created_at=now)
-    session.add_all([team, TeamMemberRow(id=str(uuid4()), team_id=team.id, user_id=user.id, role="ADMIN", created_at=now)])
+    membership = TeamMemberRow(id=str(uuid4()), team_id=team.id, user_id=user.id, role="ADMIN", created_at=now)
+    session.add(team)
+    session.flush()
+    session.add(membership)
     session.commit()
     return user_payload(session, user)
 

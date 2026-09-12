@@ -71,9 +71,24 @@ def send_email(
         )
     else:
         connection_context = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20)
-    with connection_context as connection:
-        if settings.smtp_security == "starttls":
-            connection.starttls(context=ssl.create_default_context())
-        if settings.smtp_username:
-            connection.login(settings.smtp_username, settings.smtp_password or "")
-        connection.send_message(message)
+
+    try:
+        with connection_context as connection:
+            if settings.smtp_security == "starttls":
+                connection.starttls(context=ssl.create_default_context())
+            if settings.smtp_username:
+                connection.login(settings.smtp_username, settings.smtp_password or "")
+            connection.send_message(message)
+    except smtplib.SMTPAuthenticationError as error:
+        logger.error("Falha de autenticação SMTP. smtp_code=%s", getattr(error, "smtp_code", "unknown"))
+        raise
+    except smtplib.SMTPException as error:
+        logger.error(
+            "Falha SMTP. type=%s smtp_code=%s",
+            type(error).__name__,
+            getattr(error, "smtp_code", "unknown"),
+        )
+        raise
+    except OSError as error:
+        logger.error("Falha de rede no SMTP. type=%s", type(error).__name__)
+        raise

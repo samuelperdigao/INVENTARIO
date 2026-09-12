@@ -15,6 +15,9 @@ jobs:
     env:
       INVENTORY_ENV: development
       INVENTORY_AUTH_SECRET: ci-secret-with-more-than-thirty-two-characters
+      BACKEND_PROXY_URL: http://127.0.0.1:8000
+      NEXT_PUBLIC_ANALYSIS_API_BASE_URL: /backend-api
+      NEXT_PUBLIC_SYNC_API_BASE_URL: /backend-api
     steps:
       - name: Checkout
         uses: actions/checkout@v4

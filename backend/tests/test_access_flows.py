@@ -33,52 +33,46 @@ def _entry(inventory_id: str) -> dict[str, object]:
     }
 
 
-def test_registration_accepts_any_valid_email_and_requires_verification_without_creating_team() -> None:
+def test_registration_accepts_any_valid_email_without_verification_or_team() -> None:
     rejected = client.post("/api/v1/auth/register", json={
         "email": "email-invalido", "password": "senha-segura-123", "displayName": "Inválido",
     })
     assert rejected.status_code == 422
 
+    outbox_before = len(development_outbox)
     email = "novo.usuario@gmail.com"
     registered = client.post("/api/v1/auth/register", json={
         "email": email, "password": "senha-segura-123", "displayName": "Novo Usuário",
     })
     assert registered.status_code == 202
-    assert client.post("/api/v1/auth/login", json={"email": email, "password": "senha-segura-123"}).status_code == 403
-    code = re.search(r"\b(\d{6})\b", development_outbox[-1].text)
-    assert code
-    verified = client.post("/api/v1/auth/verify-email", json={"email": email, "code": code.group(1)})
-    assert verified.status_code == 200
-    assert verified.json()["user"]["emailVerified"] is True
-    assert verified.json()["user"]["teams"] == []
+    assert len(development_outbox) == outbox_before
+
+    logged_in = client.post("/api/v1/auth/login", json={"email": email, "password": "senha-segura-123"})
+    assert logged_in.status_code == 200
+    assert logged_in.json()["user"]["emailVerified"] is True
+    assert logged_in.json()["user"]["teams"] == []
 
 
-def test_verification_code_locks_after_the_configured_attempt_limit() -> None:
-    email = "tentativas.codigo@gerdau.com.br"
+def test_verification_resend_is_not_required_for_new_accounts() -> None:
+    email = "sem.codigo@gerdau.com.br"
+    outbox_before = len(development_outbox)
     assert client.post("/api/v1/auth/register", json={
-        "email": email, "password": "senha-segura-123", "displayName": "Tentativas",
+        "email": email, "password": "senha-segura-123", "displayName": "Sem Código",
     }).status_code == 202
-    valid_code = re.search(r"\b(\d{6})\b", development_outbox[-1].text)
-    assert valid_code
-    valid_number = int(valid_code.group(1))
-    for offset in range(1, 6):
-        invalid_code = f"{(valid_number + offset) % 1_000_000:06d}"
-        assert client.post("/api/v1/auth/verify-email", json={"email": email, "code": invalid_code}).status_code == 422
-    assert client.post("/api/v1/auth/verify-email", json={"email": email, "code": valid_code.group(1)}).status_code == 422
+    resent = client.post("/api/v1/auth/verification/resend", json={"email": email})
+    assert resent.status_code == 200
+    assert len(development_outbox) == outbox_before
+    assert client.post("/api/v1/auth/login", json={"email": email, "password": "senha-segura-123"}).status_code == 200
 
 
-def test_password_reset_changes_hash_and_revokes_previous_sessions() -> None:
+def test_password_reset_changes_hash_and_revokes_previous_sessions_without_code() -> None:
     email = "recuperacao@gerdau.com.br"
     account, auth = register_verified(client, email)
     old_refresh = client.cookies.get("inventory_refresh")
     assert old_refresh
 
-    requested = client.post("/api/v1/auth/password-reset/request", json={"email": email})
-    assert requested.status_code == 200
-    code = re.search(r"\b(\d{6})\b", development_outbox[-1].text)
-    assert code
     changed = client.post("/api/v1/auth/password-reset/confirm", json={
-        "email": email, "code": code.group(1), "newPassword": "senha-nova-segura-456",
+        "email": email, "newPassword": "senha-nova-segura-456",
         "passwordConfirmation": "senha-nova-segura-456",
     })
     assert changed.status_code == 200

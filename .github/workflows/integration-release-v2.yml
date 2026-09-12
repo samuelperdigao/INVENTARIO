@@ -6,6 +6,7 @@ on:
       - release/integracao-inventario-v2
     paths:
       - .github/workflows/integration-release-v2.yml
+      - lib/report-client.ts
 
 permissions:
   contents: write

@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 import { getAuthenticatedSession, restoreSession } from "@/lib/auth-client";
 import { formatBrazilianDate } from "@/lib/local-date";
-import { downloadReport, shareReport, type ReportFormat } from "@/lib/report-client";
+import { downloadReport, reportErrorMessage, shareReport, type ReportFormat } from "@/lib/report-client";
 import type { AnalysisClassification, AnalysisLocation, AnalysisSummary } from "@/lib/models";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
@@ -47,7 +47,7 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
         const body = await response.json().catch(() => undefined) as ConsolidatedReport | { detail?: string } | undefined;
         if (!response.ok || !body || !("inventoryDate" in body)) throw new Error(body && "detail" in body ? body.detail : "Não foi possível abrir o relatório.");
         if (active) setReport(body);
-      } catch (cause) { if (active) setError(cause instanceof Error ? cause.message : "Não foi possível abrir o relatório."); }
+      } catch (cause) { if (active) setError(reportErrorMessage(cause, "Não foi possível abrir o relatório.")); }
     });
     return () => { active = false; };
   }, [inventoryId, router]);
@@ -55,15 +55,15 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
   async function run(label: string, action: () => Promise<string | void>): Promise<void> {
     setBusy(label); setMessage(undefined); setError(undefined);
     try { setMessage((await action()) || "Ação concluída."); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível concluir a ação."); }
+    catch (cause) { setError(reportErrorMessage(cause, "Não foi possível concluir a ação.")); }
     finally { setBusy(undefined); }
   }
 
   async function shareAction(format: ReportFormat): Promise<string> {
     const result = await shareReport(inventoryId, format);
-    return result === "shared"
-      ? `Inventário compartilhado em ${formatLabel[format]}.`
-      : `Compartilhamento nativo indisponível; o arquivo ${formatLabel[format]} foi baixado.`;
+    if (result === "shared") return `Inventário compartilhado em ${formatLabel[format]}.`;
+    if (result === "cancelled") return "Compartilhamento cancelado.";
+    return `O navegador não permitiu o compartilhamento nativo. O arquivo ${formatLabel[format]} foi baixado para você compartilhar manualmente.`;
   }
 
   return <main className="shell">

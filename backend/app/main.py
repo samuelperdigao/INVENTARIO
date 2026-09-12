@@ -74,7 +74,7 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         key=REFRESH_COOKIE, value=token, httponly=True, secure=settings.is_production,
         samesite="strict", max_age=settings.refresh_session_days * 24 * 60 * 60,
-        path="/api/v1/auth",
+        path="/",
     )
 
 
@@ -171,7 +171,7 @@ def logout(
 ) -> Response:
     if refresh_token:
         revoke_refresh_session(session, refresh_token)
-    response.delete_cookie(REFRESH_COOKIE, path="/api/v1/auth")
+    response.delete_cookie(REFRESH_COOKIE, path="/")
     return response
 
 

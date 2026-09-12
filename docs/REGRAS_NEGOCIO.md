@@ -62,8 +62,9 @@
 - O cadastro não cria equipe e libera a conta imediatamente, sem confirmação ou envio de código por e-mail.
 - No cadastro, o usuário informa e confirma seu NP pessoal de exatamente oito dígitos. O NP é armazenado apenas como hash `scrypt` reforçado pelo segredo da aplicação e nunca é retornado pela API.
 - A recuperação exige e-mail, NP pessoal e confirmação da nova senha. Cinco erros bloqueiam novas tentativas por quinze minutos; uma troca válida revoga todas as sessões renováveis anteriores.
+- Qualquer conta autenticada pode iniciar e sincronizar um inventário próprio sem equipe. O inventário registra `owner_user_id`; `team_id` é opcional e pode ser preenchido quando houver uma equipe selecionada.
 - Equipes são criadas ou associadas explicitamente. Uma equipe tem membros `ADMIN` (responsável) ou `OPERATOR`.
-- Inventário central pertence a uma equipe e registra o usuário que o publicou inicialmente. Um membro pode sincronizar inventários de sua equipe; só `ADMIN` pode incluir membros.
-- `POST /api/v1/sync` exige bearer token válido e token interno do inventário. Na criação central, também exige associação à equipe; participantes registrados podem sincronizar com seu token individual. UUID, código amigável ou cursor isoladamente não concedem leitura nem escrita.
-- Se o inventário não pertencer à equipe autorizada, a API responde como não encontrado, sem confirmar sua existência. Conflitos, idempotência, tombstones e `syncBaseRevision` mantêm as mesmas regras da Fase 2.
-- Na V1, o controle de acesso não depende do domínio nem da verificação do e-mail. A proteção é baseada em autenticação, associação explícita à equipe, autorização por papel, NP de recuperação e distribuição controlada do link do sistema.
+- O criador pode sincronizar seu próprio inventário com o token interno mesmo quando `team_id` for nulo. Em inventários associados a equipe, membros autorizados continuam podendo sincronizar conforme as regras existentes; só `ADMIN` pode incluir membros.
+- `POST /api/v1/sync` exige bearer token válido e token interno do inventário. Participantes registrados podem sincronizar com seu token individual. UUID, código amigável ou cursor isoladamente não concedem leitura nem escrita.
+- Se o usuário não for criador, participante autorizado ou membro da equipe associada, a API responde como não encontrado, sem confirmar a existência do inventário. Conflitos, idempotência, tombstones e `syncBaseRevision` mantêm as mesmas regras da Fase 2.
+- Na V1, o controle de acesso não depende do domínio nem da verificação do e-mail. A proteção é baseada em autenticação, propriedade do inventário, associação explícita à equipe quando aplicável, autorização por papel, NP de recuperação e distribuição controlada do link do sistema.

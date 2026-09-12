@@ -4,6 +4,8 @@
 
 A rota `/` é uma apresentação pública. O sistema operacional fica em `/dashboard` e exige uma conta. O cadastro aceita qualquer e-mail válido, libera o acesso imediatamente e não cria uma equipe automaticamente. O usuário também confirma o NP pessoal de oito dígitos, usado somente para recuperação de senha. A associação a uma equipe permanece explícita e administrativa.
 
+Qualquer conta autenticada pode iniciar um inventário próprio, mesmo sem equipe. O inventário individual fica ligado ao usuário criador por `owner_user_id`; `team_id` é opcional e continua sendo usado quando houver uma equipe selecionada.
+
 O acesso em outro dispositivo usa somente o código de participação de seis dígitos exibido depois da primeira sincronização. O backend resolve o UUID, registra o participante e emite um token interno aleatório exclusivo para aquela conta. O código expira quando o inventário é finalizado e nunca substitui autenticação ou autorização.
 
 Inventários finalizados aparecem em **Meus inventários** e **Inventários da equipe**. O snapshot oficial é somente leitura; usuários autorizados podem consultar e reexportar sem informar token manualmente. No celular, **Compartilhar PDF** usa a Web Share API quando o sistema aceita arquivos e baixa o documento como fallback.
@@ -12,7 +14,7 @@ Inventários finalizados aparecem em **Meus inventários** e **Inventários da e
 
 O backend produz um único modelo consolidado a partir dos lançamentos individuais e das regras do motor. Esse mesmo modelo gera Excel, PDF e Word; nenhum formato recalcula classificações.
 
-- `POST /api/v1/inventories/{inventoryId}/finalize`: exige bearer token, equipe, código `X-Inventory-Sync-Token` e a revisão central atual. Gera o snapshot, registra a data/hora e deixa o inventário `FINISHED`.
+- `POST /api/v1/inventories/{inventoryId}/finalize`: exige bearer token, código `X-Inventory-Sync-Token` e a revisão central atual. Se o inventário estiver associado a uma equipe, a autorização de equipe continua válida. Gera o snapshot, registra a data/hora e deixa o inventário `FINISHED`.
 - `GET /api/v1/inventories/history?scope=mine|team&teamId=...`: lista finalizados próprios ou da equipe.
 - `GET /api/v1/inventories/{inventoryId}/report`: devolve o relatório central.
 - `GET /api/v1/inventories/{inventoryId}/exports/{xlsx|pdf|docx}`: baixa `Inventario_DD-MM-AAAA.<formato>`.
@@ -129,21 +131,21 @@ Depois de os dominios responderem por HTTPS, registrar com resultado real: `GET 
 
 ## Sincronização entre dispositivos
 
-No inventário, use **Sincronizar agora** quando houver conexão. O primeiro envio cria o inventário central e devolve um código aleatório de seis dígitos. No outro dispositivo, o usuário autenticado informa apenas esse código. O backend registra a entrada e entrega ao cliente um token interno de alta entropia, que não é exibido na interface.
+No inventário, use **Sincronizar agora** quando houver conexão. O primeiro envio cria o inventário central e devolve um código aleatório de seis dígitos. A criação central não exige equipe. No outro dispositivo, o usuário autenticado informa apenas esse código. O backend registra a entrada e entrega ao cliente um token interno de alta entropia, que não é exibido na interface.
 
 O código identifica apenas inventários abertos e recebe limite de tentativas. Autenticação e token interno continuam obrigatórios. Quando duas alterações partem da mesma revisão, o sistema registra as duas versões e pede que o operador escolha qual manter; não aplica "última gravação vence" silenciosamente.
 
 ## Conta, equipe e acesso à sincronização
 
-O lançamento operacional continua disponível localmente e offline. O perfil não sensível da última conta é mantido localmente para reabrir dados do dispositivo sem rede; tokens de acesso nunca são persistidos. Antes da primeira sincronização de um inventário novo, a conta precisa estar associada a uma equipe. Senha e NP de recuperação são armazenados somente como hashes protegidos, o bearer token permanece em memória e a sessão renovável usa cookie `HttpOnly`.
+O lançamento operacional continua disponível localmente e offline. O perfil não sensível da última conta é mantido localmente para reabrir dados do dispositivo sem rede; tokens de acesso nunca são persistidos. A primeira sincronização de um inventário novo não exige associação a equipe: o usuário autenticado pode criar e sincronizar seu próprio inventário. Senha e NP de recuperação são armazenados somente como hashes protegidos, o bearer token permanece em memória e a sessão renovável usa cookie `HttpOnly`.
 
 O cadastro entra diretamente no sistema e a recuperação exige e-mail, NP pessoal de oito dígitos e confirmação da nova senha. Cinco tentativas incorretas bloqueiam novas tentativas por quinze minutos; a troca válida revoga todas as sessões anteriores. Contas criadas antes da migration `0007` configuram o NP uma única vez no primeiro login posterior. SMTP não participa da autenticação e permanece restrito ao envio opcional de relatórios.
 
-Para sincronizar um inventário central, a API exige sessão válida e token interno. A criação também exige associação à equipe; quem entra pelo código recebe um token individual ligado à própria conta. Conhecer UUID ou os seis dígitos isoladamente não concede acesso. Responsáveis (`ADMIN`) podem incluir membros; operadores (`OPERATOR`) podem sincronizar, mas não administram integrantes.
+Para sincronizar um inventário central, a API exige sessão válida e token interno. A criação é permitida a qualquer conta autenticada, com equipe opcional; quem entra pelo código recebe um token individual ligado à própria conta. Conhecer UUID ou os seis dígitos isoladamente não concede acesso. Responsáveis (`ADMIN`) podem incluir membros; operadores (`OPERATOR`) podem sincronizar inventários associados à equipe, mas não administram integrantes.
 
 A configuração de produção, a ordem de migrations e os smoke tests estão na seção **Publicacao controlada (Fase 2.2)** acima. Em produção, a API recusa SQLite, segredo curto/padrão e CORS com curinga ou HTTP. Publique frontend e API atrás de HTTPS; cookies de renovação ficam `Secure` nesse ambiente.
 
-Inventários criados antes da migration de equipes são preservados, porém ficam sem `team_id` e bloqueados no backend até associação administrativa explícita. Não associe inventários por alteração manual em produção: defina e execute um backfill auditável antes de liberar acesso.
+Inventários criados antes da migration de equipes são preservados. Inventários individuais atuais também podem manter `team_id` nulo e permanecem acessíveis ao criador e aos participantes autorizados. Inventários herdados sem `owner_user_id` continuam exigindo associação administrativa explícita antes de qualquer liberação de acesso.
 
 O teste de recarga offline precisa de um build/servidor e do navegador Chromium instalado:
 

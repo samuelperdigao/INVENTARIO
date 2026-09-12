@@ -8,7 +8,7 @@ import { createEntry, createInventory } from "@/lib/inventory-repository";
 
 it("edita e exige confirmação antes de tombstonar um registro", async () => {
   const inventory = await createInventory("2026-09-11");
-  const entry = await createEntry(inventory.id, { side: "EF", bay: "1", lot: "001", quantity: 2 });
+  const entry = await createEntry(inventory.id, { side: "EF", bay: "1", layer: "A1", lot: "001", quantity: 2 });
   const user = userEvent.setup();
   const confirmation = vi.spyOn(window, "confirm").mockReturnValue(false);
   render(<InventoryScreen inventoryId={inventory.id} />);

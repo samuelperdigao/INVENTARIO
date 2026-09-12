@@ -19,6 +19,9 @@ test("envia lançamentos ao motor online e identifica o cache quando fica offlin
   await page.getByLabel("Lote").fill("000123");
   await page.getByLabel("Quantidade de peças").fill("1");
   await page.getByRole("button", { name: "Adicionar" }).click();
+  await expect(page.getByRole("dialog", { name: "Lote já registrado" })).toBeVisible();
+  await page.getByRole("button", { name: "Adicionar mesmo assim" }).click();
+  await expect(page.getByText("Lote 000123")).toHaveCount(2);
 
   await page.getByRole("button", { name: "Atualizar análise" }).click();
   await expect(page.getByText("PEÇA_SOLTEIRA")).toBeVisible();

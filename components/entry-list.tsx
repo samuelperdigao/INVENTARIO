@@ -13,12 +13,15 @@ interface EntryListProps {
 export function EntryList({ entries, onEdit, onDelete, readOnly = false }: EntryListProps) {
   const groups = groupEntries(entries);
   return (
-    <section className="stack entries-section" aria-label="Lançamentos registrados">
+    <section className="card section-card panel-card stack entries-section" aria-label="Lançamentos registrados">
       <div className="section-header">
-        <div className="section-title">
-          <p className="eyebrow">Conferência</p>
-          <h2>Lançamentos</h2>
-          <p className="muted">Registros organizados por lado e vão.</p>
+        <div className="panel-heading">
+          <span className="panel-index" aria-hidden="true">02</span>
+          <div className="panel-copy">
+            <p className="eyebrow">Conferência</p>
+            <h2>Lançamentos</h2>
+            <p className="muted">Registros individuais organizados por lado e vão para facilitar a conferência física.</p>
+          </div>
         </div>
         <span className="status-pill">{entries.length} registro(s)</span>
       </div>
@@ -35,7 +38,7 @@ export function EntryList({ entries, onEdit, onDelete, readOnly = false }: Entry
                   {!readOnly ? <div className="entry-actions">
                     <button className="small-button" type="button" onClick={() => onEdit(entry)}>Editar</button>
                     <button className="small-button delete" type="button" onClick={() => onDelete(entry)}>Excluir</button>
-                  </div> : null}
+                  </div> : <span className="micro-pill">Somente leitura</span>}
                 </article>
               ))}
             </section>

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 import json
+import re
 import secrets
 from typing import Any
 from uuid import uuid4
@@ -19,7 +20,7 @@ from app.config import Settings
 from app.persistence import AuthCodeRow, SessionRow, TeamMemberRow, TeamRow, UserRow
 
 
-CORPORATE_EMAIL_DOMAIN = "gerdau.com.br"
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _now() -> datetime:
@@ -39,8 +40,13 @@ def normalize_email(email: str) -> str:
 
 
 def is_allowed_corporate_email(email: str) -> bool:
-    local_part, separator, domain = normalize_email(email).rpartition("@")
-    return bool(local_part and separator and domain == CORPORATE_EMAIL_DOMAIN)
+    """Valida um endereço de e-mail sem restringir o domínio.
+
+    O nome da função é mantido por compatibilidade com o restante da aplicação.
+    A política atual aceita qualquer e-mail sintaticamente válido.
+    """
+    normalized = normalize_email(email)
+    return len(normalized) <= 320 and bool(EMAIL_PATTERN.fullmatch(normalized))
 
 
 def hash_password(password: str) -> str:

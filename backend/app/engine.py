@@ -44,6 +44,13 @@ def _location_label(location: dict[str, object]) -> str:
     return f"{location['side']} · Vão {location['bay']}{suffix}"
 
 
+def _location_record(side: str, bay: str, layer: str, quantity: int) -> dict[str, object]:
+    record: dict[str, object] = {"side": side, "bay": bay, "quantity": quantity}
+    if layer:
+        record["layer"] = layer
+    return record
+
+
 def analyze_entries(inventory_id: str, revision: int, entries: Iterable[AnalysisEntry]) -> dict[str, object]:
     """Consolida os locais e aplica as regras de classificação do contrato."""
 
@@ -66,10 +73,10 @@ def analyze_entries(inventory_id: str, revision: int, entries: Iterable[Analysis
 
     for lot in sorted(quantities, key=_natural_key):
         locations = [
-            {"side": side, "bay": bay, "layer": layer or None, "quantity": quantity}
+            _location_record(side, bay, layer, quantity)
             for (side, bay, layer), quantity in sorted(quantities[lot].items(), key=lambda item: _location_sort_key(item[0]))
         ]
-        total_quantity = sum(location["quantity"] for location in locations)
+        total_quantity = sum(int(location["quantity"]) for location in locations)
         fragmented = len(locations) > 1
         classification: Classification = "OK"
         primary_location: dict[str, object] | None = None

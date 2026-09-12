@@ -8,10 +8,10 @@ import { syncInventory } from "@/lib/sync-client";
 import type { Inventory } from "@/lib/models";
 import {
   downloadReport,
-  prepareReportsForSharing,
+  prepareResourcesForSharing,
   reportErrorMessage,
-  sharePreparedReport,
-  type PreparedReports,
+  sharePreparedResource,
+  type PreparedShareResources,
   type ReportFormat,
 } from "@/lib/report-client";
 
@@ -29,7 +29,7 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
   const [message, setMessage] = useState<string>();
   const [shareOpen, setShareOpen] = useState(false);
   const [preparingShare, setPreparingShare] = useState(false);
-  const [preparedReports, setPreparedReports] = useState<PreparedReports>({});
+  const [preparedResources, setPreparedResources] = useState<PreparedShareResources>({});
 
   async function headers(): Promise<Record<string, string>> {
     const auth = await getAuthenticatedContext();
@@ -67,14 +67,14 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
     }
 
     setShareOpen(true);
-    if (formats.every((format) => preparedReports[format])) return;
+    if (preparedResources.pdf && preparedResources.xlsx && preparedResources.docx) return;
 
     setPreparingShare(true);
-    setMessage("Preparando os arquivos para o compartilhamento nativo…");
+    setMessage("Preparando o compartilhamento…");
     try {
-      const files = await prepareReportsForSharing(inventory.id, formats);
-      setPreparedReports(files);
-      setMessage("Arquivos prontos. Escolha PDF, Excel ou Word para abrir o compartilhamento do celular.");
+      const resources = await prepareResourcesForSharing(inventory.id);
+      setPreparedResources(resources);
+      setMessage("Tudo pronto. Escolha PDF, Excel ou Word para compartilhar pelo celular.");
     } catch (cause) {
       setMessage(reportErrorMessage(cause, "Não foi possível preparar os arquivos para compartilhamento."));
     } finally {
@@ -83,32 +83,30 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
   }
 
   function shareAction(format: ReportFormat): void {
-    const file = preparedReports[format];
-    if (!file) {
-      setMessage("Aguarde a preparação do arquivo antes de compartilhar.");
+    const resource = preparedResources[format];
+    if (!resource) {
+      setMessage("Aguarde a preparação antes de compartilhar.");
       return;
     }
 
     setBusy(true);
     setMessage(undefined);
 
-    // A chamada abaixo abre navigator.share() imediatamente dentro do clique.
-    // Não há fetch/await antes dela, preservando a permissão temporária do navegador.
-    void sharePreparedReport(file, format)
+    void sharePreparedResource(resource, format)
       .then((result) => {
         if (result === "shared") {
           setMessage(`Inventário compartilhado em ${formatLabel[format]}.`);
         } else if (result === "cancelled") {
           setMessage("Compartilhamento cancelado.");
         } else {
-          setMessage(`O compartilhamento nativo de ${formatLabel[format]} não está disponível neste navegador. Tente pelo Chrome do celular.`);
+          setMessage("O compartilhamento nativo não está disponível neste navegador.");
         }
       })
       .catch((cause) => setMessage(reportErrorMessage(cause, "Não foi possível abrir o compartilhamento nativo.")))
       .finally(() => setBusy(false));
   }
 
-  const shareReady = formats.every((format) => preparedReports[format]);
+  const shareReady = Boolean(preparedResources.pdf && preparedResources.xlsx && preparedResources.docx);
 
   return <section className="card section-card panel-card stack" aria-label="Finalização e exportações">
     <div className="section-header">
@@ -139,7 +137,7 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
         <div className="details-content stack">
           <div>
             <h3>Escolha o formato</h3>
-            <p className="muted">Os arquivos são preparados antes. Ao tocar no formato, o menu nativo do celular abre imediatamente.</p>
+            <p className="muted">Ao tocar no formato, o menu nativo do celular abre para você escolher o aplicativo de destino.</p>
           </div>
           <div className="export-grid">
             {formats.map((format) => <button
@@ -173,6 +171,6 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
       </details>
     </div> : <p className="notice">Antes de finalizar, confira os lançamentos, sincronize e atualize a análise para reduzir retrabalho.</p>}
 
-    {message ? <p className={message.startsWith("Inventário") || message.endsWith("baixado.") || message === "Compartilhamento cancelado." || message.startsWith("Preparando") || message.startsWith("Arquivos prontos") ? "notice" : "error"} role="status">{message}</p> : null}
+    {message ? <p className={message.startsWith("Inventário") || message.endsWith("baixado.") || message === "Compartilhamento cancelado." || message.startsWith("Preparando") || message.startsWith("Tudo pronto") ? "notice" : "error"} role="status">{message}</p> : null}
   </section>;
 }

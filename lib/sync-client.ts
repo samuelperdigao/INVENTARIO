@@ -82,8 +82,38 @@ function serializeInventory(inventory: Inventory) {
 }
 
 function serializeEntry(entry: InventoryEntry) {
-  const { id, inventoryId, side, bay, lot, quantity, createdAt, updatedAt, revision, syncBaseRevision, tombstone, deletedAt } = entry;
-  return { id, inventoryId, side, bay, lot, quantity, createdAt, updatedAt, revision, syncBaseRevision, tombstone, deletedAt };
+  const {
+    id,
+    inventoryId,
+    side,
+    bay,
+    layer,
+    lot,
+    quantity,
+    duplicateConfirmed,
+    createdAt,
+    updatedAt,
+    revision,
+    syncBaseRevision,
+    tombstone,
+    deletedAt,
+  } = entry;
+  return {
+    id,
+    inventoryId,
+    side,
+    bay,
+    layer,
+    lot,
+    quantity,
+    duplicateConfirmed: Boolean(duplicateConfirmed),
+    createdAt,
+    updatedAt,
+    revision,
+    syncBaseRevision,
+    tombstone,
+    deletedAt,
+  };
 }
 
 function remoteInventory(record: NonNullable<SyncResponse["inventory"]>, syncToken: string, participationCode?: string | null): Inventory {
@@ -117,16 +147,21 @@ async function applyResponse(inventoryId: string, syncToken: string, response: S
     let receivedRemoteEntry = false;
     const localInventory = await db.inventories.get(inventoryId);
     if (localInventory && response.acknowledged.inventory) {
-        await db.inventories.put({
-          ...localInventory,
-          participationCode: response.participationCode === null ? undefined : response.participationCode ?? localInventory.participationCode,
-          syncStatus: "SYNCED",
-          syncBaseRevision: localInventory.revision,
-        });
+      await db.inventories.put({
+        ...localInventory,
+        participationCode: response.participationCode === null ? undefined : response.participationCode ?? localInventory.participationCode,
+        syncStatus: "SYNCED",
+        syncBaseRevision: localInventory.revision,
+      });
     }
     for (const entryId of response.acknowledged.entryIds) {
       const localEntry = await db.entries.get(entryId);
-      if (localEntry) await db.entries.put({ ...localEntry, syncStatus: "SYNCED", syncBaseRevision: localEntry.revision });
+      if (localEntry) {
+        const authoritative = response.entries.find((entry) => entry.id === entryId);
+        await db.entries.put(authoritative
+          ? remoteEntry(authoritative)
+          : { ...localEntry, syncStatus: "SYNCED", syncBaseRevision: localEntry.revision });
+      }
     }
 
     if (response.inventory) {
@@ -136,8 +171,6 @@ async function applyResponse(inventoryId: string, syncToken: string, response: S
         await db.inventories.put(remote);
         received += 1;
       } else if (response.acknowledged.inventory) {
-        // A revisão local também representa alterações nos lançamentos. O
-        // inventário central não a reduz quando os metadados são os mesmos.
         await db.inventories.put({
           ...local,
           participationCode: response.participationCode === null ? undefined : response.participationCode ?? local.participationCode,

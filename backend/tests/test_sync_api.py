@@ -18,8 +18,32 @@ def inventory(inventory_id: str, revision: int = 1, base_revision: int = 0) -> d
     return {"id": inventory_id, "date": "2026-09-11", "status": "OPEN", "revision": revision, "syncBaseRevision": base_revision, "tombstone": False, "deletedAt": None, **record_times()}
 
 
-def entry(inventory_id: str, entry_id: str, lot: str, revision: int = 1, base_revision: int = 0, tombstone: bool = False) -> dict[str, object]:
-    return {"id": entry_id, "inventoryId": inventory_id, "side": "EF", "bay": "01", "lot": lot, "quantity": 3, "revision": revision, "syncBaseRevision": base_revision, "tombstone": tombstone, "deletedAt": datetime.now(timezone.utc).isoformat() if tombstone else None, **record_times()}
+def entry(
+    inventory_id: str,
+    entry_id: str,
+    lot: str,
+    revision: int = 1,
+    base_revision: int = 0,
+    tombstone: bool = False,
+    *,
+    layer: str = "A1",
+    duplicate_confirmed: bool = False,
+) -> dict[str, object]:
+    return {
+        "id": entry_id,
+        "inventoryId": inventory_id,
+        "side": "EF",
+        "bay": "01",
+        "layer": layer,
+        "lot": lot,
+        "quantity": 3,
+        "duplicateConfirmed": duplicate_confirmed,
+        "revision": revision,
+        "syncBaseRevision": base_revision,
+        "tombstone": tombstone,
+        "deletedAt": datetime.now(timezone.utc).isoformat() if tombstone else None,
+        **record_times(),
+    }
 
 
 def register(email: str, team: str) -> tuple[dict[str, object], dict[str, str]]:
@@ -53,20 +77,23 @@ def test_cors_allows_only_explicit_local_origin_with_credentials() -> None:
     assert response.headers["access-control-allow-credentials"] == "true"
 
 
-def test_sync_is_idempotent_and_returns_incremental_changes_for_authorized_team() -> None:
+def test_sync_is_idempotent_and_returns_layer_and_author_for_authorized_team() -> None:
     account, auth = register("owner@gerdau.com.br", "Equipe principal")
     team_id = account["user"]["teams"][0]["id"]
     inventory_id, entry_id, token = str(uuid4()), str(uuid4()), str(uuid4())
-    payload = sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, entry_id, "000123")])
+    payload = sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, entry_id, "000123", layer="A3")])
 
     first = client.post("/api/v1/sync", json=payload, headers=sync_headers(auth, token))
     assert first.status_code == 200
     body = first.json()
     assert body["acknowledged"] == {"inventory": True, "entryIds": [entry_id]}
     assert len(body["entries"]) == 1
+    assert body["entries"][0]["layer"] == "A3"
+    assert body["entries"][0]["createdByUserId"] == account["user"]["id"]
+    assert body["entries"][0]["createdByName"] == account["user"]["displayName"]
     cursor = body["cursor"]
 
-    replay = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, entry_id, "000123")], cursor=cursor), headers=sync_headers(auth, token))
+    replay = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, entry_id, "000123", layer="A3")], cursor=cursor), headers=sync_headers(auth, token))
     assert replay.status_code == 200
     assert replay.json()["entries"] == []
 
@@ -75,42 +102,91 @@ def test_sync_is_idempotent_and_returns_incremental_changes_for_authorized_team(
     assert pull.json()["entries"][0]["lot"] == "000123"
 
 
-def test_sync_preserves_conflicts_and_tombstones() -> None:
-    account, auth = register("owner@gerdau.com.br", "Equipe principal")
+def test_sync_rejects_non_numeric_lot_and_invalid_layer() -> None:
+    account, auth = register("validation@gerdau.com.br", "Equipe validação")
+    team_id = account["user"]["teams"][0]["id"]
+    inventory_id, token = str(uuid4()), str(uuid4())
+
+    invalid_lot = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, str(uuid4()), "ABC")]),
+        headers=sync_headers(auth, token),
+    )
+    assert invalid_lot.status_code == 422
+
+    invalid_layer_entry = entry(inventory_id, str(uuid4()), "123")
+    invalid_layer_entry["layer"] = "A11"
+    invalid_layer = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[invalid_layer_entry]),
+        headers=sync_headers(auth, token),
+    )
+    assert invalid_layer.status_code == 422
+
+
+def test_central_duplicate_lookup_returns_existing_lot_and_supports_exclusion() -> None:
+    account, auth = register("duplicates@gerdau.com.br", "Equipe duplicidade")
     team_id = account["user"]["teams"][0]["id"]
     inventory_id, entry_id, token = str(uuid4()), str(uuid4()), str(uuid4())
-    initial = entry(inventory_id, entry_id, "ORIGINAL")
+    created = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, entry_id, "2815634434", layer="A1")]),
+        headers=sync_headers(auth, token),
+    )
+    assert created.status_code == 200
+
+    duplicate = client.get(
+        f"/api/v1/inventories/{inventory_id}/lots/2815634434",
+        headers=sync_headers(auth, token),
+    )
+    assert duplicate.status_code == 200
+    assert duplicate.json()[0]["id"] == entry_id
+    assert duplicate.json()[0]["createdByName"] == account["user"]["displayName"]
+
+    excluded = client.get(
+        f"/api/v1/inventories/{inventory_id}/lots/2815634434?excludeEntryId={entry_id}",
+        headers=sync_headers(auth, token),
+    )
+    assert excluded.status_code == 200
+    assert excluded.json() == []
+
+
+def test_sync_preserves_conflicts_and_tombstones() -> None:
+    account, auth = register("owner-conflict@gerdau.com.br", "Equipe principal")
+    team_id = account["user"]["teams"][0]["id"]
+    inventory_id, entry_id, token = str(uuid4()), str(uuid4()), str(uuid4())
+    initial = entry(inventory_id, entry_id, "100")
     client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[initial]), headers=sync_headers(auth, token))
 
-    accepted = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "VERSAO-A", revision=2, base_revision=1)]), headers=sync_headers(auth, token))
+    accepted = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "101", revision=2, base_revision=1)]), headers=sync_headers(auth, token))
     assert accepted.status_code == 200
 
-    conflict = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "VERSAO-B", revision=2, base_revision=1)]), headers=sync_headers(auth, token))
+    conflict = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "102", revision=2, base_revision=1)]), headers=sync_headers(auth, token))
     assert conflict.status_code == 200
-    assert conflict.json()["conflicts"][0]["serverRecord"]["lot"] == "VERSAO-A"
+    assert conflict.json()["conflicts"][0]["serverRecord"]["lot"] == "101"
 
-    deleted = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "VERSAO-A", revision=3, base_revision=2, tombstone=True)]), headers=sync_headers(auth, token))
+    deleted = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "101", revision=3, base_revision=2, tombstone=True)]), headers=sync_headers(auth, token))
     assert deleted.status_code == 200
     assert deleted.json()["acknowledged"]["entryIds"] == [entry_id]
 
 
 def test_known_uuid_and_sync_token_do_not_allow_another_team() -> None:
-    owner, owner_auth = register("owner@gerdau.com.br", "Equipe A")
+    owner, owner_auth = register("owner-team-a@gerdau.com.br", "Equipe A")
     owner_team = owner["user"]["teams"][0]["id"]
     inventory_id, token = str(uuid4()), str(uuid4())
     created = client.post("/api/v1/sync", json=sync_payload(inventory_id, owner_team, inventory_record=inventory(inventory_id), entries=[]), headers=sync_headers(owner_auth, token))
     assert created.status_code == 200
 
-    outsider, outsider_auth = register("outside@gerdau.com.br", "Equipe B")
+    outsider, outsider_auth = register("outside-team-b@gerdau.com.br", "Equipe B")
     outsider_team = outsider["user"]["teams"][0]["id"]
     idor = client.post("/api/v1/sync", json=sync_payload(inventory_id, outsider_team, inventory_record=None, entries=[]), headers=sync_headers(outsider_auth, token))
     assert idor.status_code == 404
 
 
 def test_operator_can_sync_but_cannot_manage_members() -> None:
-    owner, owner_auth = register("owner@gerdau.com.br", "Equipe A")
+    owner, owner_auth = register("owner-operator@gerdau.com.br", "Equipe A")
     team_id = owner["user"]["teams"][0]["id"]
-    operator, _operator_auth = register("operator@gerdau.com.br", "Equipe temporária")
+    register("operator@gerdau.com.br", "Equipe temporária")
     added = client.post(f"/api/v1/teams/{team_id}/members", json={"email": "operator@gerdau.com.br", "role": "OPERATOR"}, headers=owner_auth)
     assert added.status_code == 200
 
@@ -119,5 +195,5 @@ def test_operator_can_sync_but_cannot_manage_members() -> None:
     inventory_id, token = str(uuid4()), str(uuid4())
     synced = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[]), headers=sync_headers(operator_auth, token))
     assert synced.status_code == 200
-    forbidden = client.post(f"/api/v1/teams/{team_id}/members", json={"email": "owner@gerdau.com.br", "role": "OPERATOR"}, headers=operator_auth)
+    forbidden = client.post(f"/api/v1/teams/{team_id}/members", json={"email": "owner-operator@gerdau.com.br", "role": "OPERATOR"}, headers=operator_auth)
     assert forbidden.status_code == 403

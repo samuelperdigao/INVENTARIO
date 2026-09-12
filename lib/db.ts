@@ -23,6 +23,13 @@ class InventoryDatabase extends Dexie {
       syncMetadata: "id",
       syncConflicts: "id, inventoryId, entityId, createdAt",
     });
+    this.version(3).stores({
+      inventories: "id, date, updatedAt, tombstone",
+      entries: "id, inventoryId, [inventoryId+tombstone], [inventoryId+lot], side, bay, layer, lot, updatedAt, tombstone",
+      analysisCache: "id, [inventoryId+revision], inventoryId, cachedAt",
+      syncMetadata: "id",
+      syncConflicts: "id, inventoryId, entityId, createdAt",
+    });
   }
 }
 

@@ -1,5 +1,20 @@
 # Status do Projeto
 
+## Integração INVENTARIO V2 — validada em 12/09/2026
+
+- Branch de integração: `release/integracao-inventario-v2`, criada sobre a `main` mais recente.
+- Incorporadas as implementações válidas de `feat/camadas-duplicidade-lote-v2` e `feat/landing-hero-banner-redesign`.
+- `feat/fluxo-acesso-compartilhamento-v1`, `feat/frontend-redesign-blue-white` e `feat/frontend-polish-motion` já estavam incorporadas na `main` e foram preservadas sem remerge cego.
+- Conflitos reais encontrados: `backend/app/main.py` entre duplicidade e compartilhamento, resolvido mantendo os endpoints mais novos de compartilhamento e adicionando camada/autoria/consulta de duplicidade; Landing Page revisada preservando a implementação nova do hero.
+- Migration `0006_inventory_entry_layers.py` adiciona `layer`, `created_by_user_id`, `duplicate_confirmed`, constraint de camada e índices, encadeada após `0005_access_sharing` sem remoção de dados.
+- Duplicidade de lote preserva lançamentos separados, informa ocorrências existentes, autoria quando disponível e localização por lado/vão/camada, exigindo confirmação sem bloquear o lançamento.
+- Relatórios continuam consolidando o total físico do mesmo lote distribuído em locais diferentes e mantendo rastreabilidade por local.
+- Landing Page remove o hero fictício antigo, o texto “Conferência precisa. Do chão de fábrica ao relatório.” e o exemplo “19 + 1”; mantém os CTAs e o fluxo real do sistema.
+- O frontend está preparado para usar `/public/brand/inventario-banner.png`. O asset binário oficial ainda não está versionado no repositório; existe fallback visual para não quebrar a interface.
+- Ajustado o fallback de compartilhamento para usar `/backend-api` quando não houver variável pública injetada e corrigido o tratamento de `DOMException` no Web Share API.
+- Gates finais da integração: `pnpm lint`, `pnpm typecheck`, Vitest, `pnpm build`, `pytest -q` e `alembic upgrade head` passaram no GitHub Actions.
+- Preview Vercel da branch integrada retornou status `success` no commit validado.
+
 ## Fluxo de acesso e compartilhamento V1 — implementado na branch em 12/09/2026
 
 - Landing pública em `/`, fluxo de acesso em `/acesso`, dashboard autenticado em `/dashboard` e histórico em `/historico`.

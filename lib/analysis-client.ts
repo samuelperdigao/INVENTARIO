@@ -16,7 +16,7 @@ export async function requestAnalysis(inventory: Inventory, entries: InventoryEn
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       inventory: { id: inventory.id, date: inventory.date, revision: inventory.revision },
-      entries: entries.map(({ id, side, bay, lot, quantity }) => ({ id, side, bay, lot, quantity })),
+      entries: entries.map(({ id, side, bay, layer, lot, quantity }) => ({ id, side, bay, layer, lot, quantity })),
     }),
   });
   if (!response.ok) throw new Error("Não foi possível gerar a análise agora.");

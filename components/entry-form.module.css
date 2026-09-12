@@ -1,0 +1,83 @@
+.positionGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.9rem;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(8 28 55 / 58%);
+  backdrop-filter: blur(4px);
+}
+
+.modalCard {
+  width: min(100%, 36rem);
+  max-height: min(86vh, 44rem);
+  overflow: auto;
+  border: 1px solid rgb(30 112 210 / 24%);
+  border-radius: 1.25rem;
+  background: #fff;
+  box-shadow: 0 1.5rem 4rem rgb(5 33 68 / 28%);
+  padding: 1.25rem;
+}
+
+.modalHeader {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.modalHeader h3 {
+  margin: 0;
+}
+
+.duplicateList {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.duplicateItem {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid rgb(30 112 210 / 16%);
+  border-radius: 0.9rem;
+  background: rgb(242 248 255);
+  padding: 0.8rem;
+}
+
+.duplicateMeta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 420px) {
+  .positionGrid {
+    gap: 0.6rem;
+  }
+
+  .duplicateMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .modalActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}

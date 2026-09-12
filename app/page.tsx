@@ -1,5 +1,27 @@
 import Link from "next/link";
 
+import { LandingBrand } from "@/components/landing-brand";
+import styles from "./landing.module.css";
+
+const operationSteps = [
+  {
+    title: "Lançamento direto",
+    description: "Registre lado, vão, lote e quantidade sem transformar a operação em um formulário pesado.",
+  },
+  {
+    title: "Continuidade offline",
+    description: "Os lançamentos permanecem salvos no dispositivo mesmo quando a conexão não está disponível.",
+  },
+  {
+    title: "Sincronização entre dispositivos",
+    description: "Conecte a equipe ao mesmo inventário e consolide o trabalho quando houver rede.",
+  },
+  {
+    title: "Finalização e exportação",
+    description: "Consolide os dados e compartilhe o resultado final em PDF, Excel ou Word.",
+  },
+];
+
 export default function HomePage() {
   return (
     <main className="landing-shell">
@@ -11,29 +33,49 @@ export default function HomePage() {
         <Link className="secondary compact-button" href="/acesso">Entrar</Link>
       </nav>
 
-      <section className="landing-hero" aria-labelledby="landing-title">
-        <div className="landing-copy">
-          <p className="eyebrow">Controle de inventário industrial</p>
-          <h1 id="landing-title">Conferência precisa.<br /><span>Do chão de fábrica ao relatório.</span></h1>
-          <p className="landing-lead">Registre lotes e perfis estruturais com agilidade, trabalhe mesmo sem internet e transforme os lançamentos em relatórios claros e rastreáveis.</p>
-          <div className="landing-actions">
-            <Link className="primary button-link" href="/acesso">Acessar sistema <span aria-hidden="true">→</span></Link>
-            <a className="secondary button-link" href="#como-funciona">Conhecer o fluxo</a>
+      <section className={styles.hero} aria-labelledby="landing-title">
+        <div className={styles.brandColumn}>
+          <h1 id="landing-title" className={styles.srOnly}>INVENTÁRIO</h1>
+          <div className={styles.brandStage}>
+            <div className={styles.brandFrame}>
+              <LandingBrand />
+            </div>
           </div>
-          <div className="trust-row" aria-label="Benefícios principais">
-            <span>Operação offline</span><span>Sincronização segura</span><span>PDF, Excel e Word</span>
+          <div className={styles.actions}>
+            <Link className={`primary button-link ${styles.primaryCta}`} href="/acesso">
+              Acessar sistema <span aria-hidden="true">→</span>
+            </Link>
+            <a className={`secondary button-link ${styles.secondaryCta}`} href="#como-funciona">Conhecer o fluxo</a>
           </div>
         </div>
 
-        <div className="landing-visual" aria-label="Resumo das capacidades do sistema">
-          <div className="visual-header"><span className="visual-status">Exemplo de análise</span><span className="live-dot">Processado</span></div>
-          <div className="visual-metrics"><div><small>Registros</small><strong>2</strong></div><div><small>Lotes</small><strong>1</strong></div><div><small>Resultado</small><strong>19 + 1</strong></div></div>
-          <div className="visual-list">
-            <div><span className="location-badge">DE · 15</span><p><strong>Lote 2815634434</strong><small>19 peças no local principal</small></p><span className="ok-dot" /></div>
-            <div><span className="location-badge alert-badge">EF · 21</span><p><strong>Mesmo lote identificado</strong><small>1 peça solteira detectada</small></p><span className="alert-dot" /></div>
+        <aside className={styles.operationCard} aria-label="Fluxo resumido do sistema">
+          <div className={styles.cardHeader}>
+            <div>
+              <p>Operação do inventário</p>
+              <h2>O que importa durante a conferência</h2>
+            </div>
+            <span className={styles.readyBadge}>Pronto</span>
           </div>
-          <div className="visual-footer"><span>Relatório inteligente</span><strong>Pronto para conferência</strong></div>
-        </div>
+
+          <ol className={styles.operationList}>
+            {operationSteps.map((step, index) => (
+              <li className={styles.operationItem} key={step.title}>
+                <span className={styles.stepNumber} aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                <div className={styles.operationCopy}>
+                  <strong>{step.title}</strong>
+                  <span>{step.description}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          <div className={styles.cardFooter} aria-label="Características da operação">
+            <span>Mobile first</span>
+            <span>Dados preservados</span>
+            <span>Fluxo enxuto</span>
+          </div>
+        </aside>
       </section>
 
       <section className="landing-section" id="como-funciona" aria-labelledby="flow-title">

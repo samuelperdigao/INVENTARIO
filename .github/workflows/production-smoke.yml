@@ -46,8 +46,10 @@ jobs:
           curl -fsS --max-time 30 "$APP/backend-api/healthz" | grep -q '"status":"ok"'
 
           echo "Checking security headers..."
-          curl -fsSI --max-time 30 "$API/healthz" | grep -qi '^strict-transport-security:'
-          curl -fsSI --max-time 30 "$APP/" | grep -qi '^strict-transport-security:'
+          curl -fsS -D /tmp/api-headers.txt -o /dev/null --max-time 30 "$API/healthz"
+          grep -qi '^strict-transport-security:' /tmp/api-headers.txt
+          curl -fsS -D /tmp/app-headers.txt -o /dev/null --max-time 30 "$APP/"
+          grep -qi '^strict-transport-security:' /tmp/app-headers.txt
 
           echo "Checking register -> refresh -> logout through frontend proxy..."
           EMAIL="smoke-$(date +%s)-${RANDOM}@example.com"

@@ -1,4 +1,4 @@
-.dashboardShell {
+.dashboardShell.dashboardShell {
   width: min(100%, 1480px);
 }
 
@@ -46,8 +46,11 @@
 }
 
 @media (min-width: 1600px) {
-  .dashboardShell {
+  .dashboardShell.dashboardShell {
     width: min(100%, 1540px);
+  }
+
+  .dashboardShell {
     padding-inline: 40px;
   }
 

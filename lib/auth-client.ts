@@ -91,19 +91,7 @@ export async function registerAccount(input: { email: string; password: string; 
   return messageRequest("/api/v1/auth/register", input);
 }
 
-export async function verifyEmail(input: { email: string; code: string }): Promise<AuthUser> {
-  return (await authRequest("/api/v1/auth/verify-email", { method: "POST", body: JSON.stringify(input) })).user;
-}
-
-export async function resendVerificationCode(email: string): Promise<string> {
-  return messageRequest("/api/v1/auth/verification/resend", { email });
-}
-
-export async function requestPasswordReset(email: string): Promise<string> {
-  return messageRequest("/api/v1/auth/password-reset/request", { email });
-}
-
-export async function confirmPasswordReset(input: { email: string; code: string; newPassword: string; passwordConfirmation: string }): Promise<string> {
+export async function confirmPasswordReset(input: { email: string; newPassword: string; passwordConfirmation: string }): Promise<string> {
   return messageRequest("/api/v1/auth/password-reset/confirm", input);
 }
 

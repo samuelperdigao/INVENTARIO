@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AnalysisPanel } from "@/components/analysis-panel";
 import { EntryForm } from "@/components/entry-form";
@@ -42,6 +42,9 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
     return () => { active = false; };
   }, [inventoryId]);
 
+  const totalPieces = useMemo(() => entries.reduce((sum, entry) => sum + entry.quantity, 0), [entries]);
+  const distinctLots = useMemo(() => new Set(entries.map((entry) => entry.lot.trim())).size, [entries]);
+
   async function saveEntry(draft: EntryDraft, entryId?: string): Promise<void> {
     setError(undefined);
     if (entryId) await updateEntry(entryId, draft);
@@ -69,15 +72,30 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
     <main className="shell">
       <header className="inventory-header">
         <div className="inventory-header-row">
-          <div>
+          <div className="inventory-header-copy">
             <Link className="back-link" href="/">‹ Inventários</Link>
             <p className="eyebrow">Inventário em operação</p>
             <h1>Inventário {formatBrazilianDate(inventory.date)}</h1>
-            <p className="muted">Registre cada ocorrência individualmente. A consolidação acontece somente na análise.</p>
+            <p className="muted">Registre cada ocorrência individualmente. A consolidação acontece somente na análise e no relatório final.</p>
           </div>
           <span className="status-pill">{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span>
         </div>
       </header>
+
+      <section className="metric-grid" aria-label="Resumo do inventário">
+        <div className="metric-card"><span className="metric-label">Registros</span><span className="metric-value">{entries.length}</span></div>
+        <div className="metric-card"><span className="metric-label">Lotes</span><span className="metric-value">{distinctLots}</span></div>
+        <div className="metric-card"><span className="metric-label">Peças lançadas</span><span className="metric-value">{totalPieces}</span></div>
+        <div className="metric-card"><span className="metric-label">Situação</span><span className="metric-value">{inventory.status === "FINISHED" ? "Finalizado" : "Em andamento"}</span></div>
+      </section>
+
+      <nav className="workflow-strip" aria-label="Fluxo operacional do inventário">
+        <div className="workflow-step"><span className="workflow-number">01</span><span>Lançar</span></div>
+        <div className="workflow-step"><span className="workflow-number">02</span><span>Conferir</span></div>
+        <div className="workflow-step"><span className="workflow-number">03</span><span>Sincronizar</span></div>
+        <div className="workflow-step"><span className="workflow-number">04</span><span>Analisar</span></div>
+        <div className="workflow-step"><span className="workflow-number">05</span><span>Finalizar</span></div>
+      </nav>
 
       {error && <p className="error" role="alert">{error}</p>}
       <div className="stack">

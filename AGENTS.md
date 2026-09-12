@@ -29,10 +29,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Fase 2.1 — segurança de acesso
 
-- Sincronização central exige bearer token e token interno do inventário. A criação central exige equipe; um participante já registrado pode usar seu token individual. O código amigável de seis dígitos nunca é autenticação.
+- Sincronização central exige bearer token e token interno do inventário. Qualquer usuário autenticado pode criar e sincronizar um inventário próprio sem equipe; quando houver equipe selecionada, o inventário pode continuar associado a ela. Um participante já registrado pode usar seu token individual. O código amigável de seis dígitos nunca é autenticação.
 - Senhas usam `scrypt`; o token de acesso é curto e o token de renovação é opaco, revogável e enviado somente em cookie `HttpOnly`.
 - Em produção, `INVENTORY_ENV=production`, `INVENTORY_DATABASE_URL` PostgreSQL, `INVENTORY_AUTH_SECRET` forte e `INVENTORY_CORS_ORIGINS` HTTPS explícitas são obrigatórios. Não contorne as validações de inicialização.
-- Toda mudança de schema deve passar por Alembic. Inventários herdados sem `team_id` são preservados, mas devem ser associados administrativamente antes de qualquer acesso central.
+- Toda mudança de schema deve passar por Alembic. Inventários herdados sem `team_id` são preservados; `team_id` também pode permanecer nulo em inventários individuais, desde que `owner_user_id` identifique o criador autenticado.
 - Fase 2.1 está encerrada localmente no checkpoint `feat: add authentication teams and protected sync`. A Fase 2.2 limita-se ao provisionamento e à validação real de PostgreSQL, segredos, domínio/HTTPS, CORS, publicação e smoke test; não introduza funcionalidades operacionais nela.
 
 ## V1 estrutural — relatório, finalização e histórico
@@ -45,6 +45,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Fluxo de acesso e compartilhamento V1
 
 - Cadastro aceita qualquer e-mail sintaticamente válido, libera a conta imediatamente e não cria equipe automaticamente.
+- Qualquer conta autenticada pode iniciar um inventário próprio sem associação a equipe. O criador é autorizado por `owner_user_id`; `team_id` é opcional e continua disponível para inventários associados a uma equipe.
 - Recuperação de senha exige o e-mail e o NP pessoal de exatamente oito dígitos definido no cadastro. O NP usa hash `scrypt` com segredo adicional, nunca é devolvido pela API e recebe bloqueio temporário após cinco erros.
 - As migrations até `0007_recovery_pin` são obrigatórias. `owner_user_id` continua equivalente ao criador; `finalized_by_user_id` registra o encerramento.
 - Nunca mostre UUID ou token interno no fluxo normal. O usuário informa apenas o código de participação de seis dígitos; o backend emite token opaco individual e registra o participante.

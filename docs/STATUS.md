@@ -1,5 +1,16 @@
 # Status do Projeto
 
+## Inventário individual e responsividade desktop — implementado em 12/09/2026
+
+- Removido o bloqueio que exigia associação a equipe para iniciar e sincronizar um inventário novo.
+- Qualquer conta autenticada pode criar um inventário próprio; `owner_user_id` protege o acesso do criador e `team_id` permanece opcional.
+- O código de participação de seis dígitos continua sendo gerado na primeira sincronização e permite que outras contas autenticadas trabalhem no mesmo inventário com token individual.
+- Fluxos existentes de equipe, histórico de equipe, tokens internos, conflitos, tombstones e operação offline-first foram preservados.
+- Nenhuma migration nova é necessária porque `inventories.team_id` já aceita `NULL` no schema atual.
+- O dashboard recebeu largura útil maior e reorganização específica para desktop, mantendo os breakpoints e o comportamento mobile existentes.
+- Adicionado teste de regressão cobrindo criação sem equipe, geração do código e entrada de um segundo usuário também sem equipe.
+- Gates desta alteração serão registrados após a execução no pull request; não considerar a mudança validada antes da conclusão do CI.
+
 ## Integração INVENTARIO V2 — validada em 12/09/2026
 
 - Branch de integração: `release/integracao-inventario-v2`, criada sobre a `main` mais recente.
@@ -97,10 +108,10 @@ Fase 2.1 — identidade, equipes e endurecimento de infraestrutura. Encerrada e 
 ## Fase 2.1 — concluído localmente
 
 - Registro e login por e-mail/senha, hash `scrypt`, access token assinado de curta duração e sessão renovável revogável em cookie `HttpOnly`.
-- Modelo `User → Team → TeamMember → Inventory`, com papéis `ADMIN` e `OPERATOR`; cadastro novo não cria equipe automaticamente.
-- Sincronização exige usuário autenticado e token interno; criação central exige equipe e participantes registrados usam token individual. Inventário não autorizado retorna 404 mesmo quando o UUID é conhecido.
+- Modelo de acesso suporta inventário individual por `owner_user_id` e associação opcional `User → Team → TeamMember → Inventory`, com papéis `ADMIN` e `OPERATOR`; cadastro novo não cria equipe automaticamente.
+- Sincronização exige usuário autenticado e token interno. A criação central pode ocorrer sem equipe; participantes registrados usam token individual. Inventário não autorizado retorna 404 mesmo quando o UUID é conhecido.
 - CORS usa origens explícitas e credenciais; em `production` a API recusa SQLite, segredo fraco e origem não HTTPS/curinga.
-- Migrations `0002_auth_teams_access` e `0003_team_member_role_constraint` aplicadas com sucesso em SQLite limpo até `head`; o ciclo `downgrade 0001_central_sync → upgrade head` também passou. Inventários antigos permanecem com associação nula e bloqueados no central até associação administrativa planejada.
+- Migrations `0002_auth_teams_access` e `0003_team_member_role_constraint` aplicadas com sucesso em SQLite limpo até `head`; o ciclo `downgrade 0001_central_sync → upgrade head` também passou. Inventários herdados sem `owner_user_id` permanecem bloqueados até associação administrativa segura; inventários individuais novos podem ter `team_id` nulo.
 - Alembic também gerou com sucesso o SQL do dialeto PostgreSQL para `upgrade head`; isso valida a geração, não substitui a execução contra uma instância PostgreSQL real.
 - O SQLite local preexistente tinha o schema de `0001_central_sync` criado pelo runtime sem tabela de versão; após confirmar o schema herdado, ele foi marcado em `0001_central_sync` e atualizado pelas migrations aditivas `0002` e `0003` sem recriar tabelas.
 - Testes de autenticação, sessão, autorização de equipe, IDOR, papel de operador, idempotência, conflito e tombstone foram adicionados e passam localmente.

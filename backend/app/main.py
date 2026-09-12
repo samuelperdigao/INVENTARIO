@@ -172,6 +172,7 @@ def logout(
     if refresh_token:
         revoke_refresh_session(session, refresh_token)
     response.delete_cookie(REFRESH_COOKIE, path="/")
+    response.status_code = status.HTTP_204_NO_CONTENT
     return response
 
 

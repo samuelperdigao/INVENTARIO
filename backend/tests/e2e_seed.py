@@ -1,8 +1,12 @@
 """Cria identidades verificadas para o fluxo Playwright local."""
 
 from datetime import datetime, timezone
+from pathlib import Path
 import sys
 from uuid import uuid4
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BACKEND_ROOT))
 
 from sqlalchemy.orm import Session
 

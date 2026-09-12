@@ -22,10 +22,23 @@ export function HistoryPanel() {
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Não foi possível consultar o histórico."); }
   }
 
-  return <section className="card stack" aria-label="Histórico central">
-    <div className="topbar"><div><h2>Histórico</h2><p className="muted">Inventários finalizados da equipe autenticada.</p></div><button className="secondary" type="button" onClick={() => void load()}>Consultar histórico</button></div>
+  return <section className="card section-card panel-card stack" aria-label="Histórico central">
+    <div className="section-header">
+      <div className="panel-heading">
+        <span className="panel-index" aria-hidden="true">03</span>
+        <div className="panel-copy">
+          <p className="eyebrow">Consulta central</p>
+          <h2>Histórico</h2>
+          <p className="muted">Inventários finalizados da equipe autenticada, preservados para consulta posterior.</p>
+        </div>
+      </div>
+      <button className="secondary" type="button" onClick={() => void load()}>Consultar histórico</button>
+    </div>
     {message ? <p className="error" role="alert">{message}</p> : null}
     {items?.length === 0 ? <p className="notice">Nenhum inventário finalizado nesta equipe.</p> : null}
-    {items?.map((item) => <p key={item.id}><strong>{item.date}</strong> · {item.summary?.lotsAnalyzed ?? 0} lote(s) · finalizado em {item.finalizedAt ? new Date(item.finalizedAt).toLocaleString("pt-BR") : "—"}</p>)}
+    {items?.map((item) => <article className="history-item" key={item.id}>
+      <div><strong>{item.date}</strong><div className="history-meta">Finalizado em {item.finalizedAt ? new Date(item.finalizedAt).toLocaleString("pt-BR") : "—"}</div></div>
+      <div className="inventory-card-meta"><span className="micro-pill">{item.summary?.lotsAnalyzed ?? 0} lote(s)</span>{item.summary?.totalPieces !== undefined ? <span className="micro-pill">{item.summary.totalPieces} peça(s)</span> : null}</div>
+    </article>)}
   </section>;
 }

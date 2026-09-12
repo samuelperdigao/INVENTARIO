@@ -44,9 +44,19 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
     finally { setBusy(false); }
   }
 
-  return <section className="card stack" aria-label="Finalização e exportações">
-    <div className="topbar"><div><h2>Finalização e relatórios</h2><p className="muted">As exportações são geradas pelo relatório consolidado central.</p></div>{inventory.status === "OPEN" ? <button className="primary" type="button" disabled={busy} onClick={() => void finish()}>{busy ? "Processando…" : "Finalizar inventário"}</button> : <span className="notice">Finalizado</span>}</div>
-    {inventory.status === "FINISHED" ? <div className="entry-actions"><button className="secondary" type="button" disabled={busy} onClick={() => void download("xlsx")}>Excel</button><button className="secondary" type="button" disabled={busy} onClick={() => void download("pdf")}>PDF</button><button className="secondary" type="button" disabled={busy} onClick={() => void download("docx")}>Word</button></div> : <p className="muted">Sincronize e finalize para congelar o relatório e liberar as exportações.</p>}
+  return <section className="card section-card panel-card stack" aria-label="Finalização e exportações">
+    <div className="section-header">
+      <div className="panel-heading">
+        <span className="panel-index" aria-hidden="true">05</span>
+        <div className="panel-copy">
+          <p className="eyebrow">Encerramento</p>
+          <h2>Finalização e relatórios</h2>
+          <p className="muted">Ao finalizar, o relatório consolidado é congelado no servidor e o inventário passa para somente leitura.</p>
+        </div>
+      </div>
+      {inventory.status === "OPEN" ? <button className="primary" type="button" disabled={busy} onClick={() => void finish()}>{busy ? "Processando…" : "Finalizar inventário"}</button> : <span className="micro-pill good">Finalizado</span>}
+    </div>
+    {inventory.status === "FINISHED" ? <div className="entry-actions"><button className="secondary" type="button" disabled={busy} onClick={() => void download("xlsx")}>Excel</button><button className="secondary" type="button" disabled={busy} onClick={() => void download("pdf")}>PDF</button><button className="secondary" type="button" disabled={busy} onClick={() => void download("docx")}>Word</button></div> : <p className="notice">Antes de finalizar, confira os lançamentos, sincronize e atualize a análise para reduzir retrabalho.</p>}
     {message ? <p className={message.startsWith("Inventário") ? "notice" : "error"} role="status">{message}</p> : null}
   </section>;
 }

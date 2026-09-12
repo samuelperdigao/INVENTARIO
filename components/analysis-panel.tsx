@@ -55,13 +55,26 @@ export function AnalysisPanel({ inventory, entries }: AnalysisPanelProps) {
   }
 
   return (
-    <section className="card stack" aria-label="Análise">
-      <div className="topbar"><h2>Análise</h2><button className="secondary" type="button" onClick={() => void handleAnalysis()} disabled={loading}>{loading ? "Analisando…" : "Atualizar análise"}</button></div>
+    <section className="card section-card panel-card stack" aria-label="Análise">
+      <div className="section-header">
+        <div className="panel-heading">
+          <span className="panel-index" aria-hidden="true">04</span>
+          <div className="panel-copy">
+            <p className="eyebrow">Consolidação inteligente</p>
+            <h2>Análise</h2>
+            <p className="muted">Consolida os registros por lote e identifica fragmentações, peças solteiras e distribuições que exigem revisão.</p>
+          </div>
+        </div>
+        <button className="secondary" type="button" onClick={() => void handleAnalysis()} disabled={loading}>{loading ? "Analisando…" : "Atualizar análise"}</button>
+      </div>
       {fromCache && report ? <p className="notice">Resultado em cache{possiblyStale ? ", possivelmente desatualizado" : ""}.</p> : null}
       {message && !fromCache ? <p className="error" role="alert">{message}</p> : null}
-      {!report ? <p className="muted">A análise nova exige conexão com o serviço FastAPI.</p> : null}
+      {!report ? <p className="muted">A análise nova exige conexão com o serviço FastAPI. Os lançamentos locais continuam disponíveis sem rede.</p> : null}
       {report ? <>
-        <p><strong>{report.summary.lotsAnalyzed}</strong> lote(s) analisado(s) · <strong>{report.summary.fragmentedLots}</strong> fragmentado(s)</p>
+        <div className="inventory-card-meta">
+          <span className="micro-pill">{report.summary.lotsAnalyzed} lote(s) analisado(s)</span>
+          <span className={`micro-pill ${report.summary.fragmentedLots === 0 ? "good" : ""}`}>{report.summary.fragmentedLots} fragmentado(s)</span>
+        </div>
         <ul className="report-list">
           {report.lots.map((lot) => <li key={lot.lot}>
             <strong>Lote {lot.lot}</strong> · {lot.totalQuantity} peça(s) · <span className="report-classification">{lot.classification}</span>

@@ -56,17 +56,30 @@ export function SyncPanel({ inventory, onSynced }: { inventory: Inventory; onSyn
   }
 
   return (
-    <section className="card stack" aria-label="Sincronização">
-      <div className="topbar">
-        <div><h2>Sincronização</h2><p className="muted">{inventory.syncStatus === "SYNCED" ? "Dados locais sincronizados" : "Há alterações locais pendentes"}</p></div>
-        <button className="secondary" type="button" onClick={() => void handleSync()} disabled={loading}>{loading ? "Sincronizando…" : "Sincronizar agora"}</button>
+    <section className="card section-card panel-card stack" aria-label="Sincronização">
+      <div className="section-header">
+        <div className="panel-heading">
+          <span className="panel-index" aria-hidden="true">03</span>
+          <div className="panel-copy">
+            <p className="eyebrow">Proteção central</p>
+            <h2>Sincronização</h2>
+            <p className="muted">{inventory.syncStatus === "SYNCED" ? "Todos os dados locais conhecidos estão sincronizados." : "Há alterações locais pendentes de envio ao servidor."}</p>
+          </div>
+        </div>
+        <span className={`micro-pill ${inventory.syncStatus === "SYNCED" ? "good" : ""}`}>{inventory.syncStatus === "SYNCED" ? "Em dia" : "Pendente"}</span>
       </div>
+
+      <button className="secondary" type="button" onClick={() => void handleSync()} disabled={loading}>{loading ? "Sincronizando…" : "Sincronizar agora"}</button>
       {message ? <p className={message.startsWith("Sincronização") ? "notice" : "error"} role="status">{message}</p> : null}
-      {inventory.syncToken ? <details>
+
+      {inventory.syncToken ? <details className="details-box">
         <summary>Conectar este inventário em outro dispositivo</summary>
-        <p className="muted">No outro dispositivo, informe estes dois valores na tela inicial. Trate o código como uma senha.</p>
-        <p><strong>ID:</strong> <code>{inventory.id}</code><br /><strong>Código:</strong> <code>{inventory.syncToken}</code></p>
+        <div className="details-content">
+          <p className="muted">No outro dispositivo, informe estes dois valores na tela inicial. Trate o código como uma senha.</p>
+          <p><strong>ID:</strong> <code>{inventory.id}</code><br /><strong>Código:</strong> <code>{inventory.syncToken}</code></p>
+        </div>
       </details> : null}
+
       {conflicts.length > 0 ? <div className="stack" aria-label="Conflitos de sincronização">
         <p className="error">{conflicts.length} conflito(s) aguardando decisão. Os dois dados foram preservados.</p>
         {conflicts.map((conflict) => <div className="notice" key={conflict.id}>

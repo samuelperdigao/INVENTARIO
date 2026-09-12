@@ -78,7 +78,7 @@ export function InventoryHome() {
               <h1 id="inventory-title">Inventários</h1>
             </div>
           </div>
-          <p className="muted" style={{ marginTop: 12 }}>Registre os lotes com rapidez. Os lançamentos continuam disponíveis mesmo sem conexão.</p>
+          <p className="muted hero-note">Registre, confira e sincronize lotes com uma interface preparada para operação rápida em campo. Os lançamentos continuam disponíveis mesmo sem conexão.</p>
         </div>
         <div className="hero-actions">
           <button className="primary" type="button" onClick={() => void handleCreate()} disabled={creating}>
@@ -86,6 +86,12 @@ export function InventoryHome() {
           </button>
         </div>
       </section>
+
+      <div className="feature-strip" aria-label="Características do sistema">
+        <div className="feature-chip"><span className="feature-dot" aria-hidden="true" />Operação offline primeiro</div>
+        <div className="feature-chip"><span className="feature-dot" aria-hidden="true" />Sincronização protegida</div>
+        <div className="feature-chip"><span className="feature-dot" aria-hidden="true" />Relatórios centralizados</div>
+      </div>
 
       {error && <p className="error" role="alert">{error}</p>}
 
@@ -96,7 +102,7 @@ export function InventoryHome() {
               <div className="section-title">
                 <p className="eyebrow">Em andamento</p>
                 <h2>Inventários neste dispositivo</h2>
-                <p className="muted">Continue de onde parou, inclusive offline.</p>
+                <p className="muted">Continue de onde parou. Tudo que ainda não foi sincronizado permanece preservado localmente.</p>
               </div>
               {!loading ? <span className="status-pill">{inventories.length} aberto(s)</span> : null}
             </div>
@@ -109,7 +115,11 @@ export function InventoryHome() {
                 <Link className="card inventory-link inventory-card" href={`/inventarios/${inventory.id}`} key={inventory.id}>
                   <div className="inventory-card-main">
                     <strong>{labels.get(inventory.id)}</strong>
-                    <span className="muted">Aberto · {inventory.revision - 1} alteração(ões)</span>
+                    <span className="muted">{inventory.revision - 1} alteração(ões) registrada(s)</span>
+                    <div className="inventory-card-meta">
+                      <span className="micro-pill">Aberto</span>
+                      <span className={`micro-pill ${inventory.syncStatus === "SYNCED" ? "good" : ""}`}>{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span>
+                    </div>
                   </div>
                   <span className="chevron" aria-hidden="true">›</span>
                 </Link>
@@ -122,11 +132,14 @@ export function InventoryHome() {
 
         <aside className="stack" aria-label="Acesso e conexão">
           <AuthPanel />
-          <section className="card section-card stack" aria-label="Conectar inventário">
-            <div className="section-title">
-              <p className="eyebrow">Outro dispositivo</p>
-              <h2>Conectar inventário</h2>
-              <p className="muted">Use o ID e o código de sincronização recebidos do dispositivo que iniciou o inventário.</p>
+          <section className="card section-card panel-card stack" aria-label="Conectar inventário">
+            <div className="panel-heading">
+              <span className="panel-index" aria-hidden="true">02</span>
+              <div className="panel-copy">
+                <p className="eyebrow">Outro dispositivo</p>
+                <h2>Conectar inventário</h2>
+                <p className="muted">Use o ID e o código de sincronização recebidos do dispositivo que iniciou o inventário.</p>
+              </div>
             </div>
             <form className="stack" onSubmit={(event) => void handleConnect(event)}>
               <label>ID do inventário

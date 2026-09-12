@@ -33,13 +33,13 @@ def _entry(inventory_id: str) -> dict[str, object]:
     }
 
 
-def test_registration_requires_corporate_email_and_verification_without_creating_team() -> None:
+def test_registration_accepts_any_valid_email_and_requires_verification_without_creating_team() -> None:
     rejected = client.post("/api/v1/auth/register", json={
-        "email": "pessoal@gmail.com", "password": "senha-segura-123", "displayName": "Pessoal",
+        "email": "email-invalido", "password": "senha-segura-123", "displayName": "Inválido",
     })
     assert rejected.status_code == 422
 
-    email = "novo.usuario@gerdau.com.br"
+    email = "novo.usuario@gmail.com"
     registered = client.post("/api/v1/auth/register", json={
         "email": email, "password": "senha-segura-123", "displayName": "Novo Usuário",
     })

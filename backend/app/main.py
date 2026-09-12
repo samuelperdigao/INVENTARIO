@@ -16,9 +16,9 @@ from sqlalchemy.orm import Session
 
 from app.auth_service import (
     authenticate_refresh_session, create_access_token, create_refresh_session,
-    consume_auth_code, create_auth_code, hash_password, is_allowed_corporate_email,
-    normalize_email, read_access_token, require_team_admin, require_team_member,
-    revoke_all_refresh_sessions, revoke_refresh_session, user_payload, verify_password,
+    hash_password, hash_recovery_pin, is_valid_email, normalize_email,
+    read_access_token, require_team_admin, require_team_member, revoke_all_refresh_sessions,
+    revoke_refresh_session, user_payload, verify_password, verify_recovery_pin,
 )
 from app.config import get_settings
 from app.database import Base, database_url, engine, get_session
@@ -31,10 +31,10 @@ from app.persistence import (
 from app.reports import build_consolidated_report, export_docx, export_pdf, export_xlsx
 from app.schemas import (
     AddTeamMemberRequest, AnalysisPreviewRequest, AnalysisReport, AuthResponse,
-    AuthenticatedUser, ConfirmPasswordResetRequest, CreateTeamRequest, EmailCodeRequest,
+    AuthenticatedUser, ConfigureRecoveryPinRequest, ConfirmPasswordResetRequest, CreateTeamRequest,
     EmailReportRequest, FinalizeInventoryRequest, InventoryHistoryItem, JoinInventoryRequest,
     JoinInventoryResponse, LoginRequest, MessageResponse, RegisterRequest, SyncEntry, SyncRequest,
-    SyncResponse, VerifyEmailRequest,
+    SyncResponse,
 )
 from app.share_service import (
     SHAREABLE_FORMATS,
@@ -97,8 +97,6 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
 
 
 def _auth_response(session: Session, user: UserRow, response: Response) -> dict[str, object]:
-    if user.email_verified_at is None or not is_allowed_corporate_email(user.email):
-        raise HTTPException(status_code=403, detail="Confirme seu e-mail antes de entrar.")
     refresh = create_refresh_session(session, user, settings)
     session.commit()
     _set_refresh_cookie(response, refresh)
@@ -113,7 +111,7 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Autenticação obrigatória.")
     user_id = read_access_token(authorization.removeprefix("Bearer "), settings)
     user = session.get(UserRow, user_id)
-    if user is None or user.email_verified_at is None or not is_allowed_corporate_email(user.email):
+    if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessão inválida ou expirada.")
     return user
 
@@ -130,29 +128,6 @@ def _sync_team(session: Session, user: UserRow, requested_team_id: str | None) -
     return memberships[0].team_id
 
 
-def _send_code(session: Session, user: UserRow, *, purpose: str) -> None:
-    is_verification = purpose == "EMAIL_VERIFICATION"
-    code = create_auth_code(
-        session,
-        user,
-        settings,
-        purpose=purpose,
-        validity_minutes=settings.verification_code_minutes if is_verification else settings.password_reset_code_minutes,
-    )
-    subject = "Código de verificação do INVENTARIO" if is_verification else "Código para redefinir sua senha"
-    action = "confirmar sua conta" if is_verification else "redefinir sua senha"
-    validity = settings.verification_code_minutes if is_verification else settings.password_reset_code_minutes
-    try:
-        send_email(
-            settings,
-            recipient=user.email,
-            subject=subject,
-            text=f"Use o código {code} para {action}. Ele expira em {validity} minutos e possui limite de tentativas.",
-        )
-    except (OSError, smtplib.SMTPException, RuntimeError) as error:
-        raise HTTPException(status_code=503, detail="Serviço de e-mail indisponível no momento.") from error
-
-
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     try:
@@ -163,88 +138,81 @@ def healthz() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/api/v1/auth/register", response_model=MessageResponse, status_code=status.HTTP_202_ACCEPTED)
-def register(payload: RegisterRequest, session: Session = Depends(get_session)) -> dict[str, str]:
+@app.post("/api/v1/auth/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+def register(payload: RegisterRequest, response: Response, session: Session = Depends(get_session)) -> dict[str, object]:
     email = normalize_email(payload.email)
-    if not is_allowed_corporate_email(email):
+    if not is_valid_email(email):
         raise HTTPException(status_code=422, detail="Informe um endereço de e-mail válido.")
     if session.scalar(select(UserRow).where(UserRow.email == email)) is not None:
         raise HTTPException(status_code=409, detail="Este e-mail já está cadastrado.")
     now = datetime.now(timezone.utc)
     user = UserRow(
-        id=str(uuid4()),
-        email=email,
-        display_name=payload.displayName.strip(),
+        id=str(uuid4()), email=email, display_name=payload.displayName.strip(),
         password_hash=hash_password(payload.password),
-        created_at=now,
-        email_verified_at=None,
+        recovery_pin_hash=hash_recovery_pin(payload.recoveryPin, settings),
+        recovery_pin_failed_attempts=0, recovery_pin_locked_until=None,
+        created_at=now, email_verified_at=now,
     )
     try:
         session.add(user)
         session.flush()
-        _send_code(session, user, purpose="EMAIL_VERIFICATION")
-        session.commit()
-        return {"message": "Cadastro recebido. Confira o código enviado ao seu e-mail."}
+        return _auth_response(session, user, response)
     except IntegrityError as error:
         session.rollback()
         raise HTTPException(status_code=409, detail="Não foi possível criar a conta.") from error
 
 
-@app.post("/api/v1/auth/verify-email", response_model=AuthResponse)
-def verify_email(payload: VerifyEmailRequest, response: Response, session: Session = Depends(get_session)) -> dict[str, object]:
-    user = session.scalar(select(UserRow).where(UserRow.email == normalize_email(payload.email)))
-    if user is None:
-        raise HTTPException(status_code=422, detail="Código inválido, expirado ou bloqueado.")
-    if user.email_verified_at is not None:
-        raise HTTPException(status_code=409, detail="Esta conta já foi verificada. Entre com sua senha.")
-    consume_auth_code(session, user, settings, purpose="EMAIL_VERIFICATION", code=payload.code)
-    user.email_verified_at = datetime.now(timezone.utc)
-    session.flush()
-    return _auth_response(session, user, response)
-
-
-@app.post("/api/v1/auth/verification/resend", response_model=MessageResponse)
-def resend_verification(payload: EmailCodeRequest, session: Session = Depends(get_session)) -> dict[str, str]:
-    email = normalize_email(payload.email)
-    user = session.scalar(select(UserRow).where(UserRow.email == email))
-    if user is not None and user.email_verified_at is None:
-        _send_code(session, user, purpose="EMAIL_VERIFICATION")
-        session.commit()
-    return {"message": "Se a conta estiver pendente, um novo código será enviado."}
-
-
-@app.post("/api/v1/auth/password-reset/request", response_model=MessageResponse)
-def request_password_reset(payload: EmailCodeRequest, session: Session = Depends(get_session)) -> dict[str, str]:
-    email = normalize_email(payload.email)
-    user = session.scalar(select(UserRow).where(UserRow.email == email))
-    if user is not None and user.email_verified_at is not None:
-        _send_code(session, user, purpose="PASSWORD_RESET")
-        session.commit()
-    return {"message": "Se o e-mail estiver cadastrado, o código de recuperação será enviado."}
-
-
 @app.post("/api/v1/auth/password-reset/confirm", response_model=MessageResponse)
 def confirm_password_reset(payload: ConfirmPasswordResetRequest, session: Session = Depends(get_session)) -> dict[str, str]:
     user = session.scalar(select(UserRow).where(UserRow.email == normalize_email(payload.email)))
-    if user is None or user.email_verified_at is None:
-        raise HTTPException(status_code=422, detail="Código inválido, expirado ou bloqueado.")
-    consume_auth_code(session, user, settings, purpose="PASSWORD_RESET", code=payload.code)
+    if user is None or user.recovery_pin_hash is None:
+        raise HTTPException(status_code=422, detail="E-mail ou NP de recuperação inválido.")
+    now = datetime.now(timezone.utc)
+    locked_until = user.recovery_pin_locked_until
+    if locked_until is not None and locked_until.tzinfo is None:
+        locked_until = locked_until.replace(tzinfo=timezone.utc)
+    if locked_until is not None and locked_until > now:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Recuperação temporariamente bloqueada. Tente novamente em {settings.recovery_pin_lock_minutes} minutos.",
+        )
+    if not verify_recovery_pin(payload.recoveryPin, user.recovery_pin_hash, settings):
+        user.recovery_pin_failed_attempts += 1
+        if user.recovery_pin_failed_attempts >= settings.recovery_pin_max_attempts:
+            user.recovery_pin_locked_until = now + timedelta(minutes=settings.recovery_pin_lock_minutes)
+        session.commit()
+        raise HTTPException(status_code=422, detail="E-mail ou NP de recuperação inválido.")
     user.password_hash = hash_password(payload.newPassword)
+    user.recovery_pin_failed_attempts = 0
+    user.recovery_pin_locked_until = None
     revoke_all_refresh_sessions(session, user.id)
     session.commit()
     return {"message": "Senha atualizada. Entre novamente com a nova senha."}
 
 
+@app.post("/api/v1/auth/recovery-pin", response_model=AuthenticatedUser)
+def configure_recovery_pin(
+    payload: ConfigureRecoveryPinRequest,
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict[str, object]:
+    if user.recovery_pin_hash is not None:
+        raise HTTPException(status_code=409, detail="O NP de recuperação já está configurado.")
+    user.recovery_pin_hash = hash_recovery_pin(payload.recoveryPin, settings)
+    user.recovery_pin_failed_attempts = 0
+    user.recovery_pin_locked_until = None
+    session.commit()
+    return user_payload(session, user)
+
+
 @app.post("/api/v1/auth/login", response_model=AuthResponse)
 def login(payload: LoginRequest, response: Response, session: Session = Depends(get_session)) -> dict[str, object]:
     email = normalize_email(payload.email)
-    if not is_allowed_corporate_email(email):
+    if not is_valid_email(email):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="E-mail ou senha inválidos.")
     user = session.scalar(select(UserRow).where(UserRow.email == email))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="E-mail ou senha inválidos.")
-    if user.email_verified_at is None:
-        raise HTTPException(status_code=403, detail="Confirme seu e-mail antes de entrar.")
     return _auth_response(session, user, response)
 
 

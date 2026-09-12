@@ -6,7 +6,8 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from app.auth_service import hash_password
+from app.auth_service import hash_password, hash_recovery_pin
+from app.config import get_settings
 from app.database import engine
 from app.persistence import TeamMemberRow, TeamRow, UserRow
 
@@ -15,7 +16,10 @@ def create_user(session: Session, email: str) -> UserRow:
     now = datetime.now(timezone.utc)
     user = UserRow(
         id=str(uuid4()), email=email, display_name=email.split("@")[0],
-        password_hash=hash_password("senha-segura-123"), created_at=now, email_verified_at=now,
+        password_hash=hash_password("senha-segura-123"),
+        recovery_pin_hash=hash_recovery_pin("38427105", get_settings()),
+        recovery_pin_failed_attempts=0, recovery_pin_locked_until=None,
+        created_at=now, email_verified_at=now,
     )
     session.add(user)
     session.flush()

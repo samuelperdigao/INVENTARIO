@@ -1574,11 +1574,12 @@ Qualquer decisão técnica futura deverá preservar esses princípios.
 ## Entrada e identidade
 
 - `/` é a Landing Page pública e `/dashboard` é a área operacional autenticada;
-- cadastro aceita exclusivamente o domínio exato `@gerdau.com.br`;
+- cadastro aceita qualquer e-mail sintaticamente válido e libera o acesso imediatamente;
 - cadastro não cria equipe automaticamente;
 - senha é persistida somente como hash `scrypt` com salt individual;
-- a conta exige confirmação por código aleatório de seis números;
-- códigos de verificação e recuperação expiram, têm limite de tentativas e são armazenados somente como HMAC;
+- o usuário informa e confirma o NP pessoal de exatamente oito dígitos no cadastro;
+- o NP de recuperação é persistido somente como hash `scrypt` reforçado pelo segredo da aplicação e nunca é devolvido pela API;
+- cinco NPs incorretos bloqueiam novas tentativas de recuperação por quinze minutos;
 - redefinir a senha revoga todas as sessões renováveis anteriores;
 - perfil não sensível pode permanecer no dispositivo para reabrir dados locais offline, mas bearer token nunca é persistido.
 
@@ -1607,5 +1608,5 @@ Qualquer decisão técnica futura deverá preservar esses princípios.
 - sem suporte nativo, o sistema baixa o documento;
 - PDF, XLSX e DOCX podem ser enviados ao e-mail da conta autenticada;
 - o destinatário não é confiado ao frontend;
-- verificação, recuperação e relatórios usam a mesma infraestrutura SMTP do backend;
+- cadastro e recuperação não dependem de SMTP; somente o envio opcional de relatórios usa essa infraestrutura;
 - credenciais e configuração do provedor nunca integram o bundle público.

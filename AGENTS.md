@@ -44,8 +44,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Fluxo de acesso e compartilhamento V1
 
-- Cadastro aceita somente o domínio exato `@gerdau.com.br`, exige verificação por código e não cria equipe automaticamente.
-- A migration `0005_access_sharing` é obrigatória. `owner_user_id` continua equivalente ao criador; `finalized_by_user_id` registra o encerramento.
+- Cadastro aceita qualquer e-mail sintaticamente válido, libera a conta imediatamente e não cria equipe automaticamente.
+- Recuperação de senha exige o e-mail e o NP pessoal de exatamente oito dígitos definido no cadastro. O NP usa hash `scrypt` com segredo adicional, nunca é devolvido pela API e recebe bloqueio temporário após cinco erros.
+- As migrations até `0007_recovery_pin` são obrigatórias. `owner_user_id` continua equivalente ao criador; `finalized_by_user_id` registra o encerramento.
 - Nunca mostre UUID ou token interno no fluxo normal. O usuário informa apenas o código de participação de seis dígitos; o backend emite token opaco individual e registra o participante.
 - Relatórios finalizados autorizados não exigem token manual. Itens abertos e sincronização continuam protegidos por token interno.
-- Produção exige SMTP protegido e configurado somente no backend. O modo `console` é estritamente local.
+- SMTP protegido permanece necessário somente para o envio opcional de relatórios por e-mail. Cadastro e recuperação não dependem de mensagens ou códigos enviados.

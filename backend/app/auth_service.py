@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.persistence import AuthCodeRow, SessionRow, TeamMemberRow, TeamRow, UserRow
+from app.persistence import SessionRow, TeamMemberRow, TeamRow, UserRow
 
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -39,12 +39,8 @@ def normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
-def is_allowed_corporate_email(email: str) -> bool:
-    """Valida um endereço de e-mail sem restringir o domínio.
-
-    O nome da função é mantido por compatibilidade com o restante da aplicação.
-    A política atual aceita qualquer e-mail sintaticamente válido.
-    """
+def is_valid_email(email: str) -> bool:
+    """Valida o e-mail usado como identificador da conta, sem restringir domínio."""
     normalized = normalize_email(email)
     return len(normalized) <= 320 and bool(EMAIL_PATTERN.fullmatch(normalized))
 
@@ -64,6 +60,15 @@ def verify_password(password: str, encoded: str) -> bool:
         return hmac.compare_digest(actual, _unb64(expected))
     except (ValueError, TypeError):
         return False
+
+
+def hash_recovery_pin(pin: str, settings: Settings) -> str:
+    """Protege o PIN curto com scrypt e um segredo mantido fora do banco."""
+    return hash_password(f"{settings.auth_secret}:{pin}")
+
+
+def verify_recovery_pin(pin: str, encoded: str, settings: Settings) -> bool:
+    return verify_password(f"{settings.auth_secret}:{pin}", encoded)
 
 
 def _sign(payload: dict[str, Any], settings: Settings) -> str:
@@ -132,85 +137,6 @@ def revoke_all_refresh_sessions(session: Session, user_id: str) -> None:
         record.revoked_at = now
 
 
-def create_auth_code(
-    session: Session,
-    user: UserRow,
-    settings: Settings,
-    *,
-    purpose: str,
-    validity_minutes: int,
-) -> str:
-    now = _now()
-    latest = session.scalar(
-        select(AuthCodeRow)
-        .where(AuthCodeRow.user_id == user.id, AuthCodeRow.purpose == purpose)
-        .order_by(AuthCodeRow.created_at.desc())
-    )
-    latest_created_at = latest.created_at.replace(tzinfo=timezone.utc) if latest and latest.created_at.tzinfo is None else (latest.created_at if latest else None)
-    if latest_created_at and latest_created_at > now - timedelta(seconds=60):
-        raise HTTPException(status_code=429, detail="Aguarde um minuto antes de solicitar outro código.")
-    active_codes = session.scalars(
-        select(AuthCodeRow).where(
-            AuthCodeRow.user_id == user.id,
-            AuthCodeRow.purpose == purpose,
-            AuthCodeRow.consumed_at.is_(None),
-        )
-    ).all()
-    for active in active_codes:
-        active.consumed_at = now
-    code = f"{secrets.randbelow(1_000_000):06d}"
-    digest = hmac.new(
-        settings.auth_secret.encode("utf-8"),
-        f"{user.id}:{purpose}:{code}".encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-    session.add(AuthCodeRow(
-        id=str(uuid4()),
-        user_id=user.id,
-        purpose=purpose,
-        code_hash=digest,
-        created_at=now,
-        expires_at=now + timedelta(minutes=validity_minutes),
-        attempts=0,
-        max_attempts=settings.auth_code_max_attempts,
-        consumed_at=None,
-    ))
-    return code
-
-
-def consume_auth_code(
-    session: Session,
-    user: UserRow,
-    settings: Settings,
-    *,
-    purpose: str,
-    code: str,
-) -> None:
-    record = session.scalar(
-        select(AuthCodeRow)
-        .where(
-            AuthCodeRow.user_id == user.id,
-            AuthCodeRow.purpose == purpose,
-            AuthCodeRow.consumed_at.is_(None),
-        )
-        .order_by(AuthCodeRow.created_at.desc())
-    )
-    now = _now()
-    expires_at = record.expires_at.replace(tzinfo=timezone.utc) if record and record.expires_at.tzinfo is None else (record.expires_at if record else None)
-    if record is None or expires_at is None or expires_at <= now or record.attempts >= record.max_attempts:
-        raise HTTPException(status_code=422, detail="Código inválido, expirado ou bloqueado.")
-    digest = hmac.new(
-        settings.auth_secret.encode("utf-8"),
-        f"{user.id}:{purpose}:{code}".encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-    if not hmac.compare_digest(record.code_hash, digest):
-        record.attempts += 1
-        session.commit()
-        raise HTTPException(status_code=422, detail="Código inválido, expirado ou bloqueado.")
-    record.consumed_at = now
-
-
 def membership_for(session: Session, user_id: str, team_id: str) -> TeamMemberRow | None:
     return session.scalar(select(TeamMemberRow).where(TeamMemberRow.user_id == user_id, TeamMemberRow.team_id == team_id))
 
@@ -235,6 +161,6 @@ def user_payload(session: Session, user: UserRow) -> dict[str, Any]:
     ).all()
     return {
         "id": user.id, "email": user.email, "displayName": user.display_name,
-        "emailVerified": user.email_verified_at is not None,
+        "recoveryPinConfigured": user.recovery_pin_hash is not None,
         "teams": [{"id": team.id, "name": team.name, "role": member.role} for member, team in memberships],
     }

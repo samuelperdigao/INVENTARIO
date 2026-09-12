@@ -54,12 +54,15 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
   }
 
   return (
-    <form className="card section-card stack" onSubmit={(event) => void handleSubmit(event)} aria-label="Novo registro">
+    <form className="card section-card panel-card stack" onSubmit={(event) => void handleSubmit(event)} aria-label="Novo registro">
       <div className="section-header">
-        <div className="section-title">
-          <p className="eyebrow">Lançamento</p>
-          <h2>{editing ? "Editar registro" : "Novo registro"}</h2>
-          <p className="muted">Informe a posição física do lote e a quantidade encontrada.</p>
+        <div className="panel-heading">
+          <span className="panel-index" aria-hidden="true">01</span>
+          <div className="panel-copy">
+            <p className="eyebrow">Lançamento</p>
+            <h2>{editing ? "Editar registro" : "Novo registro"}</h2>
+            <p className="muted">Informe a posição física, o lote e a quantidade encontrada. Lado e vão permanecem selecionados após salvar.</p>
+          </div>
         </div>
         {editing && <button className="secondary" type="button" onClick={onCancelEdit}>Cancelar edição</button>}
       </div>

@@ -75,7 +75,7 @@ export function AuthFlow() {
   }
 
   const title = view === "login" ? "Acesse sua conta" : view === "register" ? "Crie seu acesso" : view === "verify" ? "Confirme seu e-mail" : view === "forgot" ? "Recupere sua senha" : "Defina uma nova senha";
-  const description = view === "login" ? "Entre com seu e-mail corporativo para acessar os inventários." : view === "register" ? "O cadastro é individual e não cria uma equipe automaticamente." : view === "verify" ? "Digite o código de seis números enviado ao seu e-mail corporativo." : view === "forgot" ? "Enviaremos um código de recuperação para sua conta corporativa." : "Confirme o código recebido e escolha uma senha segura.";
+  const description = view === "login" ? "Entre com o e-mail usado no seu cadastro para acessar os inventários." : view === "register" ? "O cadastro aceita qualquer e-mail válido e não cria uma equipe automaticamente." : view === "verify" ? "Digite o código de seis números enviado ao seu e-mail." : view === "forgot" ? "Enviaremos um código de recuperação para o e-mail cadastrado." : "Confirme o código recebido e escolha uma senha segura.";
 
   return (
     <main className="auth-shell">
@@ -84,8 +84,8 @@ export function AuthFlow() {
           <span className="brand-mark beam-mark" aria-hidden="true"><span /></span>
           <span><strong>INVENTARIO</strong><small>Laminação de Perfis</small></span>
         </Link>
-        <div><p className="eyebrow light-eyebrow">Acesso corporativo</p><h1>Controle que acompanha a operação.</h1><p>Dados preservados no dispositivo, sincronização protegida e relatórios oficiais em um só fluxo.</p></div>
-        <ul className="auth-benefits"><li>Cadastro exclusivo @gerdau.com.br</li><li>Conta confirmada por código</li><li>Sessões renováveis e revogáveis</li></ul>
+        <div><p className="eyebrow light-eyebrow">Acesso seguro</p><h1>Controle que acompanha a operação.</h1><p>Dados preservados no dispositivo, sincronização protegida e relatórios oficiais em um só fluxo.</p></div>
+        <ul className="auth-benefits"><li>Cadastro com qualquer e-mail válido</li><li>Conta confirmada por código</li><li>Sessões renováveis e revogáveis</li></ul>
       </section>
 
       <section className="auth-main">
@@ -96,7 +96,7 @@ export function AuthFlow() {
           <p className="muted auth-description">{description}</p>
           <form className="stack auth-form" onSubmit={(event) => void submit(event)}>
             {view === "register" ? <label>Nome completo<input name="displayName" autoComplete="name" required maxLength={120} placeholder="Como você quer ser chamado" /></label> : null}
-            <label>E-mail corporativo<input name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" pattern="[^@]+@gerdau\.com\.br" placeholder="nome.sobrenome@gerdau.com.br" /></label>
+            <label>E-mail<input name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" placeholder="seuemail@exemplo.com" /></label>
             {view === "login" || view === "register" ? <label>Senha<input name="password" type="password" required minLength={view === "register" ? 12 : 1} autoComplete={view === "register" ? "new-password" : "current-password"} placeholder={view === "register" ? "Mínimo de 12 caracteres" : "Sua senha"} /></label> : null}
             {view === "verify" || view === "reset" ? <label>Código de 6 números<input className="code-input" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required placeholder="000000" /></label> : null}
             {view === "reset" ? <><label>Nova senha<input name="newPassword" type="password" autoComplete="new-password" minLength={12} required /></label><label>Confirmar nova senha<input name="passwordConfirmation" type="password" autoComplete="new-password" minLength={12} required /></label></> : null}

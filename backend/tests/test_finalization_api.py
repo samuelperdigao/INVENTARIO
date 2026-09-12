@@ -40,6 +40,19 @@ def test_finalization_history_and_exports_are_authorized_and_immutable() -> None
         assert exported.status_code == 200
         assert media_type in exported.headers["content-type"]
         assert f". {extension}".replace(" ", "") in exported.headers["content-disposition"]
+
+    for extension, media_type in [("xlsx", "spreadsheetml"), ("docx", "wordprocessingml")]:
+        link_response = client.post(
+            f"/api/v1/inventories/{inventory_id}/share-links/{extension}",
+            headers=headers,
+        )
+        assert link_response.status_code == 200
+        shared_path = link_response.json()["path"]
+        assert "expires=" in shared_path and "signature=" in shared_path
+        shared_export = client.get(shared_path)
+        assert shared_export.status_code == 200
+        assert media_type in shared_export.headers["content-type"]
+
     rejected = client.post("/api/v1/sync", json={"deviceId": str(uuid4()), "inventoryId": inventory_id, "teamId": team_id, "cursor": 0, "inventory": None, "entries": [entry]}, headers=headers)
     assert rejected.status_code == 409
 

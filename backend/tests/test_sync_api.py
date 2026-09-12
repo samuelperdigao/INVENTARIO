@@ -50,7 +50,7 @@ def register(email: str, team: str) -> tuple[dict[str, object], dict[str, str]]:
     return register_verified(client, email, team)
 
 
-def sync_payload(inventory_id: str, team_id: str, *, inventory_record: dict[str, object] | None, entries: list[dict[str, object]], cursor: int = 0) -> dict[str, object]:
+def sync_payload(inventory_id: str, team_id: str | None, *, inventory_record: dict[str, object] | None, entries: list[dict[str, object]], cursor: int = 0) -> dict[str, object]:
     return {"deviceId": str(uuid4()), "inventoryId": inventory_id, "teamId": team_id, "cursor": cursor, "inventory": inventory_record, "entries": entries}
 
 
@@ -75,6 +75,40 @@ def test_cors_allows_only_explicit_local_origin_with_credentials() -> None:
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
     assert response.headers["access-control-allow-credentials"] == "true"
+
+
+def test_user_without_team_can_create_sync_and_share_inventory() -> None:
+    owner, owner_auth = register_verified(client, "individual-owner@example.com")
+    assert owner["user"]["teams"] == []
+
+    inventory_id, entry_id, token = str(uuid4()), str(uuid4()), str(uuid4())
+    created = client.post(
+        "/api/v1/sync",
+        json=sync_payload(
+            inventory_id,
+            None,
+            inventory_record=inventory(inventory_id),
+            entries=[entry(inventory_id, entry_id, "2815634434")],
+        ),
+        headers=sync_headers(owner_auth, token),
+    )
+    assert created.status_code == 200
+    code = created.json()["participationCode"]
+    assert isinstance(code, str) and len(code) == 6 and code.isdigit()
+
+    collaborator, collaborator_auth = register_verified(client, "individual-collaborator@example.com")
+    assert collaborator["user"]["teams"] == []
+    joined = client.post("/api/v1/inventories/join", json={"code": code}, headers=collaborator_auth)
+    assert joined.status_code == 200
+    access_token = joined.json()["accessToken"]
+
+    pulled = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, None, inventory_record=None, entries=[]),
+        headers=sync_headers(collaborator_auth, access_token),
+    )
+    assert pulled.status_code == 200
+    assert pulled.json()["entries"][0]["lot"] == "2815634434"
 
 
 def test_sync_is_idempotent_and_returns_layer_and_author_for_authorized_team() -> None:

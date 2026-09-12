@@ -97,8 +97,8 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
 
 
 def _auth_response(session: Session, user: UserRow, response: Response) -> dict[str, object]:
-    if user.email_verified_at is None or not is_allowed_corporate_email(user.email):
-        raise HTTPException(status_code=403, detail="Confirme seu e-mail antes de entrar.")
+    if not is_allowed_corporate_email(user.email):
+        raise HTTPException(status_code=403, detail="Conta inválida.")
     refresh = create_refresh_session(session, user, settings)
     session.commit()
     _set_refresh_cookie(response, refresh)
@@ -113,7 +113,7 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Autenticação obrigatória.")
     user_id = read_access_token(authorization.removeprefix("Bearer "), settings)
     user = session.get(UserRow, user_id)
-    if user is None or user.email_verified_at is None or not is_allowed_corporate_email(user.email):
+    if user is None or not is_allowed_corporate_email(user.email):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessão inválida ou expirada.")
     return user
 
@@ -177,14 +177,12 @@ def register(payload: RegisterRequest, session: Session = Depends(get_session)) 
         display_name=payload.displayName.strip(),
         password_hash=hash_password(payload.password),
         created_at=now,
-        email_verified_at=None,
+        email_verified_at=now,
     )
     try:
         session.add(user)
-        session.flush()
-        _send_code(session, user, purpose="EMAIL_VERIFICATION")
         session.commit()
-        return {"message": "Cadastro recebido. Confira o código enviado ao seu e-mail."}
+        return {"message": "Conta criada. Você já pode entrar."}
     except IntegrityError as error:
         session.rollback()
         raise HTTPException(status_code=409, detail="Não foi possível criar a conta.") from error
@@ -210,26 +208,25 @@ def resend_verification(payload: EmailCodeRequest, session: Session = Depends(ge
     if user is not None and user.email_verified_at is None:
         _send_code(session, user, purpose="EMAIL_VERIFICATION")
         session.commit()
-    return {"message": "Se a conta estiver pendente, um novo código será enviado."}
+    return {"message": "A verificação por código não é necessária para contas novas."}
 
 
 @app.post("/api/v1/auth/password-reset/request", response_model=MessageResponse)
 def request_password_reset(payload: EmailCodeRequest, session: Session = Depends(get_session)) -> dict[str, str]:
-    email = normalize_email(payload.email)
-    user = session.scalar(select(UserRow).where(UserRow.email == email))
-    if user is not None and user.email_verified_at is not None:
-        _send_code(session, user, purpose="PASSWORD_RESET")
-        session.commit()
-    return {"message": "Se o e-mail estiver cadastrado, o código de recuperação será enviado."}
+    return {"message": "Informe o e-mail cadastrado e defina a nova senha diretamente."}
 
 
 @app.post("/api/v1/auth/password-reset/confirm", response_model=MessageResponse)
 def confirm_password_reset(payload: ConfirmPasswordResetRequest, session: Session = Depends(get_session)) -> dict[str, str]:
-    user = session.scalar(select(UserRow).where(UserRow.email == normalize_email(payload.email)))
-    if user is None or user.email_verified_at is None:
-        raise HTTPException(status_code=422, detail="Código inválido, expirado ou bloqueado.")
-    consume_auth_code(session, user, settings, purpose="PASSWORD_RESET", code=payload.code)
+    email = normalize_email(payload.email)
+    if not is_allowed_corporate_email(email):
+        raise HTTPException(status_code=422, detail="Informe um endereço de e-mail válido.")
+    user = session.scalar(select(UserRow).where(UserRow.email == email))
+    if user is None:
+        raise HTTPException(status_code=404, detail="Conta não encontrada para este e-mail.")
     user.password_hash = hash_password(payload.newPassword)
+    if user.email_verified_at is None:
+        user.email_verified_at = datetime.now(timezone.utc)
     revoke_all_refresh_sessions(session, user.id)
     session.commit()
     return {"message": "Senha atualizada. Entre novamente com a nova senha."}
@@ -244,7 +241,8 @@ def login(payload: LoginRequest, response: Response, session: Session = Depends(
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="E-mail ou senha inválidos.")
     if user.email_verified_at is None:
-        raise HTTPException(status_code=403, detail="Confirme seu e-mail antes de entrar.")
+        user.email_verified_at = datetime.now(timezone.utc)
+        session.flush()
     return _auth_response(session, user, response)
 
 

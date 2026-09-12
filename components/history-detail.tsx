@@ -8,10 +8,10 @@ import { getAuthenticatedSession, restoreSession } from "@/lib/auth-client";
 import { formatBrazilianDate } from "@/lib/local-date";
 import {
   downloadReport,
-  prepareReportsForSharing,
+  prepareResourcesForSharing,
   reportErrorMessage,
-  sharePreparedReport,
-  type PreparedReports,
+  sharePreparedResource,
+  type PreparedShareResources,
   type ReportFormat,
 } from "@/lib/report-client";
 import type { AnalysisClassification, AnalysisLocation, AnalysisSummary } from "@/lib/models";
@@ -45,7 +45,7 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
   const [error, setError] = useState<string>();
   const [shareOpen, setShareOpen] = useState(false);
   const [preparingShare, setPreparingShare] = useState(false);
-  const [preparedReports, setPreparedReports] = useState<PreparedReports>({});
+  const [preparedResources, setPreparedResources] = useState<PreparedShareResources>({});
 
   useEffect(() => {
     let active = true;
@@ -76,15 +76,15 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
     }
 
     setShareOpen(true);
-    if (formats.every((format) => preparedReports[format])) return;
+    if (preparedResources.pdf && preparedResources.xlsx && preparedResources.docx) return;
 
     setPreparingShare(true);
-    setMessage("Preparando os arquivos para o compartilhamento nativo…");
+    setMessage("Preparando o compartilhamento…");
     setError(undefined);
     try {
-      const files = await prepareReportsForSharing(inventoryId, formats);
-      setPreparedReports(files);
-      setMessage("Arquivos prontos. Escolha PDF, Excel ou Word para abrir o compartilhamento do celular.");
+      const resources = await prepareResourcesForSharing(inventoryId);
+      setPreparedResources(resources);
+      setMessage("Tudo pronto. Escolha PDF, Excel ou Word para compartilhar pelo celular.");
     } catch (cause) {
       setError(reportErrorMessage(cause, "Não foi possível preparar os arquivos para compartilhamento."));
     } finally {
@@ -93,9 +93,9 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
   }
 
   function shareAction(format: ReportFormat): void {
-    const file = preparedReports[format];
-    if (!file) {
-      setError("Aguarde a preparação do arquivo antes de compartilhar.");
+    const resource = preparedResources[format];
+    if (!resource) {
+      setError("Aguarde a preparação antes de compartilhar.");
       return;
     }
 
@@ -103,18 +103,17 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
     setMessage(undefined);
     setError(undefined);
 
-    // sharePreparedReport chama navigator.share() imediatamente neste clique.
-    void sharePreparedReport(file, format)
+    void sharePreparedResource(resource, format)
       .then((result) => {
         if (result === "shared") setMessage(`Inventário compartilhado em ${formatLabel[format]}.`);
         else if (result === "cancelled") setMessage("Compartilhamento cancelado.");
-        else setError(`O compartilhamento nativo de ${formatLabel[format]} não está disponível neste navegador. Tente pelo Chrome do celular.`);
+        else setError("O compartilhamento nativo não está disponível neste navegador.");
       })
       .catch((cause) => setError(reportErrorMessage(cause, "Não foi possível abrir o compartilhamento nativo.")))
       .finally(() => setBusy(undefined));
   }
 
-  const shareReady = formats.every((format) => preparedReports[format]);
+  const shareReady = Boolean(preparedResources.pdf && preparedResources.xlsx && preparedResources.docx);
 
   return <main className="shell">
     <header className="page-topbar"><Link className="back-link" href="/historico">‹ Voltar ao histórico</Link><div><p className="eyebrow">Relatório oficial</p><h1>{report ? `Inventário ${formatBrazilianDate(report.inventoryDate)}` : "Abrindo inventário…"}</h1><p className="muted">Modo somente leitura. O snapshot final permanece preservado.</p></div></header>
@@ -130,7 +129,7 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
 
         {shareOpen ? <div className="details-box">
           <div className="details-content stack">
-            <div><h3>Escolha o formato</h3><p className="muted">Os arquivos são preparados antes. Ao tocar no formato, o menu nativo do celular abre imediatamente.</p></div>
+            <div><h3>Escolha o formato</h3><p className="muted">Ao tocar no formato, o menu nativo do celular abre para você escolher o aplicativo de destino.</p></div>
             <div className="export-grid">
               {formats.map((format) => <button className="secondary" disabled={Boolean(busy) || preparingShare || !shareReady} key={format} onClick={() => shareAction(format)}>Compartilhar {formatLabel[format]}</button>)}
             </div>

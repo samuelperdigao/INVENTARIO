@@ -47,8 +47,14 @@ export function InventoryHome() {
   }, [router]);
 
   const labels = useMemo(() => visualLabels(inventories), [inventories]);
+  const canCreateInventory = (user?.teams.length ?? 0) > 0;
+  const isTeamAdmin = user?.teams.some((team) => team.role === "ADMIN") ?? false;
 
   async function handleCreate(): Promise<void> {
+    if (!canCreateInventory) {
+      setError("Sua conta precisa ser associada a uma equipe antes de iniciar um novo inventário.");
+      return;
+    }
     setCreating(true); setError(undefined);
     try { router.push(`/inventarios/${(await createInventory()).id}`); }
     catch { setError("Não foi possível criar o inventário local. Nenhum dado foi salvo."); setCreating(false); }
@@ -76,7 +82,11 @@ export function InventoryHome() {
     <main className="shell dashboard-shell">
       <header className="dashboard-topbar">
         <Link className="app-brand brand-link" href="/dashboard"><span className="brand-mark beam-mark" aria-hidden="true"><span /></span><span><strong>INVENTARIO</strong><small>Laminação de Perfis</small></span></Link>
-        <div className="account-actions"><span className="user-chip"><span>{firstName(user.displayName).slice(0, 1).toUpperCase()}</span>{user.displayName}</span><button className="text-button" type="button" onClick={() => void signOut()}>Sair</button></div>
+        <div className="account-actions">
+          {isTeamAdmin ? <Link className="text-button" href="/equipe">Equipe</Link> : null}
+          <span className="user-chip"><span>{firstName(user.displayName).slice(0, 1).toUpperCase()}</span>{user.displayName}</span>
+          <button className="text-button" type="button" onClick={() => void signOut()}>Sair</button>
+        </div>
       </header>
 
       <section className="dashboard-hero">
@@ -84,13 +94,13 @@ export function InventoryHome() {
         <div className="dashboard-status"><span className="live-dot">Conta verificada</span><small>{user.email}</small></div>
       </section>
 
-      {user.teams.length === 0 ? <p className="notice">Sua conta ainda não está associada a uma equipe. Você pode participar de um inventário pelo código; a primeira sincronização de um inventário novo exige associação administrativa.</p> : null}
+      {user.teams.length === 0 ? <p className="notice">Sua conta está ativa, mas ainda não foi associada a uma equipe operacional. Você pode participar de um inventário usando o código de seis números. Para iniciar um novo inventário, solicite a associação a um administrador.</p> : null}
       {error ? <p className="error" role="alert">{error}</p> : null}
 
       <section className="quick-actions" aria-labelledby="quick-actions-title">
         <div className="section-header"><div><p className="eyebrow">Acesso rápido</p><h2 id="quick-actions-title">O que você precisa fazer?</h2></div></div>
         <div className="action-grid">
-          <button className="action-card primary-action" type="button" onClick={() => void handleCreate()} disabled={creating}><span className="action-icon">+</span><span><strong>{creating ? "Criando…" : "Iniciar novo inventário"}</strong><small>Começar uma nova conferência neste dispositivo</small></span></button>
+          <button className="action-card primary-action" type="button" onClick={() => void handleCreate()} disabled={creating || !canCreateInventory} aria-disabled={!canCreateInventory}><span className="action-icon">+</span><span><strong>{creating ? "Criando…" : "Iniciar novo inventário"}</strong><small>{canCreateInventory ? "Começar uma nova conferência neste dispositivo" : "Disponível após associação a uma equipe"}</small></span></button>
           <a className="action-card" href="#em-andamento"><span className="action-icon">↻</span><span><strong>Continuar inventário</strong><small>{inventories.length ? `${inventories.length} em andamento neste dispositivo` : "Nenhum inventário local aberto"}</small></span></a>
           <button className="action-card" type="button" onClick={() => document.getElementById("participar")?.scrollIntoView({ behavior: "smooth" })}><span className="action-icon">#</span><span><strong>Participar de inventário</strong><small>Entrar com um código de seis números</small></span></button>
           <Link className="action-card" href="/historico"><span className="action-icon">□</span><span><strong>Histórico</strong><small>Consultar e exportar inventários finalizados</small></span></Link>

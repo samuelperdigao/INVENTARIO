@@ -20,7 +20,7 @@ export function EntryList({ entries, onEdit, onDelete, readOnly = false }: Entry
           <div className="panel-copy">
             <p className="eyebrow">Conferência</p>
             <h2>Lançamentos</h2>
-            <p className="muted">Registros individuais organizados por lado e vão para facilitar a conferência física.</p>
+            <p className="muted">Registros individuais organizados por lado e vão, com a camada física identificada em cada lote.</p>
           </div>
         </div>
         <span className="status-pill">{entries.length} registro(s)</span>
@@ -34,7 +34,10 @@ export function EntryList({ entries, onEdit, onDelete, readOnly = false }: Entry
               <h3>Vão {bay}</h3>
               {bayEntries.map((entry) => (
                 <article className="entry-row" key={entry.id}>
-                  <div className="entry-title"><strong>Lote {entry.lot}</strong><br /><span className="muted">{entry.quantity} peça(s)</span></div>
+                  <div className="entry-title">
+                    <strong>Lote {entry.lot}</strong><br />
+                    <span className="muted">Camada {entry.layer ?? "não informada"} · {entry.quantity} peça(s)</span>
+                  </div>
                   {!readOnly ? <div className="entry-actions">
                     <button className="small-button" type="button" onClick={() => onEdit(entry)}>Editar</button>
                     <button className="small-button delete" type="button" onClick={() => onDelete(entry)}>Excluir</button>

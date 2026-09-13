@@ -33,6 +33,7 @@ Branch: `chore/repository-cleanup`.
 - Nenhuma duplicação exata de arquivo encontrada.
 - Cadeia Alembic linear, com upgrade, downgrade até base e novo upgrade aprovados em SQLite temporário.
 - Três dependências diretas redundantes removidas: `@eslint/eslintrc`, `@types/jsdom` e `playwright`. Dependências transitivas necessárias permanecem resolvidas.
+- `browserslist` transitivo fixado em `4.28.7` por override para eliminar duas vulnerabilidades altas da versão `4.28.6`, sem mudança de API do projeto.
 - Configuração de base da API centralizada em `lib/api-config.ts`.
 - Padrões de cache, cobertura, IDE, sistema operacional, logs e build adicionados ao `.gitignore`.
 - Quality Gates configurados para Pull Requests e pushes na `main`.
@@ -41,6 +42,7 @@ Branch: `chore/repository-cleanup`.
 ## Gates locais da manutenção
 
 - `pnpm install --frozen-lockfile`: aprovado.
+- `pnpm audit --prod`: aprovado sem vulnerabilidades conhecidas.
 - `pnpm lint`: aprovado.
 - `pnpm typecheck`: aprovado.
 - Vitest: 8 arquivos e 22 testes aprovados.

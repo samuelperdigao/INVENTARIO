@@ -1,167 +1,150 @@
-# Inventário offline
+# INVENTÁRIO
 
-## Fluxo de acesso e compartilhamento
+Aplicação mobile-first para coleta, sincronização, análise e fechamento de inventários físicos da Laminação de Perfis. A operação de campo permanece funcional sem rede; a API centraliza colaboração, histórico e relatórios oficiais.
 
-A rota `/` é uma apresentação pública. O sistema operacional fica em `/dashboard` e exige uma conta. O cadastro aceita qualquer e-mail válido, libera o acesso imediatamente e não cria uma equipe automaticamente. O usuário também confirma o NP pessoal de oito dígitos, usado somente para recuperação de senha. A associação a uma equipe permanece explícita e administrativa.
+## Estado atual
 
-Qualquer conta autenticada pode iniciar um inventário próprio, mesmo sem equipe. O inventário individual fica ligado ao usuário criador por `owner_user_id`; `team_id` é opcional e continua sendo usado quando houver uma equipe selecionada.
+- Frontend publicado: [inventario-lpe.vercel.app](https://inventario-lpe.vercel.app)
+- Backend publicado: [inventory-api-6o8h.onrender.com](https://inventory-api-6o8h.onrender.com)
+- Banco de produção: PostgreSQL no Neon
+- Migration atual: `0007_recovery_pin`
+- Baseline estável: branch `main`
+- Pendências conhecidas: validação em Android e Safari/iPhone físicos
 
-O acesso em outro dispositivo usa somente o código de participação de seis dígitos exibido depois da primeira sincronização. O backend resolve o UUID, registra o participante e emite um token interno aleatório exclusivo para aquela conta. O código expira quando o inventário é finalizado e nunca substitui autenticação ou autorização.
+O estado operacional mais recente fica em [`docs/STATUS.md`](docs/STATUS.md).
 
-Inventários finalizados aparecem em **Meus inventários** e **Inventários da equipe**. O snapshot oficial é somente leitura; usuários autorizados podem consultar e reexportar sem informar token manualmente. No celular, **Compartilhar PDF** usa a Web Share API quando o sistema aceita arquivos e baixa o documento como fallback.
+## Funcionalidades
 
-## Relatório, exportações e finalização
+- Cadastro, login, renovação de sessão e recuperação por NP pessoal de oito dígitos.
+- Inventário individual sem equipe obrigatória e colaboração opcional por código de seis dígitos.
+- Registro local de lado, vão, camada, lote numérico e quantidade.
+- IndexedDB como fonte primária da operação offline.
+- Detecção de lotes repetidos com confirmação explícita e identificação do autor.
+- Sincronização incremental com cursor, revisões, idempotência, tombstones e resolução de conflitos.
+- Análise determinística de lotes fragmentados e peças deslocadas.
+- Finalização irreversível na V1, histórico e exportações Excel, PDF e Word.
+- Compartilhamento nativo no celular e links temporários assinados para arquivos de escritório.
 
-O backend produz um único modelo consolidado a partir dos lançamentos individuais e das regras do motor. Esse mesmo modelo gera Excel, PDF e Word; nenhum formato recalcula classificações.
+## Arquitetura
 
-- `POST /api/v1/inventories/{inventoryId}/finalize`: exige bearer token, código `X-Inventory-Sync-Token` e a revisão central atual. Se o inventário estiver associado a uma equipe, a autorização de equipe continua válida. Gera o snapshot, registra a data/hora e deixa o inventário `FINISHED`.
-- `GET /api/v1/inventories/history?scope=mine|team&teamId=...`: lista finalizados próprios ou da equipe.
-- `GET /api/v1/inventories/{inventoryId}/report`: devolve o relatório central.
-- `GET /api/v1/inventories/{inventoryId}/exports/{xlsx|pdf|docx}`: baixa `Inventario_DD-MM-AAAA.<formato>`.
+| Área | Tecnologia | Responsabilidade |
+|---|---|---|
+| Frontend | Next.js 16, React 19, TypeScript | Interface, PWA e coordenação dos fluxos |
+| Persistência local | Dexie e IndexedDB | Operação offline e fila de sincronização |
+| Backend | FastAPI, Python 3.12 | Autenticação, autorização, sincronização, análise e relatórios |
+| Persistência central | SQLAlchemy e PostgreSQL | Estado compartilhado, histórico e auditoria de conflitos |
+| Schema | Alembic | Evolução versionada do banco |
+| Testes | Vitest, Pytest e Playwright | Unidade, integração e fluxos de navegador |
+| Produção | Vercel, Render e Neon | Frontend, API e banco gerenciado |
 
-Relatórios de inventários abertos ainda exigem o token interno; inventários finalizados exigem somente autenticação e autorização. A finalização é irreversível na V1; não há reabertura aprovada. Rode as migrations até `0007_recovery_pin` antes de iniciar qualquer API publicada.
+Detalhes e limites de responsabilidade estão em [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
 
-Aplicação mobile-first para registrar inventários físicos sem rede e solicitar uma análise determinística ao FastAPI quando estiver online.
+## Estrutura do repositório
 
-## Escopo desta entrega
-
-Inclui criação e reabertura de inventários locais, lançamentos individuais, edição, exclusão com tombstone, ordenação operacional, cache do último relatório, motor de análise e sincronização central entre dispositivos. IndexedDB permanece a fonte de verdade de toda operação local: conexão não é exigida para lançar, editar ou excluir.
-
-O backend usa SQLAlchemy e a migração Alembic `0001_central_sync` para inventários, lançamentos, eventos incrementais e conflitos. PostgreSQL é obrigatório em produção; SQLite é apenas conveniência de desenvolvimento local.
-
-Fase 1, Fase 2.1 de segurança e as funcionalidades estruturais da V1 estão implementadas. O frontend e a API estão publicados com HTTPS, a migration atual foi aplicada no PostgreSQL Neon e o smoke test de produção está ativo. A validação em dispositivos físicos permanece pendente.
+```text
+app/                    rotas e shell do Next.js
+components/             componentes de interface
+lib/                    clientes HTTP, IndexedDB, modelos e regras locais
+tests/                  testes Vitest
+e2e/                    cenários Playwright
+backend/app/            API, serviços, persistência e motor de análise
+backend/alembic/        configuração e migrations
+backend/tests/          testes Pytest
+docs/                   arquitetura, negócio, deploy e status
+.github/workflows/      quality gates e smoke de produção
+```
 
 ## Requisitos
 
-- Node.js 20+ e pnpm
+- Node.js 20+
+- pnpm 11, fixado no `package.json`
 - Python 3.12+
+- Chromium do Playwright para os testes E2E
+
+## Instalação
+
+### Frontend
+
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+```
+
+### Backend no Linux ou macOS
+
+```bash
+python3 -m venv backend/.venv
+backend/.venv/bin/python -m pip install -r backend/requirements.txt
+```
+
+### Backend no Windows PowerShell
+
+```powershell
+py -3.12 -m venv backend/.venv
+backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
+```
+
+## Configuração local
+
+O projeto funciona com os valores de desenvolvimento já definidos no código. Para personalizar o ambiente:
+
+```bash
+cp .env.example .env.local
+```
+
+Variáveis públicas do frontend podem aparecer no bundle e nunca devem conter segredos. Variáveis `INVENTORY_*` sensíveis pertencem somente ao processo da API ou aos provedores.
 
 ## Executar localmente
 
-```powershell
-pnpm install --frozen-lockfile
+Terminal 1:
+
+```bash
 pnpm dev
-
-python -m venv backend/.venv
-backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
-backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head
-backend/.venv/Scripts/python.exe -m uvicorn app.main:app --app-dir backend --reload --port 8000
 ```
 
-Abra `http://localhost:3000`. O frontend inicia nessa porta e o FastAPI responde em `http://localhost:8000`. Nenhum arquivo `.env.local` é exigido para esse fluxo: o frontend usa `http://localhost:8000` como padrão. Crie-o a partir de `.env.example` somente para apontar a análise a outro endereço.
+Terminal 2 no Linux ou macOS:
 
-`pnpm dev` atende ao desenvolvimento local. O service worker é propositalmente registrado apenas no build de produção, para que o cache offline não interfira com HMR. Para validar a PWA localmente:
-
-```powershell
-pnpm build
-pnpm start
+```bash
+backend/.venv/bin/python -m alembic -c backend/alembic.ini upgrade head
+backend/.venv/bin/python -m uvicorn app.main:app --app-dir backend --reload --port 8000
 ```
 
-## Gates
+No Windows, substitua `backend/.venv/bin/python` por `backend/.venv/Scripts/python.exe`.
 
-```powershell
+- Aplicação: `http://localhost:3000`
+- API: `http://localhost:8000`
+- Documentação OpenAPI: `http://localhost:8000/docs`
+
+## Migrations
+
+Toda alteração de schema deve gerar uma nova migration. Não edite migrations já aplicadas em produção.
+
+```bash
+backend/.venv/bin/python -m alembic -c backend/alembic.ini current
+backend/.venv/bin/python -m alembic -c backend/alembic.ini upgrade head
+```
+
+Em produção, execute `upgrade head` de forma manual e auditável antes de liberar uma versão que dependa do novo schema. Consulte [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
+## Quality gates
+
+```bash
 pnpm lint
 pnpm typecheck
 pnpm test
-backend/.venv/Scripts/python.exe -m pytest backend/tests
+backend/.venv/bin/python -m pytest backend/tests -q
 pnpm build
-pnpm e2e
-```
-
-## Publicacao controlada (Fase 2.2)
-
-A arquitetura preparada, ainda **nao provisionada**, e Vercel para o frontend Next.js, Render para a API FastAPI e Neon para PostgreSQL gerenciado. A escolha preserva Git deploy, HTTPS automatico e os componentes tecnicos existentes sem introduzir infraestrutura propria.
-
-Use obrigatoriamente dois subdominios do mesmo dominio raiz:
-
-```text
-https://app.seu-dominio.example  -> Vercel
-https://api.seu-dominio.example  -> Render
-```
-
-Essa topologia e necessaria para o refresh cookie permanecer `Secure`, `HttpOnly` e `SameSite=Strict`. URLs padrao independentes de provedores (por exemplo, `vercel.app` e `onrender.com`) nao sao uma configuracao de producao aprovada para o fluxo de sessao.
-
-### Variaveis de producao
-
-Configure no Render, sem versionar valores:
-
-```text
-INVENTORY_ENV=production
-INVENTORY_DATABASE_URL=postgresql+psycopg://...?sslmode=require
-INVENTORY_AUTH_SECRET=<segredo gerado pelo provedor ou aleatorio com pelo menos 32 caracteres>
-INVENTORY_ACCESS_TOKEN_MINUTES=15
-INVENTORY_REFRESH_SESSION_DAYS=14
-INVENTORY_CORS_ORIGINS=https://app.seu-dominio.example
-INVENTORY_EMAIL_MODE=smtp
-INVENTORY_SMTP_HOST=<host do provedor>
-INVENTORY_SMTP_PORT=587
-INVENTORY_SMTP_USERNAME=<usuário do provedor>
-INVENTORY_SMTP_PASSWORD=<secret do provedor>
-INVENTORY_SMTP_FROM_EMAIL=<remetente autorizado>
-INVENTORY_SMTP_SECURITY=starttls
-INVENTORY_RECOVERY_PIN_MAX_ATTEMPTS=5
-INVENTORY_RECOVERY_PIN_LOCK_MINUTES=15
-INVENTORY_EMAIL_ATTACHMENT_MAX_MB=15
-```
-
-Configure na Vercel **antes do build de producao**:
-
-```text
-INVENTORY_ENV=production
-NEXT_PUBLIC_ANALYSIS_API_BASE_URL=https://api.seu-dominio.example
-NEXT_PUBLIC_SYNC_API_BASE_URL=https://api.seu-dominio.example
-```
-
-As duas variaveis `NEXT_PUBLIC_*` sao URLs publicas compiladas no bundle; nunca coloque segredos nelas. O `render.yaml` entrega uma definicao declarativa da API: instala dependencias, inicia Uvicorn em `$PORT` e usa `/healthz` como healthcheck. O primeiro provisionamento ainda pede `INVENTORY_DATABASE_URL` e `INVENTORY_CORS_ORIGINS` no painel, sem grava-las no repositorio.
-
-### Ordem de deploy
-
-1. Criar o projeto Neon e obter a connection string com SSL; cadastra-la apenas como `INVENTORY_DATABASE_URL` no Render.
-2. Em terminal confiavel, com a connection string somente no ambiente do processo, executar `backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head` contra o Neon e confirmar `0007_recovery_pin (head)`.
-3. Criar a Blueprint Render a partir de `render.yaml`, informar os secrets solicitados e aguardar `/healthz` retornar 200.
-4. Criar o projeto Vercel apontando para a raiz do repositorio, definir as variaveis acima e publicar o build.
-5. Associar `api.seu-dominio.example` ao Render e `app.seu-dominio.example` a Vercel; concluir os registros DNS e aguardar os certificados TLS automaticos.
-6. Atualizar `INVENTORY_CORS_ORIGINS` no Render com a URL final da Vercel, redeployar a API e executar os smoke tests abaixo.
-
-O plano `free` do Render e adequado apenas para o primeiro smoke test: a instancia pode hibernar apos inatividade. Nao publicar como operacao continua sem aceitar essa limitacao ou escolher um plano explicitamente autorizado.
-
-### Smoke test publicado
-
-Depois de os dominios responderem por HTTPS, registrar com resultado real: `GET https://api.seu-dominio.example/healthz`; cabecalhos `Strict-Transport-Security`, `X-Content-Type-Options` e `X-Frame-Options`; registro/login/refresh/logout; bloqueio de UUID de outra equipe; criacao offline e sincronizacao em dois contextos; idempotencia, tombstone, edicao, conflito e cursor incremental. Nao marcar estes itens como aprovados ate a execucao no ambiente publicado.
-
-## Sincronização entre dispositivos
-
-No inventário, use **Sincronizar agora** quando houver conexão. O primeiro envio cria o inventário central e devolve um código aleatório de seis dígitos. A criação central não exige equipe. No outro dispositivo, o usuário autenticado informa apenas esse código. O backend registra a entrada e entrega ao cliente um token interno de alta entropia, que não é exibido na interface.
-
-O código identifica apenas inventários abertos e recebe limite de tentativas. Autenticação e token interno continuam obrigatórios. Quando duas alterações partem da mesma revisão, o sistema registra as duas versões e pede que o operador escolha qual manter; não aplica "última gravação vence" silenciosamente.
-
-## Conta, equipe e acesso à sincronização
-
-O lançamento operacional continua disponível localmente e offline. O perfil não sensível da última conta é mantido localmente para reabrir dados do dispositivo sem rede; tokens de acesso nunca são persistidos. A primeira sincronização de um inventário novo não exige associação a equipe: o usuário autenticado pode criar e sincronizar seu próprio inventário. Senha e NP de recuperação são armazenados somente como hashes protegidos, o bearer token permanece em memória e a sessão renovável usa cookie `HttpOnly`.
-
-O cadastro entra diretamente no sistema e a recuperação exige e-mail, NP pessoal de oito dígitos e confirmação da nova senha. Cinco tentativas incorretas bloqueiam novas tentativas por quinze minutos; a troca válida revoga todas as sessões anteriores. Contas criadas antes da migration `0007` configuram o NP uma única vez no primeiro login posterior. SMTP não participa da autenticação e permanece restrito ao envio opcional de relatórios.
-
-Para sincronizar um inventário central, a API exige sessão válida e token interno. A criação é permitida a qualquer conta autenticada, com equipe opcional; quem entra pelo código recebe um token individual ligado à própria conta. Conhecer UUID ou os seis dígitos isoladamente não concede acesso. Responsáveis (`ADMIN`) podem incluir membros; operadores (`OPERATOR`) podem sincronizar inventários associados à equipe, mas não administram integrantes.
-
-A configuração de produção, a ordem de migrations e os smoke tests estão na seção **Publicacao controlada (Fase 2.2)** acima. Em produção, a API recusa SQLite, segredo curto/padrão e CORS com curinga ou HTTP. Publique frontend e API atrás de HTTPS; cookies de renovação ficam `Secure` nesse ambiente.
-
-Inventários criados antes da migration de equipes são preservados. Inventários individuais atuais também podem manter `team_id` nulo e permanecem acessíveis ao criador e aos participantes autorizados. Inventários herdados sem `owner_user_id` continuam exigindo associação administrativa explícita antes de qualquer liberação de acesso.
-
-O teste de recarga offline precisa de um build/servidor e do navegador Chromium instalado:
-
-```powershell
-pnpm build
-pnpm start
 pnpm exec playwright install chromium
 pnpm e2e
 ```
 
-## Arquitetura
+O workflow `Quality Gates` executa os mesmos grupos em Pull Requests e na `main`. O workflow `Production Smoke` verifica as superfícies publicadas após mudanças na `main`.
 
-- `app/`, `components/`, `lib/`: shell Next.js, interface e dados locais Dexie/IndexedDB.
-- `app/sw.ts`: service worker Serwist que pré-cacheia o shell para recarga offline. O Next é executado com webpack porque esta integração Serwist ainda não suporta Turbopack; a integração é aplicada somente em produção.
-- `backend/app/engine.py`: regras puras de análise, sem HTTP ou persistência.
-- `backend/app/main.py`: contrato FastAPI que valida, analisa e sincroniza.
-- `backend/app/database.py`, `persistence.py`, `sync_service.py`: PostgreSQL/SQLite local, entidades centrais, cursores, idempotência e conflitos.
+## Fontes de verdade
 
-Consulte [regras de negócio](docs/REGRAS_NEGOCIO.md) e [status](docs/STATUS.md).
+- [`docs/REGRAS_NEGOCIO.md`](docs/REGRAS_NEGOCIO.md): comportamento funcional vigente.
+- [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md): decisões técnicas e fronteiras do sistema.
+- [`docs/DEPLOY.md`](docs/DEPLOY.md): configuração e publicação.
+- [`docs/STATUS.md`](docs/STATUS.md): estado atual, gates e pendências.
+- [`docs/ESPECIFICACAO_INVENTARIO_V1.md`](docs/ESPECIFICACAO_INVENTARIO_V1.md): especificação histórica detalhada.
+- [`docs/CAMADAS_DUPLICIDADE_V2.md`](docs/CAMADAS_DUPLICIDADE_V2.md): registro de decisão da evolução de camadas e duplicidade.

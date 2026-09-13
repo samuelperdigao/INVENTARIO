@@ -1,5 +1,7 @@
 # ESPECIFICAÇÃO DO APLICATIVO DE INVENTÁRIO — V1
 
+> Documento histórico de evolução. Para comportamento vigente, use `docs/REGRAS_NEGOCIO.md`; para estado operacional, use `docs/STATUS.md`.
+
 **Status:** Especificação inicial aprovada para desenvolvimento  
 **Versão:** 1.0  
 **Data de criação:** 10/09/2026  

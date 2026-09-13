@@ -662,6 +662,8 @@ code { padding: 2px 5px; border-radius: 6px; background: #edf3fa; color: #304866
 .brand-logo-light .brand-logo-copy strong { color: #fff; }
 .brand-logo-light .brand-logo-copy small { color: #c8e3ff; }
 .brand-logo-mark-only { gap: 0; }
+.brand-link > .brand-logo { display: inline-flex; gap: 9px; }
+.brand-link > .brand-logo .brand-logo-copy { display: grid; }
 
 .auth-aside {
   background-image: linear-gradient(100deg, rgba(4, 24, 57, .94), rgba(10, 68, 142, .72)), url("/industrial-yard-hero.jpg");

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedSession, restoreSession } from "@/lib/auth-client";
 import { formatBrazilianDate } from "@/lib/local-date";
 import {
@@ -16,7 +17,6 @@ import {
 } from "@/lib/report-client";
 import type { AnalysisClassification, AnalysisLocation, AnalysisSummary } from "@/lib/models";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 const formats: ReportFormat[] = ["pdf", "xlsx", "docx"];
 
 const formatLabel: Record<ReportFormat, string> = {

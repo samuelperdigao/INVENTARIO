@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedContext } from "@/lib/auth-client";
 import { markInventoryFinished } from "@/lib/inventory-repository";
 import { syncInventory } from "@/lib/sync-client";
@@ -14,8 +15,6 @@ import {
   type PreparedShareResources,
   type ReportFormat,
 } from "@/lib/report-client";
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 
 const formats: ReportFormat[] = ["pdf", "xlsx", "docx"];
 const formatLabel: Record<ReportFormat, string> = {

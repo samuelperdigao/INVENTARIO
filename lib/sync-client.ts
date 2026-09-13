@@ -1,11 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
 
-import { db } from "@/lib/db";
+import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedContext } from "@/lib/auth-client";
+import { db } from "@/lib/db";
 import { listEntriesForSync, prepareInventoryForSync } from "@/lib/inventory-repository";
 import type { Inventory, InventoryEntry, SyncConflict, SyncMetadata } from "@/lib/models";
 
-const syncBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 const deviceMetadataId = "sync-device";
 
 interface SyncResponse {
@@ -52,7 +52,7 @@ async function requestSync(
   payload: { inventory: Inventory | null; entries: InventoryEntry[]; cursor: number },
 ): Promise<SyncResponse> {
   const auth = await getAuthenticatedContext();
-  const response = await fetch(`${syncBaseUrl}/api/v1/sync`, {
+  const response = await fetch(`${apiBaseUrl}/api/v1/sync`, {
     method: "POST",
     credentials: "include",
     headers: {
@@ -253,7 +253,7 @@ export async function connectRemoteInventory(inventoryId: string, syncToken: str
 
 export async function joinInventoryByCode(code: string): Promise<{ inventoryId: string; result: SyncResult }> {
   const auth = await getAuthenticatedContext();
-  const response = await fetch(`${syncBaseUrl}/api/v1/inventories/join`, {
+  const response = await fetch(`${apiBaseUrl}/api/v1/inventories/join`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.accessToken}` },

@@ -2,3 +2,5 @@ allowBuilds:
   unrs-resolver: false
 minimumReleaseAgeExclude:
   - dexie@4.4.6
+overrides:
+  browserslist: 4.28.7

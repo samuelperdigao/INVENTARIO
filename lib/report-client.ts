@@ -1,5 +1,6 @@
 "use client";
 
+import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedSession } from "@/lib/auth-client";
 
 export type ReportFormat = "pdf" | "xlsx" | "docx";
@@ -9,8 +10,6 @@ export type PreparedShareResources = {
   xlsx?: string;
   docx?: string;
 };
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "/backend-api";
 
 const mediaTypes: Record<ReportFormat, string> = {
   pdf: "application/pdf",

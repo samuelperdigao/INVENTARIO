@@ -9,26 +9,26 @@
 
 ## Produção e transporte
 
-- A publicação usa HTTPS para frontend e API. `app.<domínio>` e `api.<domínio>` devem compartilhar o mesmo domínio raiz, para que a sessão renovável continue protegida por `Secure`, `HttpOnly` e `SameSite=Strict`.
+- A publicação usa HTTPS para frontend e API. O navegador acessa a API pelo proxy same-origin `/backend-api`, preservando a sessão renovável com `Secure`, `HttpOnly` e `SameSite=Strict` mesmo com Vercel e Render em domínios de provedor distintos.
 - Em produção, o healthcheck executa uma consulta simples no PostgreSQL e responde 503 genérico quando a persistência não estiver disponível. Nunca inclui URL, credenciais ou detalhes de banco na resposta.
 - CORS aceita apenas a origem HTTPS explícita do frontend publicado e credenciais. Curingas e HTTP não são configurações válidas em produção.
 
 ## Dados locais
 
 - Cada inventário recebe UUIDv7, data local do dispositivo no formato `YYYY-MM-DD`, timestamps, revisão, `syncBaseRevision`, `syncStatus` e `tombstone`.
-- Cada lançamento também recebe UUIDv7, timestamps, revisão, `syncBaseRevision`, `syncStatus` e tombstone. Lote e vão são texto; espaços externos são ignorados somente para validação e para a chave de consolidação.
+- Cada lançamento também recebe UUIDv7, timestamps, revisão, `syncBaseRevision`, `syncStatus` e tombstone. Novos lançamentos exigem camada de A1 a A10 e lote composto apenas por números. Registros anteriores à V2 podem manter camada nula e são identificados como legados.
 - Quantidade é inteiro positivo. EF e DE são os únicos lados válidos.
 - Registros não são mesclados na tela. Inclusão, edição e exclusão atualizam o inventário e o lançamento na mesma transação IndexedDB. Excluir cria um tombstone e oculta o registro.
 
 ## Operação
 
 - Um inventário novo começa sem lado selecionado.
-- Depois de salvar um lançamento, lado e vão ficam selecionados, lote e quantidade são limpos e o foco retorna ao lote.
+- Depois de salvar um lançamento, lado, vão e camada ficam selecionados, lote e quantidade são limpos e o foco retorna ao lote.
 - A lista sempre apresenta EF antes de DE; vãos e lotes usam ordenação natural.
 
 ## Motor determinístico
 
-- A chave de local é `(lado, vão normalizado)` e a de lote é o lote normalizado.
+- A chave de local é `(lado, vão normalizado, camada)` e a de lote é o lote normalizado.
 - Ocorrências no mesmo local são consolidadas apenas no relatório; os lançamentos brutos continuam individuais.
 - Um lote em um local é `OK`.
 - Mais de um local recebe marcador `FRAGMENTADO`.

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date as DateType, datetime
 from typing import Any
 
 from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, JSON, String, UniqueConstraint
@@ -15,7 +15,7 @@ class InventoryRow(Base):
     __tablename__ = "inventories"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    date: Mapped[date] = mapped_column(Date, nullable=False)
+    date: Mapped[DateType] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

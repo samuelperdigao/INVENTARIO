@@ -1,7 +1,6 @@
+import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedSession } from "@/lib/auth-client";
 import type { Inventory, InventoryEntry } from "@/lib/models";
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 
 type RemoteEntry = Omit<InventoryEntry, "syncStatus" | "syncBaseRevision"> & { syncBaseRevision: number };
 

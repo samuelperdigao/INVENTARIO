@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date as DateType, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -18,7 +18,7 @@ class ApiModel(BaseModel):
 
 class PreviewInventory(ApiModel):
     id: UUID
-    date: date
+    date: DateType
     revision: StrictInt = Field(ge=1)
 
 
@@ -80,7 +80,7 @@ class AnalysisReport(ApiModel):
 
 class SyncInventory(ApiModel):
     id: UUID
-    date: date
+    date: DateType
     status: Literal["OPEN", "FINISHED"]
     createdAt: datetime
     updatedAt: datetime
@@ -232,7 +232,7 @@ class FinalizeInventoryRequest(ApiModel):
 
 class InventoryHistoryItem(ApiModel):
     id: UUID
-    date: date
+    date: DateType
     status: Literal["OPEN", "FINISHED"]
     revision: StrictInt = Field(ge=1)
     finalizedAt: datetime | None = None

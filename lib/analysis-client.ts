@@ -1,7 +1,6 @@
+import { analysisApiBaseUrl } from "@/lib/api-config";
 import { db } from "@/lib/db";
 import type { AnalysisCache, AnalysisReport, Inventory, InventoryEntry } from "@/lib/models";
-
-const analysisBaseUrl = process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 
 export async function getCachedReport(inventoryId: string, revision: number): Promise<AnalysisCache | undefined> {
   const exact = await db.analysisCache.where("[inventoryId+revision]").equals([inventoryId, revision]).first();
@@ -11,7 +10,7 @@ export async function getCachedReport(inventoryId: string, revision: number): Pr
 }
 
 export async function requestAnalysis(inventory: Inventory, entries: InventoryEntry[]): Promise<AnalysisReport> {
-  const response = await fetch(`${analysisBaseUrl}/api/v1/analysis/preview`, {
+  const response = await fetch(`${analysisApiBaseUrl}/api/v1/analysis/preview`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

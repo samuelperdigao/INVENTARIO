@@ -4,10 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedContext, getAuthenticatedSession, restoreSession, type AuthUser } from "@/lib/auth-client";
 import { formatBrazilianDate } from "@/lib/local-date";
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 
 export interface HistoryItem {
   id: string;

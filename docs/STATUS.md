@@ -46,8 +46,8 @@ Branch: `chore/repository-cleanup`.
 - Vitest: 8 arquivos e 22 testes aprovados.
 - Pytest: 32 testes aprovados, com 2 avisos de depreciação de dependências.
 - Alembic SQLite: upgrade até `0007`, downgrade até base e novo upgrade aprovados.
-- `pnpm build`: aprovado na baseline; repetir após a consolidação documental.
-- Playwright: código não executado localmente porque o CDN do Chromium expirou repetidamente durante o download. O workflow do Pull Request deve executar os 4 cenários antes do merge.
+- `pnpm build`: aprovado após todas as alterações.
+- Playwright: código não executado localmente porque o CDN do Chromium expirou e devolveu arquivos truncados durante o download. O workflow do Pull Request deve executar os 4 cenários antes do merge.
 
 ## Pendências
 

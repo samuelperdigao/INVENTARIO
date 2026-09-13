@@ -662,7 +662,7 @@ code { padding: 2px 5px; border-radius: 6px; background: #edf3fa; color: #304866
 .brand-logo-light .brand-logo-copy strong { color: #fff; }
 .brand-logo-light .brand-logo-copy small { color: #c8e3ff; }
 .brand-logo-mark-only { gap: 0; }
-.brand-link > .brand-logo { display: inline-flex; gap: 9px; }
+.brand-link > span.brand-logo { display: inline-flex; gap: 9px; }
 .brand-link > .brand-logo .brand-logo-copy { display: grid; }
 
 .auth-aside {

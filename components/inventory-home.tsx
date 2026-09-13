@@ -76,8 +76,20 @@ export function InventoryHome() {
 
   return (
     <main className={`shell dashboard-shell ${styles.dashboardShell}`}>
+      <aside className="dashboard-sidebar" aria-label="Navegação do sistema">
+        <Link className="app-brand brand-link" href="/dashboard"><span className="brand-mark beam-mark" aria-hidden="true"><span /></span><span><strong>INVENTARIO</strong><small>Beam Blanks e Blocos</small></span></Link>
+        <nav className="dashboard-nav">
+          <Link className="dashboard-nav-link active" href="/dashboard" aria-current="page"><span aria-hidden="true">⌂</span>Início</Link>
+          <button className="dashboard-nav-link" type="button" onClick={() => void handleCreate()} disabled={creating}><span aria-hidden="true">＋</span>Novo inventário</button>
+          <a className="dashboard-nav-link" href="#em-andamento"><span aria-hidden="true">▣</span>Em andamento</a>
+          <Link className="dashboard-nav-link" href="/historico"><span aria-hidden="true">▤</span>Histórico</Link>
+          {isTeamAdmin ? <Link className="dashboard-nav-link" href="/equipe"><span aria-hidden="true">◫</span>Equipe</Link> : null}
+        </nav>
+        <p className="sidebar-footnote">Operação local com sincronização central protegida.</p>
+      </aside>
+      <div className="dashboard-content">
       <header className="dashboard-topbar">
-        <Link className="app-brand brand-link" href="/dashboard"><span className="brand-mark beam-mark" aria-hidden="true"><span /></span><span><strong>INVENTARIO</strong><small>Laminação de Perfis</small></span></Link>
+        <Link className="app-brand brand-link mobile-dashboard-brand" href="/dashboard"><span className="brand-mark beam-mark" aria-hidden="true"><span /></span><span><strong>INVENTARIO</strong><small>Beam Blanks e Blocos</small></span></Link>
         <div className="account-actions">
           {isTeamAdmin ? <Link className="text-button" href="/equipe">Equipe</Link> : null}
           <span className="user-chip"><span>{firstName(user.displayName).slice(0, 1).toUpperCase()}</span>{user.displayName}</span>
@@ -86,7 +98,7 @@ export function InventoryHome() {
       </header>
 
       <section className="dashboard-hero">
-        <div><p className="eyebrow">Painel operacional</p><h1>Bem-vindo(a), {firstName(user.displayName)}!</h1><p>Aplicativo de Inventário da Laminação de Perfis</p></div>
+        <div><p className="eyebrow">Painel operacional</p><h1>Bem-vindo(a), {firstName(user.displayName)}!</h1><p>Aplicativo de Inventário de Beam Blanks e Blocos</p></div>
         <div className="dashboard-status"><span className="live-dot">Conta verificada</span><small>{user.email}</small></div>
       </section>
 
@@ -118,6 +130,7 @@ export function InventoryHome() {
 
           <section className="card section-card stack" aria-labelledby="guide-title"><div><p className="eyebrow">Guia rápido</p><h2 id="guide-title">Fluxo do inventário</h2></div><ol className="guide-list"><li><span>1</span><div><strong>Lance os registros</strong><small>Informe lado, vão, lote e quantidade.</small></div></li><li><span>2</span><div><strong>Sincronize a equipe</strong><small>Compartilhe o código de seis números.</small></div></li><li><span>3</span><div><strong>Confira a análise</strong><small>Revise fragmentações e divergências.</small></div></li><li><span>4</span><div><strong>Finalize e compartilhe</strong><small>Gere PDF, Excel ou Word.</small></div></li></ol></section>
         </aside>
+      </div>
       </div>
     </main>
   );

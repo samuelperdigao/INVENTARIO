@@ -5,8 +5,8 @@ import { ServiceWorkerRegistration } from "@/components/service-worker-registrat
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "INVENTARIO | Laminação de Perfis",
-  description: "Controle, conferência e relatórios de inventário da Laminação de Perfis.",
+  title: "INVENTARIO | Beam Blanks e Blocos",
+  description: "Coleta, conferência e relatórios de inventário de Beam Blanks e Blocos.",
   manifest: "/manifest.webmanifest",
 };
 

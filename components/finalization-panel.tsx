@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedContext } from "@/lib/auth-client";
 import { markInventoryFinished } from "@/lib/inventory-repository";
@@ -29,6 +30,7 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
   const [shareOpen, setShareOpen] = useState(false);
   const [preparingShare, setPreparingShare] = useState(false);
   const [preparedResources, setPreparedResources] = useState<PreparedShareResources>({});
+  const [confirmingFinish, setConfirmingFinish] = useState(false);
 
   async function headers(): Promise<Record<string, string>> {
     const auth = await getAuthenticatedContext();
@@ -36,7 +38,6 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
   }
 
   async function finish(): Promise<void> {
-    if (!window.confirm("Finalizar este inventário? Os lançamentos permanecerão preservados e não poderão ser alterados sem uma regra de reabertura aprovada.")) return;
     setBusy(true); setMessage(undefined);
     try {
       await syncInventory(inventory.id);
@@ -45,6 +46,7 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
       if (!response.ok || !body?.revision) throw new Error(body?.detail ?? "Não foi possível finalizar o inventário.");
       await markInventoryFinished(inventory.id, body.revision);
       await onFinished();
+      setConfirmingFinish(false);
       setMessage("Inventário finalizado. O relatório e as exportações estão preservados.");
     } catch (cause) { setMessage(reportErrorMessage(cause, "Não foi possível finalizar o inventário.")); }
     finally { setBusy(false); }
@@ -107,7 +109,8 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
 
   const shareReady = Boolean(preparedResources.pdf && preparedResources.xlsx && preparedResources.docx);
 
-  return <section className="card section-card panel-card stack" aria-label="Finalização e exportações">
+  return <>
+    <section className="card section-card panel-card stack" aria-label="Finalização e exportações">
     <div className="section-header">
       <div className="panel-heading">
         <span className="panel-index" aria-hidden="true">05</span>
@@ -117,7 +120,7 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
           <p className="muted">Ao finalizar, o relatório consolidado é congelado no servidor e o inventário passa para somente leitura.</p>
         </div>
       </div>
-      {inventory.status === "OPEN" ? <button className="primary" type="button" disabled={busy} onClick={() => void finish()}>{busy ? "Processando…" : "Finalizar inventário"}</button> : <span className="micro-pill good">Finalizado</span>}
+      {inventory.status === "OPEN" ? <button className="primary" type="button" disabled={busy} onClick={() => setConfirmingFinish(true)}>{busy ? "Processando…" : "Finalizar inventário"}</button> : <span className="micro-pill good">Finalizado</span>}
     </div>
 
     {inventory.status === "FINISHED" ? <div className="stack">
@@ -171,5 +174,16 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
     </div> : <p className="notice">Antes de finalizar, confira os lançamentos, sincronize e atualize a análise para reduzir retrabalho.</p>}
 
     {message ? <p className={message.startsWith("Inventário") || message.endsWith("baixado.") || message === "Compartilhamento cancelado." || message.startsWith("Preparando") || message.startsWith("Tudo pronto") ? "notice" : "error"} role="status">{message}</p> : null}
-  </section>;
+    </section>
+    <ConfirmDialog
+      open={confirmingFinish}
+      title="Finalizar inventário?"
+      description="Ao finalizar, os lançamentos permanecerão preservados e não poderão ser alterados sem uma regra de reabertura aprovada."
+      confirmLabel="Finalizar inventário"
+      busyLabel="Finalizando…"
+      busy={busy}
+      onConfirm={() => void finish()}
+      onClose={() => setConfirmingFinish(false)}
+    />
+  </>;
 }

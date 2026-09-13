@@ -47,9 +47,10 @@
   border: 1px solid rgba(202, 220, 242, 0.92);
   border-radius: 30px;
   background:
-    linear-gradient(rgba(34, 109, 212, 0.042) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(34, 109, 212, 0.042) 1px, transparent 1px),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(244, 249, 255, 0.92));
+    linear-gradient(105deg, rgba(3, 23, 53, .9), rgba(6, 56, 120, .66)),
+    repeating-linear-gradient(122deg, transparent 0 42px, rgba(123, 195, 255, .15) 43px 49px, transparent 50px 94px),
+    linear-gradient(rgba(34, 109, 212, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 109, 212, 0.1) 1px, transparent 1px);
   background-size: 28px 28px, 28px 28px, auto;
   box-shadow: 0 28px 70px rgba(24, 68, 129, 0.1);
   animation: stageIn 520ms cubic-bezier(.2, .8, .2, 1) both;
@@ -86,6 +87,24 @@
   margin: 0 auto;
 }
 
+.introPanel {
+  position: relative;
+  z-index: 1;
+  max-width: 410px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(191, 224, 255, .32);
+  color: #fff;
+}
+
+.introPanel h2 {
+  margin: 0 0 7px;
+  color: #fff;
+  font-size: clamp(1.2rem, 2.2vw, 1.55rem);
+}
+
+.introPanel p { color: #dcecff; font-size: .9rem; line-height: 1.55; }
+
 .brandImage {
   display: block;
   width: 100%;
@@ -100,7 +119,7 @@
   justify-content: center;
   gap: clamp(14px, 2.3vw, 24px);
   width: 100%;
-  color: #1769e0;
+  color: #fff;
 }
 
 .brandFallback strong {

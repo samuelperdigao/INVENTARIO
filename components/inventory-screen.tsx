@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AnalysisPanel } from "@/components/analysis-panel";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EntryForm } from "@/components/entry-form";
 import { EntryList } from "@/components/entry-list";
 import { FinalizationPanel } from "@/components/finalization-panel";
@@ -20,6 +21,8 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const [editing, setEditing] = useState<InventoryEntry>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
+  const [pendingDeletion, setPendingDeletion] = useState<InventoryEntry>();
+  const [deleting, setDeleting] = useState(false);
 
   const refresh = useCallback(async () => {
     const [currentInventory, currentEntries] = await Promise.all([getInventory(inventoryId), listActiveEntries(inventoryId)]);
@@ -71,16 +74,18 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
     setEditing(undefined);
   }
 
-  async function deleteEntry(entry: InventoryEntry): Promise<void> {
-    const location = `${entry.side}, vão ${entry.bay}${entry.layer ? `, camada ${entry.layer}` : ""}`;
-    const confirmed = window.confirm(`Excluir o lote ${entry.lot} em ${location}, com ${entry.quantity} peça(s)?`);
-    if (!confirmed) return;
+  async function deleteEntry(): Promise<void> {
+    if (!pendingDeletion) return;
+    setDeleting(true);
     try {
-      await tombstoneEntry(entry.id);
-      if (editing?.id === entry.id) setEditing(undefined);
+      await tombstoneEntry(pendingDeletion.id);
+      if (editing?.id === pendingDeletion.id) setEditing(undefined);
       await refresh();
+      setPendingDeletion(undefined);
     } catch (cause) {
       setError(cause instanceof Error ? `Registro não excluído. ${cause.message}` : "Registro não excluído.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -95,7 +100,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
             <Link className="back-link" href="/dashboard">‹ Painel</Link>
             <p className="eyebrow">Inventário em operação</p>
             <h1>Inventário {formatBrazilianDate(inventory.date)}</h1>
-            <p className="muted">Registre cada ocorrência individualmente. A consolidação acontece somente na análise e no relatório final.</p>
+            <p className="muted">Inventário de Beam Blanks e Blocos. Cada ocorrência é preservada individualmente para análise e relatório final.</p>
           </div>
           <span className="status-pill">{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span>
         </div>
@@ -118,12 +123,27 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
 
       {error && <p className="error" role="alert">{error}</p>}
       <div className="stack">
-        {inventory.status === "OPEN" ? <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => setEditing(undefined)} /> : <p className="notice">Inventário finalizado: lançamentos preservados em modo somente leitura.</p>}
-        <EntryList entries={entries} onEdit={setEditing} onDelete={(entry) => void deleteEntry(entry)} readOnly={inventory.status === "FINISHED"} />
-        <SyncPanel inventory={inventory} onSynced={refresh} />
-        <AnalysisPanel key={`${inventory.id}:${inventory.revision}`} inventory={inventory} entries={entries} />
-        <FinalizationPanel inventory={inventory} onFinished={refresh} />
+        <div className="entry-workspace">
+          {inventory.status === "OPEN" ? <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => setEditing(undefined)} /> : <p className="notice">Inventário finalizado: lançamentos preservados em modo somente leitura.</p>}
+          <EntryList entries={entries} onEdit={setEditing} onDelete={setPendingDeletion} readOnly={inventory.status === "FINISHED"} />
+        </div>
+        <div className="support-workspace">
+          <SyncPanel inventory={inventory} onSynced={refresh} />
+          <AnalysisPanel key={`${inventory.id}:${inventory.revision}`} inventory={inventory} entries={entries} />
+          <FinalizationPanel inventory={inventory} onFinished={refresh} />
+        </div>
       </div>
+      <ConfirmDialog
+        open={Boolean(pendingDeletion)}
+        variant="danger"
+        title="Excluir lançamento?"
+        description={pendingDeletion ? `O lote ${pendingDeletion.lot}, no lado ${pendingDeletion.side}, vão ${pendingDeletion.bay}${pendingDeletion.layer ? `, camada ${pendingDeletion.layer}` : ""}, com ${pendingDeletion.quantity} peça(s), será removido da lista e preservado para sincronização.` : ""}
+        confirmLabel="Excluir lançamento"
+        busyLabel="Excluindo…"
+        busy={deleting}
+        onConfirm={() => void deleteEntry()}
+        onClose={() => setPendingDeletion(undefined)}
+      />
     </main>
   );
 }

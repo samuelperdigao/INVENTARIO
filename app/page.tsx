@@ -6,7 +6,7 @@ import styles from "./landing.module.css";
 const operationSteps = [
   {
     title: "Lançamento direto",
-    description: "Registre lado, vão, lote e quantidade sem transformar a operação em um formulário pesado.",
+    description: "Registre lado, vão, camada, lote e quantidade diretamente no dispositivo.",
   },
   {
     title: "Continuidade offline",
@@ -28,7 +28,7 @@ export default function HomePage() {
       <nav className="landing-nav" aria-label="Navegação principal">
         <Link className="app-brand brand-link" href="/" aria-label="INVENTARIO, início">
           <span className="brand-mark beam-mark" aria-hidden="true"><span /></span>
-          <span><strong>INVENTARIO</strong><small>Laminação de Perfis</small></span>
+          <span><strong>INVENTARIO</strong><small>Beam Blanks e Blocos</small></span>
         </Link>
         <Link className="secondary compact-button" href="/acesso">Entrar</Link>
       </nav>
@@ -40,6 +40,10 @@ export default function HomePage() {
             <div className={styles.brandFrame}>
               <LandingBrand />
             </div>
+            <div className={styles.introPanel}>
+              <h2>Inventário de Beam Blanks e Blocos</h2>
+              <p>Coleta de campo, conferência e relatórios em um fluxo operacional.</p>
+            </div>
           </div>
           <div className={styles.actions}>
             <Link className={`primary button-link ${styles.primaryCta}`} href="/acesso">
@@ -49,11 +53,11 @@ export default function HomePage() {
           </div>
         </div>
 
-        <aside className={styles.operationCard} aria-label="Fluxo resumido do sistema">
+        <aside className={styles.operationCard} aria-label="Recursos operacionais do sistema">
           <div className={styles.cardHeader}>
             <div>
-              <p>Operação do inventário</p>
-              <h2>O que importa durante a conferência</h2>
+              <p>Operação em campo</p>
+              <h2>Recursos do inventário</h2>
             </div>
             <span className={styles.readyBadge}>Pronto</span>
           </div>
@@ -72,14 +76,14 @@ export default function HomePage() {
 
           <div className={styles.cardFooter} aria-label="Características da operação">
             <span>Mobile first</span>
-            <span>Dados preservados</span>
-            <span>Fluxo enxuto</span>
+            <span>Operação offline</span>
+            <span>Dados rastreáveis</span>
           </div>
         </aside>
       </section>
 
       <section className="landing-section" id="como-funciona" aria-labelledby="flow-title">
-        <div className="section-intro"><p className="eyebrow">Fluxo operacional</p><h2 id="flow-title">Simples para lançar. Confiável para conferir.</h2></div>
+        <div className="section-intro"><p className="eyebrow">Fluxo operacional</p><h2 id="flow-title">Registro, sincronização, análise e relatório.</h2></div>
         <div className="landing-flow">
           <article><span>01</span><h3>Registre</h3><p>Lance lado, vão, lote e quantidade com poucos toques, mesmo sem conexão.</p></article>
           <article><span>02</span><h3>Sincronize</h3><p>Compartilhe um código de seis números e trabalhe com a equipe sem expor chaves técnicas.</p></article>

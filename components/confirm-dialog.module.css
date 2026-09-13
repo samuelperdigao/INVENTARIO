@@ -1,0 +1,49 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(5 19 42 / 66%);
+  backdrop-filter: blur(7px);
+  animation: dialog-backdrop-in 180ms ease both;
+}
+
+.dialog {
+  width: min(100%, 438px);
+  border: 1px solid rgb(194 216 243 / 82%);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 30px 80px rgb(3 20 47 / 35%);
+  padding: 28px;
+  animation: dialog-in 210ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 18px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #e8f3ff, #cfe6ff);
+  color: #1164d9;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.danger .icon { background: #fff0ef; color: #c3342b; }
+.dialog h2 { margin: 0 0 8px; font-size: 1.35rem; }
+.description { margin: 0; color: var(--muted); line-height: 1.58; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 26px; }
+
+@keyframes dialog-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+@media (max-width: 480px) {
+  .backdrop { align-items: end; padding: 12px; }
+  .dialog { border-radius: 20px; padding: 23px 18px; }
+  .actions { display: grid; grid-template-columns: 1fr; }
+  .actions button { width: 100%; }
+}

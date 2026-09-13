@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import styles from "@/components/inventory-home.module.css";
+import { BrandLogo } from "@/components/brand-logo";
+import { Icon } from "@/components/icon";
 import { logoutAccount, restoreSession, type AuthUser } from "@/lib/auth-client";
 import { createInventory, listOpenInventories } from "@/lib/inventory-repository";
 import { formatBrazilianDate } from "@/lib/local-date";
@@ -77,19 +79,19 @@ export function InventoryHome() {
   return (
     <main className={`shell dashboard-shell ${styles.dashboardShell}`}>
       <aside className="dashboard-sidebar" aria-label="Navegação do sistema">
-        <Link className="app-brand brand-link" href="/dashboard"><span className="brand-mark beam-mark" aria-hidden="true"><span /></span><span><strong>INVENTARIO</strong><small>Beam Blanks e Blocos</small></span></Link>
+        <Link className="brand-link" href="/dashboard" aria-label="INVENTÁRIO, painel"><BrandLogo compact subtitle="Beam Blanks e Blocos" /></Link>
         <nav className="dashboard-nav">
-          <Link className="dashboard-nav-link active" href="/dashboard" aria-current="page"><span aria-hidden="true">⌂</span>Início</Link>
-          <button className="dashboard-nav-link" type="button" onClick={() => void handleCreate()} disabled={creating}><span aria-hidden="true">＋</span>Novo inventário</button>
-          <a className="dashboard-nav-link" href="#em-andamento"><span aria-hidden="true">▣</span>Em andamento</a>
-          <Link className="dashboard-nav-link" href="/historico"><span aria-hidden="true">▤</span>Histórico</Link>
-          {isTeamAdmin ? <Link className="dashboard-nav-link" href="/equipe"><span aria-hidden="true">◫</span>Equipe</Link> : null}
+          <Link className="dashboard-nav-link active" href="/dashboard" aria-current="page"><span aria-hidden="true"><Icon name="home" size={17} /></span>Início</Link>
+          <button className="dashboard-nav-link" type="button" onClick={() => void handleCreate()} disabled={creating}><span aria-hidden="true"><Icon name="plus" size={17} /></span>Novo inventário</button>
+          <a className="dashboard-nav-link" href="#em-andamento"><span aria-hidden="true"><Icon name="boxes" size={17} /></span>Em andamento</a>
+          <Link className="dashboard-nav-link" href="/historico"><span aria-hidden="true"><Icon name="history" size={17} /></span>Histórico</Link>
+          {isTeamAdmin ? <Link className="dashboard-nav-link" href="/equipe"><span aria-hidden="true"><Icon name="users" size={17} /></span>Equipe</Link> : null}
         </nav>
         <p className="sidebar-footnote">Operação local com sincronização central protegida.</p>
       </aside>
       <div className="dashboard-content">
       <header className="dashboard-topbar">
-        <Link className="app-brand brand-link mobile-dashboard-brand" href="/dashboard"><span className="brand-mark beam-mark" aria-hidden="true"><span /></span><span><strong>INVENTARIO</strong><small>Beam Blanks e Blocos</small></span></Link>
+        <Link className="brand-link mobile-dashboard-brand" href="/dashboard" aria-label="INVENTÁRIO, painel"><BrandLogo compact subtitle="Beam Blanks e Blocos" /></Link>
         <div className="account-actions">
           {isTeamAdmin ? <Link className="text-button" href="/equipe">Equipe</Link> : null}
           <span className="user-chip"><span>{firstName(user.displayName).slice(0, 1).toUpperCase()}</span>{user.displayName}</span>
@@ -107,10 +109,10 @@ export function InventoryHome() {
       <section className="quick-actions" aria-labelledby="quick-actions-title">
         <div className="section-header"><div><p className="eyebrow">Acesso rápido</p><h2 id="quick-actions-title">O que você precisa fazer?</h2></div></div>
         <div className="action-grid">
-          <button className="action-card primary-action" type="button" onClick={() => void handleCreate()} disabled={creating}><span className="action-icon">+</span><span><strong>{creating ? "Criando…" : "Iniciar novo inventário"}</strong><small>Começar uma nova conferência neste dispositivo</small></span></button>
-          <a className="action-card" href="#em-andamento"><span className="action-icon">↻</span><span><strong>Continuar inventário</strong><small>{inventories.length ? `${inventories.length} em andamento neste dispositivo` : "Nenhum inventário local aberto"}</small></span></a>
-          <button className="action-card" type="button" onClick={() => document.getElementById("participar")?.scrollIntoView({ behavior: "smooth" })}><span className="action-icon">#</span><span><strong>Participar de inventário</strong><small>Entrar com um código de seis números</small></span></button>
-          <Link className="action-card" href="/historico"><span className="action-icon">□</span><span><strong>Histórico</strong><small>Consultar e exportar inventários finalizados</small></span></Link>
+          <button className="action-card primary-action" type="button" onClick={() => void handleCreate()} disabled={creating}><span className="action-icon"><Icon name="plus" size={20} /></span><span><strong>{creating ? "Criando…" : "Iniciar novo inventário"}</strong><small>Começar uma nova conferência neste dispositivo</small></span></button>
+          <a className="action-card" href="#em-andamento"><span className="action-icon"><Icon name="boxes" size={20} /></span><span><strong>Continuar inventário</strong><small>{inventories.length ? `${inventories.length} em andamento neste dispositivo` : "Nenhum inventário local aberto"}</small></span></a>
+          <button className="action-card" type="button" onClick={() => document.getElementById("participar")?.scrollIntoView({ behavior: "smooth" })}><span className="action-icon"><Icon name="users" size={20} /></span><span><strong>Participar de inventário</strong><small>Entrar com um código de seis números</small></span></button>
+          <Link className="action-card" href="/historico"><span className="action-icon"><Icon name="file" size={20} /></span><span><strong>Histórico</strong><small>Consultar e exportar inventários finalizados</small></span></Link>
         </div>
       </section>
 

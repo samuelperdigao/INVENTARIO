@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import {
   configureRecoveryPin, confirmPasswordReset, loginAccount, registerAccount, restoreSession,
 } from "@/lib/auth-client";
+import { BrandLogo } from "@/components/brand-logo";
 
 type View = "login" | "register" | "reset" | "setup-pin";
 
@@ -79,10 +80,7 @@ export function AuthFlow() {
   return (
     <main className="auth-shell">
       <section className="auth-aside" aria-label="Apresentação do sistema">
-        <Link className="app-brand brand-link light-brand" href="/">
-          <span className="brand-mark beam-mark" aria-hidden="true"><span /></span>
-          <span><strong>INVENTARIO</strong><small>Beam Blanks e Blocos</small></span>
-        </Link>
+        <Link className="brand-link light-brand" href="/" aria-label="INVENTÁRIO, início"><BrandLogo light subtitle="Beam Blanks e Blocos" /></Link>
         <div><p className="eyebrow light-eyebrow">Acesso ao sistema</p><h1>Inventário de Beam Blanks e Blocos.</h1><p>Registro local, sincronização protegida e relatórios oficiais para a operação.</p></div>
         <ul className="auth-benefits"><li>Acesso liberado após o cadastro</li><li>NP pessoal protegido por hash</li><li>Sessões renováveis e revogáveis</li></ul>
       </section>

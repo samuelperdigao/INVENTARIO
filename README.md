@@ -57,7 +57,7 @@ docs/                   arquitetura, negócio, deploy e status
 ## Requisitos
 
 - Node.js 20+
-- pnpm 11, fixado no `package.json`
+- pnpm 10, fixado no `package.json`
 - Python 3.12+
 - Chromium do Playwright para os testes E2E
 

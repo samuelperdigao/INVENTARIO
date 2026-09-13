@@ -9,6 +9,8 @@ import { EntryForm } from "@/components/entry-form";
 import { EntryList } from "@/components/entry-list";
 import { FinalizationPanel } from "@/components/finalization-panel";
 import { SyncPanel } from "@/components/sync-panel";
+import { BrandLogo } from "@/components/brand-logo";
+import { Icon } from "@/components/icon";
 import { getCurrentUser } from "@/lib/auth-client";
 import { findRemoteDuplicateLotEntries } from "@/lib/duplicate-client";
 import { formatBrazilianDate } from "@/lib/local-date";
@@ -93,7 +95,20 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   if (!inventory) return <main className="shell"><p className="error" role="alert">{error ?? "Inventário não encontrado."}</p><Link className="secondary" href="/dashboard">Voltar</Link></main>;
 
   return (
-    <main className="shell">
+    <main className="shell inventory-shell">
+      <aside className="inventory-rail" aria-label="Etapas do inventário">
+        <Link className="brand-link" href="/dashboard" aria-label="INVENTÁRIO, painel"><BrandLogo compact subtitle="Beam Blanks e Blocos" /></Link>
+        <p className="inventory-rail-label">Inventário #{inventory.id.slice(-6)}</p>
+        <nav className="inventory-rail-steps">
+          <span className="inventory-rail-step active"><b>01</b><span><strong>Lançar</strong><small>Registrar itens</small></span></span>
+          <span className="inventory-rail-step"><b>02</b><span><strong>Conferir</strong><small>Revisar registros</small></span></span>
+          <span className="inventory-rail-step"><b>03</b><span><strong>Sincronizar</strong><small>Enviar dados</small></span></span>
+          <span className="inventory-rail-step"><b>04</b><span><strong>Analisar</strong><small>Ver divergências</small></span></span>
+          <span className="inventory-rail-step"><b>05</b><span><strong>Finalizar</strong><small>Gerar relatório</small></span></span>
+        </nav>
+        <p className="inventory-rail-foot"><Icon name="cloud" size={14} /> Salvo localmente</p>
+      </aside>
+      <div className="inventory-content">
       <header className="inventory-header">
         <div className="inventory-header-row">
           <div className="inventory-header-copy">
@@ -144,6 +159,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
         onConfirm={() => void deleteEntry()}
         onClose={() => setPendingDeletion(undefined)}
       />
+      </div>
     </main>
   );
 }

@@ -623,3 +623,108 @@ code { padding: 2px 5px; border-radius: 6px; background: #edf3fa; color: #304866
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Identidade estrutural da referência: símbolo de viga e check integrado. */
+.brand-logo {
+  --brand-logo-size: 48px;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+  color: var(--blue-950);
+  text-decoration: none;
+}
+.brand-logo-mark {
+  display: grid;
+  place-items: center;
+  width: var(--brand-logo-size);
+  height: var(--brand-logo-size);
+  flex: 0 0 auto;
+  border: 1px solid rgba(23, 105, 224, .2);
+  border-radius: 12px;
+  background: linear-gradient(145deg, #0b3472, #1769e0 66%, #43a7ff);
+  box-shadow: 0 11px 24px rgba(23, 105, 224, .2);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.brand-logo-mark svg { width: 83%; height: 83%; }
+.brand-logo-beam { fill: #e7f4ff; }
+.brand-logo-highlight { fill: #fff; opacity: .68; }
+.brand-logo-check { fill: none; stroke: #34a6ff; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.brand-logo-copy { display: grid; min-width: 0; gap: 1px; }
+.brand-logo-copy strong { overflow: hidden; color: var(--blue-950); font-size: .95rem; font-weight: 950; letter-spacing: .045em; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
+.brand-logo-copy small { overflow: hidden; color: var(--muted); font-size: .63rem; font-weight: 700; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.brand-logo:hover .brand-logo-mark { transform: translateY(-2px) rotate(-1deg); box-shadow: 0 15px 28px rgba(23, 105, 224, .27); }
+.brand-logo-light { color: #fff; }
+.brand-logo-light .brand-logo-mark { border-color: rgba(180, 224, 255, .46); background: linear-gradient(145deg, #eff8ff, #c8e5ff 62%, #74c2ff); box-shadow: 0 12px 29px rgba(0, 10, 32, .25); }
+.brand-logo-light .brand-logo-beam { fill: #0a3472; }
+.brand-logo-light .brand-logo-highlight { fill: #fff; }
+.brand-logo-light .brand-logo-check { stroke: #0e70d5; }
+.brand-logo-light .brand-logo-copy strong { color: #fff; }
+.brand-logo-light .brand-logo-copy small { color: #c8e3ff; }
+.brand-logo-mark-only { gap: 0; }
+
+.auth-aside {
+  background-image: linear-gradient(100deg, rgba(4, 24, 57, .94), rgba(10, 68, 142, .72)), url("/industrial-yard-hero.jpg");
+  background-position: center;
+  background-size: cover;
+}
+.auth-aside .brand-logo { --brand-logo-size: 50px; }
+.auth-aside .brand-logo-copy strong { font-size: 1rem; }
+
+/* Painel operacional com a mesma densidade e leitura da referência. */
+.dashboard-shell.dashboard-shell { gap: 20px; padding-top: 18px; }
+.dashboard-sidebar { padding: 20px 12px 16px; border-color: #cbddec; background: linear-gradient(180deg, #fff 0%, #f4f9ff 100%); }
+.dashboard-sidebar > .brand-link { padding: 0 4px; }
+.dashboard-sidebar .brand-logo { --brand-logo-size: 34px; }
+.dashboard-sidebar .brand-logo-copy strong { font-size: .78rem; }
+.dashboard-sidebar .brand-logo-copy small { font-size: .56rem; }
+.dashboard-nav-link span { width: 20px; }
+.dashboard-nav-link svg { display: block; }
+.dashboard-topbar { min-height: 43px; }
+.dashboard-topbar > .mobile-dashboard-brand .brand-logo { --brand-logo-size: 34px; }
+.dashboard-hero { background-image: linear-gradient(100deg, rgba(6, 31, 71, .94), rgba(10, 63, 133, .73)), url("/industrial-yard-hero.jpg"); background-position: center; background-size: cover; }
+.dashboard-hero h1 { font-size: clamp(1.75rem, 3.4vw, 2.65rem); }
+.dashboard-hero .eyebrow { letter-spacing: .14em; }
+.action-card { min-height: 116px; }
+.action-icon svg { display: block; }
+.inventory-shell { width: min(100%, 1500px); display: grid; grid-template-columns: 214px minmax(0, 1fr); gap: 19px; align-items: start; padding-top: 18px; }
+.inventory-rail { position: sticky; top: 18px; display: flex; flex-direction: column; min-height: calc(100vh - 52px); padding: 21px 13px 16px; border: 1px solid #cbddec; border-radius: 18px; background: linear-gradient(180deg, #fff, #f4f9ff); box-shadow: var(--shadow-sm); }
+.inventory-rail .brand-logo { --brand-logo-size: 34px; }
+.inventory-rail .brand-logo-copy strong { font-size: .78rem; }
+.inventory-rail .brand-logo-copy small { font-size: .56rem; }
+.inventory-rail-label { margin: 31px 6px 10px; color: #7b91aa; font-size: .65rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.inventory-rail-steps { display: grid; gap: 5px; }
+.inventory-rail-step { display: flex; align-items: center; gap: 8px; min-height: 45px; padding: 7px; border-radius: 10px; color: #617894; }
+.inventory-rail-step > b { display: grid; place-items: center; width: 25px; height: 25px; flex: 0 0 auto; border-radius: 8px; background: #e8f2ff; color: #1769e0; font-size: .62rem; }
+.inventory-rail-step > span { min-width: 0; }
+.inventory-rail-step strong, .inventory-rail-step small { display: block; }
+.inventory-rail-step strong { color: #31557d; font-size: .72rem; }
+.inventory-rail-step small { margin-top: 2px; color: #8498ae; font-size: .57rem; }
+.inventory-rail-step.active { background: linear-gradient(90deg, #ddebff, #f0f7ff); color: #1159bf; }
+.inventory-rail-step.active > b { background: #1769e0; color: #fff; }
+.inventory-rail-step.active strong { color: #1159bf; }
+.inventory-rail-foot { display: flex; align-items: center; gap: 6px; margin: auto 5px 0; padding-top: 15px; border-top: 1px solid #e0eaf5; color: #24864f; font-size: .62rem; font-weight: 800; }
+.inventory-content { min-width: 0; }
+.inventory-content .inventory-header { margin-bottom: 13px; }
+.inventory-content .workflow-strip { margin-bottom: 15px; }
+.inventory-content .metric-grid { margin-bottom: 13px; }
+
+@media (max-width: 1180px) {
+  .inventory-shell.inventory-shell { grid-template-columns: 1fr; }
+  .inventory-rail { position: static; min-height: 0; padding: 13px 15px; }
+  .inventory-rail-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .inventory-rail-step { min-height: 40px; }
+  .inventory-rail-step small { display: none; }
+  .inventory-rail-foot { display: none; }
+}
+
+@media (max-width: 639px) {
+  .inventory-shell.inventory-shell { padding-top: 11px; }
+  .inventory-rail { padding: 11px 10px; border-radius: 14px; }
+  .inventory-rail > .brand-link { display: none; }
+  .inventory-rail-label { margin: 0 3px 7px; font-size: .59rem; }
+  .inventory-rail-steps { gap: 3px; }
+  .inventory-rail-step { justify-content: center; padding: 5px 2px; }
+  .inventory-rail-step > span { display: none; }
+  .inventory-rail-step > b { width: 29px; height: 29px; }
+}

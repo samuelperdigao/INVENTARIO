@@ -1,96 +1,49 @@
 import Link from "next/link";
 
-import { LandingBrand } from "@/components/landing-brand";
-import styles from "./landing.module.css";
+import { BrandLogo } from "@/components/brand-logo";
+import { Icon } from "@/components/icon";
+import { LandingProductPreview } from "@/components/landing-product-preview";
 
-const operationSteps = [
-  {
-    title: "Lançamento direto",
-    description: "Registre lado, vão, camada, lote e quantidade diretamente no dispositivo.",
-  },
-  {
-    title: "Continuidade offline",
-    description: "Os lançamentos permanecem salvos no dispositivo mesmo quando a conexão não está disponível.",
-  },
-  {
-    title: "Sincronização entre dispositivos",
-    description: "Conecte a equipe ao mesmo inventário e consolide o trabalho quando houver rede.",
-  },
-  {
-    title: "Finalização e exportação",
-    description: "Consolide os dados e compartilhe o resultado final em PDF, Excel ou Word.",
-  },
-];
+import styles from "./landing.module.css";
 
 export default function HomePage() {
   return (
-    <main className="landing-shell">
-      <nav className="landing-nav" aria-label="Navegação principal">
-        <Link className="app-brand brand-link" href="/" aria-label="INVENTARIO, início">
-          <span className="brand-mark beam-mark" aria-hidden="true"><span /></span>
-          <span><strong>INVENTARIO</strong><small>Beam Blanks e Blocos</small></span>
-        </Link>
+    <main className={`landing-shell ${styles.referenceLanding}`}>
+      <nav className={`landing-nav ${styles.referenceNav}`} aria-label="Navegação principal">
+        <Link className="brand-link" href="/" aria-label="INVENTÁRIO, início"><BrandLogo /></Link>
         <Link className="secondary compact-button" href="/acesso">Entrar</Link>
       </nav>
 
-      <section className={styles.hero} aria-labelledby="landing-title">
-        <div className={styles.brandColumn}>
-          <h1 id="landing-title" className={styles.srOnly}>INVENTÁRIO</h1>
-          <div className={styles.brandStage}>
-            <div className={styles.brandFrame}>
-              <LandingBrand />
-            </div>
-            <div className={styles.introPanel}>
-              <h2>Inventário de Beam Blanks e Blocos</h2>
-              <p>Coleta de campo, conferência e relatórios em um fluxo operacional.</p>
-            </div>
+      <section className={styles.referenceHero} aria-labelledby="landing-title">
+        <div className={styles.heroIndustrial}>
+          <div className={styles.heroIndustrialOverlay} />
+          <div className={styles.heroIndustrialContent}>
+            <BrandLogo light subtitle="Beam Blanks e Blocos" />
+            <p className={styles.heroKicker}>Aplicativo de inventário industrial</p>
+            <h1 id="landing-title">Do pátio ao relatório,<br /><span>com mais controle.</span></h1>
+            <p className={styles.heroDescription}>Registre lado, vão, camada, lote e quantidade no dispositivo, mesmo sem conexão.</p>
+            <div className={styles.heroSignals}><span><Icon name="check" size={15} />Operação offline</span><span><Icon name="check" size={15} />Dados rastreáveis</span><span><Icon name="check" size={15} />Relatórios oficiais</span></div>
           </div>
-          <div className={styles.actions}>
-            <Link className={`primary button-link ${styles.primaryCta}`} href="/acesso">
-              Acessar sistema <span aria-hidden="true">→</span>
-            </Link>
-            <a className={`secondary button-link ${styles.secondaryCta}`} href="#como-funciona">Conhecer o fluxo</a>
-          </div>
+          <div className={styles.heroFooter}><BrandLogo light compact markOnly /><span>Beam Blanks e Blocos</span></div>
         </div>
 
-        <aside className={styles.operationCard} aria-label="Recursos operacionais do sistema">
-          <div className={styles.cardHeader}>
-            <div>
-              <p>Operação em campo</p>
-              <h2>Recursos do inventário</h2>
-            </div>
-            <span className={styles.readyBadge}>Pronto</span>
-          </div>
-
-          <ol className={styles.operationList}>
-            {operationSteps.map((step, index) => (
-              <li className={styles.operationItem} key={step.title}>
-                <span className={styles.stepNumber} aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-                <div className={styles.operationCopy}>
-                  <strong>{step.title}</strong>
-                  <span>{step.description}</span>
-                </div>
-              </li>
-            ))}
-          </ol>
-
-          <div className={styles.cardFooter} aria-label="Características da operação">
-            <span>Mobile first</span>
-            <span>Operação offline</span>
-            <span>Dados rastreáveis</span>
-          </div>
+        <aside className={styles.loginPreview} aria-label="Prévia do acesso ao sistema">
+          <div className={styles.loginPreviewHeader}><BrandLogo compact /><span className={styles.previewBell}>◌</span></div>
+          <p className={styles.previewEyebrow}>Conta INVENTÁRIO</p>
+          <h2>Bem-vindo(a)</h2>
+          <p>Acesse sua conta para continuar.</p>
+          <div className={styles.previewInput}><Icon name="users" size={15} />seu.email@gerdau.com.br</div>
+          <div className={styles.previewInput}><Icon name="settings" size={15} />Senha <span>◉</span></div>
+          <div className={styles.previewRemember}><span><i />Lembrar de mim</span><a href="/acesso">Esqueceu a senha?</a></div>
+          <Link className={`primary button-link ${styles.previewLoginButton}`} href="/acesso">Entrar</Link>
+          <div className={styles.previewOr}><span />ou<span /></div>
+          <Link className={`secondary button-link ${styles.previewRegisterButton}`} href="/acesso"><Icon name="users" size={14} />Cadastrar nova conta</Link>
+          <small className={styles.previewRestricted}>Acesso restrito a e-mails corporativos da Gerdau.</small>
+          <div className={styles.previewGerdau}>GERDAU</div>
         </aside>
       </section>
 
-      <section className="landing-section" id="como-funciona" aria-labelledby="flow-title">
-        <div className="section-intro"><p className="eyebrow">Fluxo operacional</p><h2 id="flow-title">Registro, sincronização, análise e relatório.</h2></div>
-        <div className="landing-flow">
-          <article><span>01</span><h3>Registre</h3><p>Lance lado, vão, lote e quantidade com poucos toques, mesmo sem conexão.</p></article>
-          <article><span>02</span><h3>Sincronize</h3><p>Compartilhe um código de seis números e trabalhe com a equipe sem expor chaves técnicas.</p></article>
-          <article><span>03</span><h3>Analise</h3><p>Identifique lotes fragmentados, peças solteiras e distribuições que exigem revisão.</p></article>
-          <article><span>04</span><h3>Finalize</h3><p>Congele o relatório oficial e compartilhe PDF, Excel ou Word pelo celular.</p></article>
-        </div>
-      </section>
+      <LandingProductPreview />
     </main>
   );
 }

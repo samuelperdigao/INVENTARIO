@@ -34,7 +34,7 @@ export interface InventoryEntry extends LocalRecord {
   inventoryId: string;
   side: Side;
   bay: string;
-  /** Registros legados podem não possuir camada. */
+  /** A camada é opcional; quando informada deve estar entre A1 e A10. */
   layer?: InventoryLayer;
   lot: string;
   quantity: number;
@@ -46,7 +46,7 @@ export interface InventoryEntry extends LocalRecord {
 export interface EntryDraft {
   side: Side;
   bay: string;
-  layer: InventoryLayer;
+  layer?: InventoryLayer;
   lot: string;
   quantity: number;
 }

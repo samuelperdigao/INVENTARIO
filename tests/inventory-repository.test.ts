@@ -31,6 +31,14 @@ describe("repositório IndexedDB", () => {
     expect((await getInventory(inventory.id))?.revision).toBe(4);
   });
 
+  it("persiste lançamento sem camada quando a posição não exige esse detalhamento", async () => {
+    const inventory = await createInventory("2026-09-14");
+    const created = await createEntry(inventory.id, { side: "DE", bay: "21", lot: "123456", quantity: 7 });
+
+    expect(created.layer).toBeUndefined();
+    expect((await listActiveEntries(inventory.id))[0]).toMatchObject({ side: "DE", bay: "21", lot: "123456", quantity: 7 });
+  });
+
   it("exige confirmação explícita para lote repetido no mesmo inventário", async () => {
     const inventory = await createInventory("2026-09-12");
     await createEntry(inventory.id, { side: "EF", bay: "15", layer: "A1", lot: "2815634434", quantity: 19 });
@@ -49,11 +57,12 @@ describe("repositório IndexedDB", () => {
     expect(await listActiveEntries(inventory.id)).toHaveLength(2);
   });
 
-  it("valida camada e lote numérico antes da operação de armazenamento", () => {
+  it("valida camada apenas quando informada e mantém lote numérico obrigatório", () => {
     expect(validateEntryDraft({ side: "EF", bay: "", layer: "A1", lot: "1", quantity: 1 })).toMatch(/vão/);
-    expect(validateEntryDraft({ side: "EF", bay: "1", layer: "A1", lot: " ", quantity: 1 })).toMatch(/lote/);
-    expect(validateEntryDraft({ side: "EF", bay: "1", layer: "A1", lot: "ABC", quantity: 1 })).toMatch(/somente números/);
-    expect(validateEntryDraft({ side: "EF", bay: "1", layer: "A1", lot: "1", quantity: 0 })).toMatch(/inteiro positivo/);
+    expect(validateEntryDraft({ side: "EF", bay: "1", lot: " ", quantity: 1 })).toMatch(/lote/);
+    expect(validateEntryDraft({ side: "EF", bay: "1", lot: "ABC", quantity: 1 })).toMatch(/somente números/);
+    expect(validateEntryDraft({ side: "EF", bay: "1", lot: "1", quantity: 0 })).toMatch(/inteiro positivo/);
+    expect(validateEntryDraft({ side: "EF", bay: "1", lot: "0007", quantity: 1 })).toBeUndefined();
     expect(validateEntryDraft({ side: "EF", bay: "1", layer: "A10", lot: "0007", quantity: 1 })).toBeUndefined();
   });
 });

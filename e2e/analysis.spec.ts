@@ -5,6 +5,7 @@ test("envia lançamentos ao motor online e identifica o cache quando fica offlin
   const { ownerEmail } = seedUsers("analise");
   await login(page, ownerEmail);
   await page.getByRole("button", { name: "Iniciar novo inventário" }).click();
+  await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
 
   await page.getByRole("button", { name: "DE" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("15");
@@ -12,6 +13,7 @@ test("envia lançamentos ao motor online e identifica o cache quando fica offlin
   await page.getByLabel("Lote").fill("000123");
   await page.getByLabel("Quantidade de peças").fill("19");
   await page.getByRole("button", { name: "Adicionar" }).click();
+  await expect(page.getByText("Lote 000123")).toHaveCount(1, { timeout: 30_000 });
 
   await page.getByRole("button", { name: "EF" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("21");
@@ -19,7 +21,7 @@ test("envia lançamentos ao motor online e identifica o cache quando fica offlin
   await page.getByLabel("Lote").fill("000123");
   await page.getByLabel("Quantidade de peças").fill("1");
   await page.getByRole("button", { name: "Adicionar" }).click();
-  await expect(page.getByRole("dialog", { name: "Lote já registrado" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Lote já registrado" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Adicionar mesmo assim" }).click();
   await expect(page.getByText("Lote 000123")).toHaveCount(2);
 

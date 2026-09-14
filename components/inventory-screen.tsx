@@ -14,7 +14,7 @@ import { Icon } from "@/components/icon";
 import { getCurrentUser } from "@/lib/auth-client";
 import { findRemoteDuplicateLotEntries } from "@/lib/duplicate-client";
 import { formatBrazilianDate } from "@/lib/local-date";
-import { createEntry, DuplicateLotError, getInventory, listActiveEntries, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
+import { createEntry, DuplicateLotError, findDuplicateLotEntries, getInventory, listActiveEntries, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
 import type { EntryDraft, Inventory, InventoryEntry } from "@/lib/models";
 
 export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
@@ -58,6 +58,8 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
     if (!currentInventory) throw new Error("Inventário não encontrado neste dispositivo.");
 
     if (!allowDuplicate) {
+      const localDuplicates = await findDuplicateLotEntries(inventoryId, draft.lot, entryId);
+      if (localDuplicates.length > 0) throw new DuplicateLotError(localDuplicates);
       const remoteDuplicates = await findRemoteDuplicateLotEntries(currentInventory, draft.lot, entryId);
       if (remoteDuplicates.length > 0) throw new DuplicateLotError(remoteDuplicates);
     }

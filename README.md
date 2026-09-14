@@ -23,6 +23,7 @@ O estado operacional mais recente fica em [`docs/STATUS.md`](docs/STATUS.md).
 - Sincronização incremental com cursor, revisões, idempotência, tombstones e resolução de conflitos.
 - Análise determinística de lotes fragmentados e peças deslocadas.
 - Finalização irreversível na V1, histórico e exportações Excel, PDF e Word.
+- Exportação Excel compatível `.xls` BIFF8 como opção padrão da equipe, com `.xlsx` moderno preservado.
 - Compartilhamento nativo no celular e links temporários assinados para arquivos de escritório.
 
 ## Arquitetura
@@ -38,6 +39,8 @@ O estado operacional mais recente fica em [`docs/STATUS.md`](docs/STATUS.md).
 | Produção | Vercel, Render e Neon | Frontend, API e banco gerenciado |
 
 Detalhes e limites de responsabilidade estão em [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+
+O contrato dos formatos, endpoints, compatibilidade e testes está em [`docs/EXPORTACOES.md`](docs/EXPORTACOES.md).
 
 ## Estrutura do repositório
 

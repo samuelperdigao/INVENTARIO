@@ -14,14 +14,17 @@ import {
   sharePreparedResource,
   type PreparedShareResources,
   type ReportFormat,
+  type ShareableReportFormat,
 } from "@/lib/report-client";
 import type { AnalysisClassification, AnalysisLocation, AnalysisSummary } from "@/lib/models";
 
-const formats: ReportFormat[] = ["pdf", "xlsx", "docx"];
+const shareFormats: ShareableReportFormat[] = ["pdf", "xlsx", "docx"];
+const downloadFormats: ReportFormat[] = ["xls", "xlsx", "pdf", "docx"];
 
 const formatLabel: Record<ReportFormat, string> = {
+  xls: "Excel compatível (.xls)",
+  xlsx: "Excel moderno (.xlsx)",
   pdf: "PDF",
-  xlsx: "Excel",
   docx: "Word",
 };
 
@@ -33,7 +36,7 @@ interface ConsolidatedReport {
   totalPieces: number;
   totalRecords: number;
   summary: AnalysisSummary;
-  records: Array<{ side: "EF" | "DE"; bay: string; lot: string; quantity: number }>;
+  records: Array<{ side: "EF" | "DE"; bay: string; layer?: string | null; lot: string; quantity: number }>;
   lots: Array<{ lot: string; totalQuantity: number; locations: AnalysisLocation[]; classification: AnalysisClassification; recommendation?: string }>;
 }
 
@@ -92,7 +95,7 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
     }
   }
 
-  function shareAction(format: ReportFormat): void {
+  function shareAction(format: ShareableReportFormat): void {
     const resource = preparedResources[format];
     if (!resource) {
       setError("Aguarde a preparação antes de compartilhar.");
@@ -131,16 +134,21 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
           <div className="details-content stack">
             <div><h3>Escolha o formato</h3><p className="muted">Ao tocar no formato, o menu nativo do celular abre para você escolher o aplicativo de destino.</p></div>
             <div className="export-grid">
-              {formats.map((format) => <button className="secondary" disabled={Boolean(busy) || preparingShare || !shareReady} key={format} onClick={() => shareAction(format)}>Compartilhar {formatLabel[format]}</button>)}
+              {shareFormats.map((format) => <button className="secondary" disabled={Boolean(busy) || preparingShare || !shareReady} key={format} onClick={() => shareAction(format)}>Compartilhar {formatLabel[format]}</button>)}
             </div>
           </div>
         </div> : null}
 
-        <details className="details-box">
-          <summary>Baixar arquivo</summary>
+        <details className="details-box" open>
+          <summary>Exportar Excel</summary>
           <div className="details-content">
+            <p className="muted">Excel compatível com o computador da empresa:</p>
             <div className="export-grid">
-              {formats.map((format) => <button className="secondary" disabled={Boolean(busy)} key={format} onClick={() => void run(format, async () => { await downloadReport(inventoryId, format); return `${formatLabel[format]} baixado.`; })}>Baixar {formatLabel[format]}</button>)}
+              {downloadFormats.slice(0, 2).map((format) => <button className="secondary" disabled={Boolean(busy)} key={format} onClick={() => void run(format, async () => { await downloadReport(inventoryId, format); return `${formatLabel[format]} baixado.`; })}>Baixar {formatLabel[format]}</button>)}
+            </div>
+            <h3>Outros formatos</h3>
+            <div className="export-grid">
+              {downloadFormats.slice(2).map((format) => <button className="secondary" disabled={Boolean(busy)} key={format} onClick={() => void run(format, async () => { await downloadReport(inventoryId, format); return `${formatLabel[format]} baixado.`; })}>Baixar {formatLabel[format]}</button>)}
             </div>
           </div>
         </details>

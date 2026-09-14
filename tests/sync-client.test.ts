@@ -36,6 +36,23 @@ it("confirma alterações locais somente após a resposta idempotente do servido
   expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/v1/sync"), expect.objectContaining({ headers: expect.objectContaining({ "X-Inventory-Sync-Token": inventory.syncToken }) }));
 });
 
+it("envia camada nula explicitamente e preserva a ausência de camada recebida", async () => {
+  const inventory = await createInventory("2026-09-14");
+  const entry = await createEntry(inventory.id, { side: "DE", bay: "21", lot: "000456", quantity: 2 });
+  const serverResponse = {
+    ...response(inventory.id, entry.id),
+    entries: response(inventory.id, entry.id).entries.map((remoteEntry) => ({ ...remoteEntry, layer: null })),
+  };
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(serverResponse), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  await syncInventory(inventory.id);
+
+  const requestBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { entries: Array<{ layer: string | null }> };
+  expect(requestBody.entries[0].layer).toBeNull();
+  expect((await db.entries.get(entry.id))?.layer).toBeNull();
+});
+
 it("mantém as duas versões quando o servidor reporta um conflito", async () => {
   const inventory = await createInventory("2026-09-11");
   const entry = await createEntry(inventory.id, { side: "EF", bay: "01", layer: "A1", lot: "100", quantity: 3 });

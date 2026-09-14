@@ -23,6 +23,9 @@ Atualizado em 14/09/2026.
 - Sincronização incremental, idempotência, tombstones e conflitos.
 - Análise de lotes fragmentados.
 - Finalização central irreversível, histórico e exportações PDF, Excel e Word.
+- Exportação `.xls` BIFF8 gerada diretamente no backend e apresentada como padrão para os computadores antigos da equipe.
+- Exportação `.xlsx` moderna preservada, com fonte única de dados, quatro abas na ordem oficial e contratos binários de MIME, nome e tamanho.
+- Exportações Excel, PDF e Word revisadas para incluir resumo, inventário, lotes consolidados, divergências e recomendações sem duplicar a lógica de análise.
 - Compartilhamento nativo e links temporários assinados.
 
 ## Auditoria de manutenção
@@ -67,12 +70,21 @@ Quality Gates: execução `34804812322`, run `#23`.
 - Alembic SQLite: upgrade até `0007`, downgrade até base e novo upgrade aprovados.
 - `pnpm build`: aprovado após todas as alterações.
 
+## Validação das exportações Excel
+
+Branch: `feat/fluxo-acesso-compartilhamento-v1`.
+
+- `xlwt` gera `.xls` diretamente em BIFF8/OLE, sem conversão no navegador ou dependência do LibreOffice.
+- `openpyxl` mantém o `.xlsx` moderno.
+- O endpoint `/api/v1/inventories/{id}/export/excel` usa `.xls` por padrão e aceita `?format=xlsx`.
+- O teste de volume local cobre 100 registros, 95 lotes, 1.269 peças e 4 lotes fragmentados nos quatro formatos.
+- Os testes verificam assinatura OLE, ZIP, abas, filtro BIFF8, MIME, `Content-Disposition`, `Content-Length`, totais iguais e download como Blob.
+- Word permanece em `.docx`; uma variante `.rtf` ou `.doc` ficou fora desta entrega por não haver geração legada segura na estrutura atual.
+
 ## Pendências
 
-- Executar teste funcional de volume com 100 lançamentos no aplicativo publicado.
-- Revisar visualmente e ajustar a formatação do Excel com o inventário de 100 lançamentos.
-- Revisar paginação, quebras e organização do PDF com o inventário de 100 lançamentos.
-- Validar a apresentação do Word com o mesmo conjunto de dados.
+- Publicar o branch e repetir o teste funcional de volume com 100 lançamentos no aplicativo publicado.
+- Fazer conferência visual final dos arquivos em Excel antigo, Excel moderno, PDF e Word no ambiente da equipe.
 - Validar a PWA em Android físico.
 - Validar instalação, cache e compartilhamento em Safari/iPhone físico.
 - Planejar a separação incremental dos routers de `backend/app/main.py` somente junto de nova evolução funcional e cobertura de contrato.
@@ -82,5 +94,6 @@ Quality Gates: execução `34804812322`, run `#23`.
 - Regras vigentes: `docs/REGRAS_NEGOCIO.md`.
 - Arquitetura: `docs/ARQUITETURA.md`.
 - Deploy: `docs/DEPLOY.md`.
+- Exportações: `docs/EXPORTACOES.md`.
 - Especificação histórica: `docs/ESPECIFICACAO_INVENTARIO_V1.md`.
 - Decisão de camadas e duplicidade: `docs/CAMADAS_DUPLICIDADE_V2.md`.

@@ -49,7 +49,7 @@ flowchart TD
 
 ## Análise e relatórios
 
-`backend/app/engine.py` recebe lançamentos e produz classificações determinísticas. `backend/app/reports.py` cria um único modelo consolidado e deriva Excel, PDF e Word desse modelo. A finalização salva o snapshot oficial e bloqueia novas mutações.
+`backend/app/engine.py` recebe lançamentos e produz classificações determinísticas. `backend/app/reports.py` prepara a fonte única em `build_inventory_report_data()` e deriva `.xls` BIFF8, `.xlsx`, PDF e Word desse modelo. A finalização salva o snapshot oficial e bloqueia novas mutações. Os detalhes do contrato de exportação estão em `docs/EXPORTACOES.md`.
 
 ## Banco e migrations
 

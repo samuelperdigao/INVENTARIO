@@ -65,4 +65,18 @@ describe("repositório IndexedDB", () => {
     expect(validateEntryDraft({ side: "EF", bay: "1", lot: "0007", quantity: 1 })).toBeUndefined();
     expect(validateEntryDraft({ side: "EF", bay: "1", layer: "A10", lot: "0007", quantity: 1 })).toBeUndefined();
   });
+
+  it("permite adicionar e remover camada na edição sem mudar a regra de duplicidade", async () => {
+    const inventory = await createInventory("2026-09-14");
+    const created = await createEntry(inventory.id, { side: "EF", bay: "15", lot: "0008", quantity: 4 });
+
+    await expect(createEntry(inventory.id, { side: "DE", bay: "21", layer: "A1", lot: "0008", quantity: 1 }))
+      .rejects.toBeInstanceOf(DuplicateLotError);
+
+    const withLayer = await updateEntry(created.id, { side: "EF", bay: "15", layer: "A3", lot: "0008", quantity: 4 });
+    expect(withLayer.layer).toBe("A3");
+
+    const withoutLayer = await updateEntry(withLayer.id, { side: "EF", bay: "15", layer: null, lot: "0008", quantity: 4 });
+    expect(withoutLayer.layer).toBeUndefined();
+  });
 });

@@ -3,7 +3,8 @@
 import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedSession } from "@/lib/auth-client";
 
-export type ReportFormat = "pdf" | "xlsx" | "docx";
+export type ReportFormat = "xls" | "xlsx" | "pdf" | "docx";
+export type ShareableReportFormat = "xlsx" | "pdf" | "docx";
 export type ShareReportResult = "shared" | "cancelled" | "unsupported";
 export type PreparedShareResources = {
   pdf?: File;
@@ -12,14 +13,16 @@ export type PreparedShareResources = {
 };
 
 const mediaTypes: Record<ReportFormat, string> = {
+  xls: "application/vnd.ms-excel",
   pdf: "application/pdf",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 };
 
 const formatLabels: Record<ReportFormat, string> = {
+  xls: "Excel compatível (.xls)",
+  xlsx: "Excel moderno (.xlsx)",
   pdf: "PDF",
-  xlsx: "Excel",
   docx: "Word",
 };
 
@@ -61,7 +64,10 @@ async function authHeaders(syncToken?: string): Promise<Record<string, string>> 
 export async function fetchReportFile(inventoryId: string, format: ReportFormat, syncToken?: string): Promise<File> {
   let response: Response;
   try {
-    response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventoryId}/exports/${format}`, {
+    const path = format === "xls" || format === "xlsx"
+      ? `/api/v1/inventories/${inventoryId}/export/excel?format=${format}`
+      : `/api/v1/inventories/${inventoryId}/exports/${format}`;
+    response = await fetch(`${apiBaseUrl}${path}`, {
       credentials: "include",
       headers: await authHeaders(syncToken),
     });

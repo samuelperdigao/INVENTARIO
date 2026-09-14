@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 const pythonExecutable = process.platform === "win32" ? "backend\\.venv\\Scripts\\python.exe" : "backend/.venv/bin/python";
 
@@ -18,4 +18,5 @@ export async function login(page: Page, email: string): Promise<void> {
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha").fill("senha-segura-123");
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await expect(page.getByText(/Bem-vindo\(a\)/)).toBeVisible({ timeout: 30_000 });
 }

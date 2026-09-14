@@ -35,7 +35,7 @@ export interface InventoryEntry extends LocalRecord {
   side: Side;
   bay: string;
   /** A camada é opcional; quando informada deve estar entre A1 e A10. */
-  layer?: InventoryLayer;
+  layer?: InventoryLayer | null;
   lot: string;
   quantity: number;
   createdByUserId?: string;
@@ -46,7 +46,7 @@ export interface InventoryEntry extends LocalRecord {
 export interface EntryDraft {
   side: Side;
   bay: string;
-  layer?: InventoryLayer;
+  layer?: InventoryLayer | null;
   lot: string;
   quantity: number;
 }
@@ -54,7 +54,7 @@ export interface EntryDraft {
 export interface AnalysisLocation {
   side: Side;
   bay: string;
-  layer?: InventoryLayer;
+  layer?: InventoryLayer | null;
   quantity: number;
 }
 

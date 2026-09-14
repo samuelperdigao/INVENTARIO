@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 import {
+  fetchReportFile,
   prepareResourcesForSharing,
   reportErrorMessage,
   sharePreparedResource,
@@ -38,6 +39,21 @@ it("prepara PDF como arquivo e Excel/Word como links", async () => {
   expect(resources.pdf?.name).toBe("Inventario.pdf");
   expect(resources.xlsx).toContain("/backend-api/api/v1/shared/exports/inventory-id/xlsx");
   expect(resources.docx).toContain("/backend-api/api/v1/shared/exports/inventory-id/docx");
+});
+
+it("baixa XLS pelo endpoint legado como Blob, preservando nome, tipo e conteúdo", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(reportResponse("Inventario_2026-09-12.xls", "application/vnd.ms-excel"));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const file = await fetchReportFile("inventory-id", "xls");
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    expect.stringContaining("/api/v1/inventories/inventory-id/export/excel?format=xls"),
+    expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer access-token" }) }),
+  );
+  expect(file.name).toBe("Inventario_2026-09-12.xls");
+  expect(file.type).toBe("application/vnd.ms-excel");
+  expect(file.size).toBeGreaterThan(0);
 });
 
 it("compartilha PDF como arquivo nativo", async () => {

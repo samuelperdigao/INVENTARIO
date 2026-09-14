@@ -63,8 +63,9 @@ Os dois arquivos têm as abas nesta ordem:
 O relatório usa azul escuro `#1F4E78`, azul claro `#D9EAF7`, branco e cinza
 neutro. Divergências recebem preenchimento estático vermelho, laranja ou
 amarelo, e situações regulares recebem verde. O Excel legado mantém cabeçalho
-congelado, área de filtro BIFF8, larguras definidas, impressão em A4,
-quantidades numéricas, lotes como texto e linhas alternadas.
+congelado, larguras definidas, impressão em A4, quantidades numéricas, lotes
+como texto, linhas alternadas, conteúdo centralizado e linhas de grade ocultas.
+Os dois formatos são exportados sem filtros ou menus de filtro nas colunas.
 
 O `.xls` não usa macros, links externos, tabelas estruturadas, fórmulas
 dinâmicas ou recursos do Microsoft 365. Valores e totais são calculados no
@@ -81,8 +82,8 @@ backend/.venv/bin/python -m pytest backend/tests/test_reports.py backend/tests/t
 ```
 
 Os testes verificam assinatura OLE do `.xls`, ZIP válido do `.xlsx`, abas,
-filtros, tamanho, totais iguais, inventário sem divergências e inventário de
-volume com lotes fragmentados.
+ausência de filtros e linhas de grade, tamanho, totais iguais, inventário sem
+divergências e inventário de volume com lotes fragmentados.
 
 ## PDF e Word
 
@@ -90,6 +91,10 @@ PDF e Word usam a mesma fonte de dados dos relatórios Excel. O Word permanece
 em `.docx`, formato moderno já suportado pelo projeto. Uma variante `.rtf` ou
 `.doc` não foi adicionada porque a estrutura atual não oferece uma geração
 legada segura sem introduzir conversão externa ou alterar o fluxo existente.
+
+O PDF é gerado em A4 horizontal para acomodar as tabelas operacionais. As
+colunas de situação, locais encontrados e recomendação têm largura suficiente
+para que lotes fragmentados sejam lidos sem compressão ou quebra excessiva.
 
 O compartilhamento nativo continua oferecendo PDF, `.xlsx` e `.docx` por link
 temporário assinado. O download direto oferece também o `.xls` compatível,

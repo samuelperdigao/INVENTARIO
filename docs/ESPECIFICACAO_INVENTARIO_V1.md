@@ -907,9 +907,10 @@ classificações, aviso visual para fragmentação e observações operacionais.
 ### INVENTÁRIO
 
 Contém lado, vão, camada quando informada, lote como texto e quantidade de
-peças como número. Deve ter cabeçalho azul escuro com texto branco, filtros,
-congelamento do cabeçalho, larguras adequadas, linhas alternadas, destaque de
-DE e EF, total ao final e configuração de impressão em A4.
+peças como número. Deve ter cabeçalho azul escuro com texto branco, sem filtros,
+linhas de grade ocultas, conteúdo centralizado, congelamento do cabeçalho,
+larguras adequadas, linhas alternadas, destaque de DE e EF, total ao final e
+configuração de impressão em A4.
 
 ### LOTES CONSOLIDADOS
 

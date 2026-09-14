@@ -78,7 +78,7 @@ Branch: `feat/fluxo-acesso-compartilhamento-v1`.
 - `openpyxl` mantém o `.xlsx` moderno.
 - O endpoint `/api/v1/inventories/{id}/export/excel` usa `.xls` por padrão e aceita `?format=xlsx`.
 - O teste de volume local cobre 100 registros, 95 lotes, 1.269 peças e 4 lotes fragmentados nos quatro formatos.
-- Os testes verificam assinatura OLE, ZIP, abas, filtro BIFF8, MIME, `Content-Disposition`, `Content-Length`, totais iguais e download como Blob.
+- Os testes verificam assinatura OLE, ZIP, abas, ausência de filtros e linhas de grade, MIME, `Content-Disposition`, `Content-Length`, totais iguais e download como Blob.
 - Word permanece em `.docx`; uma variante `.rtf` ou `.doc` ficou fora desta entrega por não haver geração legada segura na estrutura atual.
 
 ## Pendências

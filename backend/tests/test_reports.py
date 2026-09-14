@@ -45,7 +45,10 @@ def test_xlsx_has_operational_tabs_layer_and_lot_as_text() -> None:
     assert lot_cell.number_format == "@"
     assert inventory.cell(lot_cell.row, 3).value in {"A1", "A2"}
     assert inventory.freeze_panes == "A5"
-    assert inventory.auto_filter.ref == "A4:E14"
+    assert inventory.auto_filter.ref is None
+    assert inventory.sheet_view.showGridLines is False
+    assert inventory.print_options.gridLines is False
+    assert inventory["D5"].alignment.horizontal == "center"
     assert inventory.page_setup.paperSize == 9
     summary = {workbook["RESUMO"].cell(row, 1).value: workbook["RESUMO"].cell(row, 2).value for row in range(5, 22)}
     assert summary["Total de registros"] == 9
@@ -59,7 +62,8 @@ def test_xls_is_biff8_with_same_tabs_and_text_lots() -> None:
     assert content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
     workbook = open_workbook(file_contents=content)
     assert workbook.sheet_names() == ["RESUMO", "INVENTÁRIO", "LOTES CONSOLIDADOS", "DIVERGÊNCIAS"]
-    assert sum(name.name == "_FilterDatabase" for name in workbook.name_obj_list) == 4
+    assert sum(name.name == "_FilterDatabase" for name in workbook.name_obj_list) == 0
+    assert all(not workbook.sheet_by_name(name).show_grid_lines for name in workbook.sheet_names())
     inventory = workbook.sheet_by_name("INVENTÁRIO")
     lot_row = next(row for row in range(inventory.nrows) if inventory.cell_value(row, 3) == "000123")
     assert inventory.cell_type(lot_row, 3) == XL_CELL_TEXT

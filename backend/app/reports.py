@@ -9,13 +9,10 @@ from __future__ import annotations
 from copy import copy
 from datetime import datetime
 from io import BytesIO
-from struct import pack
 from typing import Any, Iterable
-from types import MethodType
 from xml.sax.saxutils import escape
 
 import xlwt
-from xlwt import BIFFRecords
 from docx import Document
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -28,7 +25,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.page import PageMargins
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -299,11 +296,7 @@ def _xlsx_add_sheet(
             cell.font = row_font
             cell.fill = row_fill
             cell.border = border
-            cell.alignment = Alignment(
-                horizontal="right" if column_index in number_columns else "left",
-                vertical="center",
-                wrap_text=True,
-            )
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
             if column_index in text_columns:
                 cell.number_format = "@"
             elif column_index in number_columns:
@@ -316,9 +309,9 @@ def _xlsx_add_sheet(
         sheet.row_dimensions[row_number].height = 26 if any(len(str(value or "")) > 34 for value in values) else 20
 
     last_row = max(header_row, header_row + len(rows))
-    sheet.auto_filter.ref = f"A{header_row}:{last_letter}{last_row}"
     sheet.freeze_panes = "A5"
     sheet.sheet_view.showGridLines = False
+    sheet.print_options.gridLines = False
     for column_index, width in enumerate(widths, start=1):
         sheet.column_dimensions[get_column_letter(column_index)].width = width
     sheet.sheet_properties.pageSetUpPr.fitToPage = True
@@ -419,15 +412,15 @@ def _xls_styles() -> dict[str, xlwt.XFStyle]:
         "header": xlwt.easyxf(
             f"font: name Arial, height 200, bold on, colour white; pattern: pattern solid, fore_colour dark_blue; align: horiz center, vert centre, wrap on; {border}"
         ),
-        "body": xlwt.easyxf(f"font: name Arial, height 200; align: horiz left, vert centre, wrap on; {border}"),
-        "body_alt": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour pale_blue; align: horiz left, vert centre, wrap on; {border}"),
+        "body": xlwt.easyxf(f"font: name Arial, height 200; align: horiz center, vert centre, wrap on; {border}"),
+        "body_alt": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour pale_blue; align: horiz center, vert centre, wrap on; {border}"),
         "body_de": xlwt.easyxf(f"font: name Arial, height 200, bold on, colour dark_blue; pattern: pattern solid, fore_colour pale_blue; align: horiz center, vert centre; {border}"),
         "body_ef": xlwt.easyxf(f"font: name Arial, height 200, bold on, colour dark_blue; pattern: pattern solid, fore_colour ice_blue; align: horiz center, vert centre; {border}"),
-        "total": xlwt.easyxf(f"font: name Arial, height 200, bold on, colour white; pattern: pattern solid, fore_colour dark_blue; align: horiz left, vert centre; {border}"),
-        "alert_red": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour rose; align: horiz left, vert centre, wrap on; {border}"),
-        "alert_orange": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour light_orange; align: horiz left, vert centre, wrap on; {border}"),
-        "alert_yellow": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour light_yellow; align: horiz left, vert centre, wrap on; {border}"),
-        "good": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour light_green; align: horiz left, vert centre, wrap on; {border}"),
+        "total": xlwt.easyxf(f"font: name Arial, height 200, bold on, colour white; pattern: pattern solid, fore_colour dark_blue; align: horiz center, vert centre; {border}"),
+        "alert_red": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour rose; align: horiz center, vert centre, wrap on; {border}"),
+        "alert_orange": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour light_orange; align: horiz center, vert centre, wrap on; {border}"),
+        "alert_yellow": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour light_yellow; align: horiz center, vert centre, wrap on; {border}"),
+        "good": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour light_green; align: horiz center, vert centre, wrap on; {border}"),
     }
     for name in ("body", "body_alt", "total", "alert_red", "alert_orange", "alert_yellow", "good"):
         numeric = copy(styles[name])
@@ -499,74 +492,16 @@ def _xls_add_sheet(
             sheet.write(row_number, column_index, value, style)
         sheet.row(row_number).height = 360 if any(len(str(value or "")) > 34 for value in values) else 300
 
-    last_row = max(3, 3 + len(rows))
-    # xlwt does not expose the BIFF8 AutoFilter record, so it is attached
-    # explicitly below while keeping the workbook within the legacy feature set.
     sheet.set_panes_frozen(True)
     sheet.set_horz_split_pos(4)
     sheet.set_vert_split_pos(0)
+    sheet.show_grid = False
+    sheet.print_grid = False
     sheet.set_portrait(not landscape)
     sheet.set_paper_size_code(9)  # A4 no catálogo BIFF8.
     sheet.set_fit_width_to_pages(1)
     sheet.set_fit_height_to_pages(0)
     sheet.set_print_scaling(85)
-    _xls_attach_autofilter(sheet, len(headers), last_row)
-
-
-def _biff_record(record_id: int, data: bytes) -> bytes:
-    return pack("<HH", record_id, len(data)) + data
-
-
-def _xls_attach_autofilter(sheet: Any, column_count: int, last_row: int) -> None:
-    """Anexa registros AutoFilterInfo/AutoFilter ausentes na API do xlwt."""
-
-    original_get_biff_data = sheet.get_biff_data
-    info = _biff_record(0x009D, pack("<H", column_count))
-    empty_operator = bytes((0, 0)) + (b"\x00" * 8)
-    filters = b"".join(
-        _biff_record(0x009E, pack("<HH", column_index, 0) + empty_operator + empty_operator)
-        for column_index in range(column_count)
-    )
-    eof = BIFFRecords.EOFRecord().get()
-
-    def get_biff_data_with_autofilter(self: Any) -> bytes:
-        data = original_get_biff_data()
-        if not data.endswith(eof):
-            raise RuntimeError("A planilha BIFF8 não terminou com EOF válido.")
-        return data[: -len(eof)] + info + filters + eof
-
-    sheet.get_biff_data = MethodType(get_biff_data_with_autofilter, sheet)
-
-
-def _xls_install_filter_names(workbook: xlwt.Workbook, last_rows: list[int], last_columns: list[int]) -> None:
-    """Define _FilterDatabase local para que o Excel antigo mostre os filtros."""
-
-    if len(last_rows) != len(last_columns):
-        raise ValueError("A configuração dos filtros BIFF8 está inconsistente.")
-    # xlwt não oferece nomes definidos, mas mantém os registros de links
-    # internos em atributos estáveis. O filtro BIFF8 exige um _FilterDatabase
-    # local por planilha apontando para a área que começa no cabeçalho.
-    workbook._supbook_xref[('ownbook', 0)] = 0
-    workbook._Workbook__sheet_refs.clear()
-    for sheet_index in range(len(last_rows)):
-        workbook._Workbook__sheet_refs[(0, sheet_index, sheet_index)] = sheet_index
-
-    names = b""
-    for sheet_index, (last_row, last_column) in enumerate(zip(last_rows, last_columns)):
-        rpn = pack("<BHHHHH", 0x5B, sheet_index, 3, last_row, 0, last_column)
-        payload = (
-            pack("<HBBHHHBBBB", 0x20, 0, 1, len(rpn), 0, sheet_index + 1, 0, 0, 0, 0)
-            + b"\x00\x0d"
-            + rpn
-        )
-        names += _biff_record(0x0018, payload)
-
-    original_links = workbook._Workbook__all_links_rec
-
-    def all_links_with_filter_names(self: Any) -> bytes:
-        return original_links() + names
-
-    workbook._Workbook__all_links_rec = MethodType(all_links_with_filter_names, workbook)
 
 
 def generate_xls_report(report: dict[str, Any]) -> bytes:
@@ -632,16 +567,6 @@ def generate_xls_report(report: dict[str, Any]) -> bytes:
         number_columns={2, 4},
         row_kinds=divergence_kinds,
     )
-    _xls_install_filter_names(
-        workbook,
-        [
-            3 + len(_summary_rows(report)),
-            3 + len(inventory_rows),
-            3 + len(report["lots"]),
-            3 + len(divergence_rows),
-        ],
-        [1, 4, 6, 6],
-    )
     buffer = BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()
@@ -659,7 +584,16 @@ def _pdf_value(value: object) -> str:
 
 def _pdf_table(rows: list[list[object]], widths: list[float], row_kinds: list[str] | None = None) -> Table:
     styles = getSampleStyleSheet()
-    cell_style = ParagraphStyle("report-cell", parent=styles["BodyText"], fontName="Helvetica", fontSize=7.5, leading=9, alignment=TA_LEFT, spaceAfter=0)
+    cell_style = ParagraphStyle(
+        "report-cell",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=8,
+        leading=10,
+        alignment=TA_LEFT,
+        spaceAfter=0,
+        splitLongWords=0,
+    )
     header_style = ParagraphStyle("report-header", parent=cell_style, fontName="Helvetica-Bold", textColor=colors.white, alignment=TA_LEFT)
     rendered = [
         [Paragraph(_pdf_value(value), header_style if row_index == 0 else cell_style) for value in row]
@@ -688,13 +622,14 @@ def _pdf_table(rows: list[list[object]], widths: list[float], row_kinds: list[st
 
 
 def _pdf_page_frame(canvas: Any, document: Any) -> None:
+    page_width, page_height = document.pagesize
     canvas.saveState()
     canvas.setStrokeColor(colors.HexColor(f"#{GREY_BORDER}"))
-    canvas.line(document.leftMargin, A4[1] - 1.35 * cm, A4[0] - document.rightMargin, A4[1] - 1.35 * cm)
+    canvas.line(document.leftMargin, page_height - 1.35 * cm, page_width - document.rightMargin, page_height - 1.35 * cm)
     canvas.setFont("Helvetica", 7)
     canvas.setFillColor(colors.HexColor(f"#{BLUE_DARK}"))
-    canvas.drawString(document.leftMargin, A4[1] - 1.05 * cm, "INVENTÁRIO · RELATÓRIO OFICIAL")
-    canvas.drawRightString(A4[0] - document.rightMargin, 0.75 * cm, f"Página {canvas.getPageNumber()}")
+    canvas.drawString(document.leftMargin, page_height - 1.05 * cm, "INVENTÁRIO · RELATÓRIO OFICIAL")
+    canvas.drawRightString(page_width - document.rightMargin, 0.75 * cm, f"Página {canvas.getPageNumber()}")
     canvas.restoreState()
 
 
@@ -707,11 +642,11 @@ def export_pdf(report: dict[str, Any]) -> bytes:
     note_style = ParagraphStyle("report-note", parent=styles["BodyText"], fontSize=9, leading=12, spaceBefore=5, spaceAfter=5)
     document = SimpleDocTemplate(
         buffer,
-        pagesize=A4,
+        pagesize=landscape(A4),
         leftMargin=1.3 * cm,
         rightMargin=1.3 * cm,
-        topMargin=1.8 * cm,
-        bottomMargin=1.4 * cm,
+        topMargin=1.7 * cm,
+        bottomMargin=1.3 * cm,
     )
     summary_rows = [["Indicador", "Valor"]] + [[label, value] for label, value in _summary_rows(report)]
     inventory_rows = [["Lado", "Vão", "Camada", "Lote", "Quantidade de peças"]]
@@ -732,26 +667,26 @@ def export_pdf(report: dict[str, Any]) -> bytes:
         Paragraph("Relatório de Inventário", heading_style),
         Paragraph(f"{_report_subtitle(report)} · Gerado em: {report['generatedAt']}", subtitle_style),
         Paragraph("Resumo geral", heading_style),
-        _pdf_table(summary_rows, [10.3 * cm, 7.9 * cm]),
+        _pdf_table(summary_rows, [14.5 * cm, 11.5 * cm]),
         Paragraph("Observação operacional", heading_style),
         Paragraph(str(dict(_summary_rows(report))["Observações importantes"]), note_style),
         Spacer(1, 0.15 * cm),
         Paragraph("Inventário", heading_style),
         _pdf_table(
             inventory_rows,
-            [1.5 * cm, 1.45 * cm, 2.0 * cm, 7.0 * cm, 2.25 * cm],
+            [2.0 * cm, 2.0 * cm, 2.4 * cm, 15.0 * cm, 4.0 * cm],
             [str(record["side"]) for record in report["records"]] + ["total"],
         ),
         PageBreak(),
         Paragraph("Lotes consolidados", heading_style),
         _pdf_table(
             lot_rows,
-            [1.55 * cm, 1.75 * cm, 2.1 * cm, 2.15 * cm, 3.9 * cm, 2.55 * cm, 4.0 * cm],
+            [1.8 * cm, 2.2 * cm, 2.5 * cm, 2.6 * cm, 5.2 * cm, 4.2 * cm, 7.0 * cm],
             [str(lot["classification"]) for lot in report["lots"]],
         ),
         PageBreak(),
         Paragraph("Divergências e recomendações", heading_style),
-        _pdf_table(divergence_rows, [1.55 * cm, 2.7 * cm, 1.2 * cm, 2.7 * cm, 1.2 * cm, 2.7 * cm, 5.7 * cm], divergence_kinds),
+        _pdf_table(divergence_rows, [1.8 * cm, 4.7 * cm, 1.5 * cm, 4.7 * cm, 1.5 * cm, 4.0 * cm, 7.4 * cm], divergence_kinds),
     ]
     document.build(story, onFirstPage=_pdf_page_frame, onLaterPages=_pdf_page_frame)
     return buffer.getvalue()

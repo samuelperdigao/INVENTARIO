@@ -74,7 +74,10 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
     expected_tabs = ["RESUMO", "INVENTÁRIO", "LOTES CONSOLIDADOS", "DIVERGÊNCIAS"]
     assert legacy.sheet_names() == expected_tabs
     assert modern.sheetnames == expected_tabs
-    assert sum(name.name == "_FilterDatabase" for name in legacy.name_obj_list) == 4
+    assert sum(name.name == "_FilterDatabase" for name in legacy.name_obj_list) == 0
+    assert all(not legacy.sheet_by_name(name).show_grid_lines for name in expected_tabs)
+    assert all(modern[name].sheet_view.showGridLines is False for name in expected_tabs)
+    assert all(modern[name].auto_filter.ref is None for name in expected_tabs)
 
     legacy_summary = _xls_summary(legacy)
     modern_summary = _xlsx_summary(modern)
@@ -106,7 +109,9 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
     assert any(legacy_divergences.cell_value(row, 0) == "900001" for row in range(4, legacy_divergences.nrows))
     assert any(modern_divergences.cell(row, 1).value == "900001" for row in range(5, modern_divergences.max_row + 1))
 
-    pdf_text = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages)
+    pdf_reader = PdfReader(BytesIO(pdf))
+    pdf_text = "".join(page.extract_text() or "" for page in pdf_reader.pages)
+    assert pdf_reader.pages[0].mediabox.width > pdf_reader.pages[0].mediabox.height
     assert "900001" in pdf_text
     assert "910090" in pdf_text
     assert "PEÇA_SOLTEIRA" in pdf_text

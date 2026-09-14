@@ -28,19 +28,25 @@ from app.persistence import (
     InventoryEntryRow, InventoryParticipantRow, InventoryRow,
     ParticipationAttemptRow, TeamMemberRow, TeamRow, UserRow,
 )
-from app.reports import build_consolidated_report, export_docx, export_pdf, export_xlsx
+from app.reports import build_consolidated_report, export_docx, export_pdf, export_xls, export_xlsx
 from app.schemas import (
     AddTeamMemberRequest, AnalysisPreviewRequest, AnalysisReport, AuthResponse,
     AuthenticatedUser, ConfigureRecoveryPinRequest, ConfirmPasswordResetRequest, CreateTeamRequest,
     EmailReportRequest, FinalizeInventoryRequest, InventoryHistoryItem, JoinInventoryRequest,
-    JoinInventoryResponse, LoginRequest, MessageResponse, RegisterRequest, SyncRequest,
+    JoinInventoryResponse, LoginRequest, MessageResponse, RegisterRequest, SyncEntry, SyncRequest,
     SyncResponse,
+)
+from app.share_service import (
+    SHAREABLE_FORMATS,
+    create_export_share_signature,
+    validate_export_share_signature,
 )
 from app.sync_service import (
     SyncAuthorizationError,
     SyncFinalizationRequiredError,
     SyncFinalizedError,
     SyncNotFoundError,
+    _entry_record,
     synchronize,
 )
 
@@ -50,8 +56,6 @@ REFRESH_COOKIE = "inventory_refresh"
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # SQLite é somente conveniência local; PostgreSQL é preparado somente por
-    # Alembic antes de iniciar o processo de produção.
     if database_url().startswith("sqlite"):
         Base.metadata.create_all(engine)
     yield
@@ -82,8 +86,12 @@ async def security_headers(request, call_next):
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
     response.set_cookie(
-        key=REFRESH_COOKIE, value=token, httponly=True, secure=settings.is_production,
-        samesite="strict", max_age=settings.refresh_session_days * 24 * 60 * 60,
+        key=REFRESH_COOKIE,
+        value=token,
+        httponly=True,
+        secure=settings.is_production,
+        samesite="strict",
+        max_age=settings.refresh_session_days * 24 * 60 * 60,
         path="/",
     )
 
@@ -210,7 +218,8 @@ def login(payload: LoginRequest, response: Response, session: Session = Depends(
 
 @app.post("/api/v1/auth/refresh", response_model=AuthResponse)
 def refresh(
-    response: Response, refresh_token: Annotated[str | None, Cookie(alias=REFRESH_COOKIE)] = None,
+    response: Response,
+    refresh_token: Annotated[str | None, Cookie(alias=REFRESH_COOKIE)] = None,
     session: Session = Depends(get_session),
 ) -> dict[str, object]:
     if not refresh_token:
@@ -222,7 +231,8 @@ def refresh(
 
 @app.post("/api/v1/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
-    response: Response, refresh_token: Annotated[str | None, Cookie(alias=REFRESH_COOKIE)] = None,
+    response: Response,
+    refresh_token: Annotated[str | None, Cookie(alias=REFRESH_COOKIE)] = None,
     session: Session = Depends(get_session),
 ) -> Response:
     if refresh_token:
@@ -238,7 +248,11 @@ def me(user: UserRow = Depends(get_current_user), session: Session = Depends(get
 
 
 @app.post("/api/v1/teams", response_model=AuthenticatedUser, status_code=status.HTTP_201_CREATED)
-def create_team(payload: CreateTeamRequest, user: UserRow = Depends(get_current_user), session: Session = Depends(get_session)) -> dict[str, object]:
+def create_team(
+    payload: CreateTeamRequest,
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict[str, object]:
     now = datetime.now(timezone.utc)
     team = TeamRow(id=str(uuid4()), name=payload.name.strip(), created_by_user_id=user.id, created_at=now)
     membership = TeamMemberRow(id=str(uuid4()), team_id=team.id, user_id=user.id, role="ADMIN", created_at=now)
@@ -250,14 +264,27 @@ def create_team(payload: CreateTeamRequest, user: UserRow = Depends(get_current_
 
 
 @app.post("/api/v1/teams/{team_id}/members", response_model=AuthenticatedUser)
-def add_team_member(team_id: str, payload: AddTeamMemberRequest, user: UserRow = Depends(get_current_user), session: Session = Depends(get_session)) -> dict[str, object]:
+def add_team_member(
+    team_id: str,
+    payload: AddTeamMemberRequest,
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict[str, object]:
     require_team_admin(session, user.id, team_id)
     target = session.scalar(select(UserRow).where(UserRow.email == normalize_email(payload.email)))
     if target is None:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
     if session.scalar(select(TeamMemberRow).where(TeamMemberRow.team_id == team_id, TeamMemberRow.user_id == target.id)):
         raise HTTPException(status_code=409, detail="Este usuário já pertence à equipe.")
-    session.add(TeamMemberRow(id=str(uuid4()), team_id=team_id, user_id=target.id, role=payload.role, created_at=datetime.now(timezone.utc)))
+    session.add(
+        TeamMemberRow(
+            id=str(uuid4()),
+            team_id=team_id,
+            user_id=target.id,
+            role=payload.role,
+            created_at=datetime.now(timezone.utc),
+        )
+    )
     session.commit()
     return user_payload(session, user)
 
@@ -265,8 +292,12 @@ def add_team_member(team_id: str, payload: AddTeamMemberRequest, user: UserRow =
 @app.post("/api/v1/analysis/preview", response_model=AnalysisReport)
 def preview_analysis(payload: AnalysisPreviewRequest) -> dict[str, object]:
     return analyze_entries(
-        inventory_id=str(payload.inventory.id), revision=payload.inventory.revision,
-        entries=(AnalysisEntry(side=entry.side, bay=entry.bay, lot=entry.lot, quantity=entry.quantity) for entry in payload.entries),
+        inventory_id=str(payload.inventory.id),
+        revision=payload.inventory.revision,
+        entries=(
+            AnalysisEntry(side=entry.side, bay=entry.bay, layer=entry.layer, lot=entry.lot, quantity=entry.quantity)
+            for entry in payload.entries
+        ),
     )
 
 
@@ -290,6 +321,7 @@ def _valid_inventory_token(session: Session, inventory: InventoryRow, user: User
         return False
     from app.sync_service import _hash_token
     import hmac
+
     token_hash = _hash_token(sync_token)
     if hmac.compare_digest(inventory.sync_token_hash, token_hash):
         return True
@@ -311,13 +343,36 @@ def _inventory_access(
     require_token: bool = False,
 ) -> InventoryRow:
     inventory = session.get(InventoryRow, inventory_id)
-    if inventory is None or inventory.team_id is None:
+    if inventory is None:
         raise HTTPException(status_code=404, detail="Inventário central não encontrado.")
     if not _authorized_for_inventory(session, inventory, user):
         raise HTTPException(status_code=404, detail="Inventário central não encontrado.")
     if (require_token or inventory.status != "FINISHED") and not _valid_inventory_token(session, inventory, user, sync_token):
         raise HTTPException(status_code=403, detail="Código de sincronização inválido.")
     return inventory
+
+
+@app.get("/api/v1/inventories/{inventory_id}/lots/{lot}", response_model=list[SyncEntry])
+def inventory_lot_matches(
+    inventory_id: str,
+    lot: str,
+    exclude_entry_id: str | None = Query(default=None, alias="excludeEntryId"),
+    sync_token: str = Header(min_length=32, alias="X-Inventory-Sync-Token"),
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> list[dict[str, object]]:
+    if not lot.isdigit() or len(lot) > 255:
+        raise HTTPException(status_code=422, detail="O lote deve conter somente números.")
+    inventory = _inventory_access(session, inventory_id, user, sync_token, require_token=True)
+    statement = select(InventoryEntryRow).where(
+        InventoryEntryRow.inventory_id == inventory.id,
+        InventoryEntryRow.lot == lot,
+        InventoryEntryRow.tombstone.is_(False),
+    )
+    if exclude_entry_id:
+        statement = statement.where(InventoryEntryRow.id != exclude_entry_id)
+    rows = session.scalars(statement.order_by(InventoryEntryRow.created_at)).all()
+    return [_entry_record(session, row) for row in rows]
 
 
 def _central_report(session: Session, inventory: InventoryRow) -> dict[str, object]:
@@ -330,8 +385,13 @@ def _central_report(session: Session, inventory: InventoryRow) -> dict[str, obje
         )
     ).all()
     return build_consolidated_report(
-        inventory.id, inventory.date.isoformat(), inventory.revision,
-        (AnalysisEntry(side=row.side, bay=row.bay, lot=row.lot, quantity=row.quantity) for row in rows),
+        inventory.id,
+        inventory.date.isoformat(),
+        inventory.revision,
+        (
+            AnalysisEntry(side=row.side, bay=row.bay, layer=row.layer, lot=row.lot, quantity=row.quantity)
+            for row in rows
+        ),
     )
 
 
@@ -349,6 +409,44 @@ def _history_item(inventory: InventoryRow) -> dict[str, object]:
     }
 
 
+def _export_response(report: dict[str, object], format_name: str) -> Response:
+    date_value = str(report["inventoryDate"])
+    suffix = date_value[:10]
+    try:
+        if format_name == "xls":
+            content = export_xls(report)
+            media_type = "application/vnd.ms-excel"
+            extension = "xls"
+        elif format_name == "xlsx":
+            content = export_xlsx(report)
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            extension = "xlsx"
+        elif format_name == "pdf":
+            content = export_pdf(report)
+            media_type = "application/pdf"
+            extension = "pdf"
+        elif format_name == "docx":
+            content = export_docx(report)
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            extension = "docx"
+        else:
+            raise HTTPException(status_code=404, detail="Formato de exportação não encontrado.")
+    except HTTPException:
+        raise
+    except Exception as cause:
+        raise HTTPException(status_code=500, detail="Não foi possível gerar o arquivo de exportação.") from cause
+    if not isinstance(content, bytes) or not content:
+        raise HTTPException(status_code=500, detail="A exportação gerou um arquivo vazio.")
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="Inventario_{suffix}.{extension}"',
+            "Content-Length": str(len(content)),
+        },
+    )
+
+
 @app.post("/api/v1/inventories/{inventory_id}/finalize", response_model=InventoryHistoryItem)
 def finalize_inventory(
     inventory_id: str,
@@ -362,13 +460,24 @@ def finalize_inventory(
         return _history_item(inventory)
     if payload.revision != inventory.revision:
         raise HTTPException(status_code=409, detail="O inventário central mudou; sincronize antes de finalizar.")
-    rows = session.scalars(select(InventoryEntryRow).where(InventoryEntryRow.inventory_id == inventory.id, InventoryEntryRow.tombstone.is_(False))).all()
+    rows = session.scalars(
+        select(InventoryEntryRow).where(
+            InventoryEntryRow.inventory_id == inventory.id,
+            InventoryEntryRow.tombstone.is_(False),
+        )
+    ).all()
     if not rows:
         raise HTTPException(status_code=422, detail="Registre ao menos um lançamento antes de finalizar.")
     now = datetime.now(timezone.utc)
     inventory.report_snapshot = build_consolidated_report(
-        inventory.id, inventory.date.isoformat(), inventory.revision + 1,
-        (AnalysisEntry(side=row.side, bay=row.bay, lot=row.lot, quantity=row.quantity) for row in rows), now,
+        inventory.id,
+        inventory.date.isoformat(),
+        inventory.revision + 1,
+        (
+            AnalysisEntry(side=row.side, bay=row.bay, layer=row.layer, lot=row.lot, quantity=row.quantity)
+            for row in rows
+        ),
+        now,
     )
     inventory.status = "FINISHED"
     inventory.finalized_at = now
@@ -377,6 +486,7 @@ def finalize_inventory(
     inventory.updated_at = now
     inventory.revision += 1
     from app.sync_service import _append_event
+
     _append_event(session, inventory.id, "inventory", inventory.id)
     session.commit()
     return _history_item(inventory)
@@ -396,13 +506,15 @@ def inventory_history(
         require_team_member(session, user.id, team_id)
         statement = statement.where(InventoryRow.team_id == team_id)
     else:
-        statement = statement.where(or_(
-            InventoryRow.owner_user_id == user.id,
-            exists().where(
-                InventoryParticipantRow.inventory_id == InventoryRow.id,
-                InventoryParticipantRow.user_id == user.id,
-            ),
-        ))
+        statement = statement.where(
+            or_(
+                InventoryRow.owner_user_id == user.id,
+                exists().where(
+                    InventoryParticipantRow.inventory_id == InventoryRow.id,
+                    InventoryParticipantRow.user_id == user.id,
+                ),
+            )
+        )
     rows = session.scalars(statement.order_by(InventoryRow.finalized_at.desc())).all()
     result = []
     for row in rows:
@@ -434,17 +546,73 @@ def inventory_export(
     session: Session = Depends(get_session),
 ) -> Response:
     report = _central_report(session, _inventory_access(session, inventory_id, user, sync_token))
-    date_value = str(report["inventoryDate"])
-    suffix = f"{date_value[8:10]}-{date_value[5:7]}-{date_value[0:4]}"
-    if format_name == "xlsx":
-        content, media_type, extension = export_xlsx(report), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"
-    elif format_name == "pdf":
-        content, media_type, extension = export_pdf(report), "application/pdf", "pdf"
-    elif format_name == "docx":
-        content, media_type, extension = export_docx(report), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"
-    else:
-        raise HTTPException(status_code=404, detail="Formato de exportação não encontrado.")
-    return Response(content=content, media_type=media_type, headers={"Content-Disposition": f'attachment; filename="Inventario_{suffix}.{extension}"'})
+    return _export_response(report, format_name)
+
+
+@app.get("/api/v1/inventories/{inventory_id}/export/excel")
+def inventory_excel_export(
+    inventory_id: str,
+    format: str = Query(default="xls", pattern="^(xls|xlsx)$"),
+    sync_token: str | None = Header(default=None, min_length=32, alias="X-Inventory-Sync-Token"),
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Atalho compatível; o formato legado XLS é o padrão da equipe."""
+
+    report = _central_report(session, _inventory_access(session, inventory_id, user, sync_token))
+    return _export_response(report, format)
+
+
+@app.post("/api/v1/inventories/{inventory_id}/share-links/{format_name}")
+def create_inventory_share_link(
+    inventory_id: str,
+    format_name: str,
+    sync_token: str | None = Header(default=None, min_length=32, alias="X-Inventory-Sync-Token"),
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict[str, str | int]:
+    inventory = _inventory_access(session, inventory_id, user, sync_token)
+    if inventory.status != "FINISHED":
+        raise HTTPException(status_code=409, detail="Finalize o inventário antes de compartilhar o arquivo.")
+    if format_name not in SHAREABLE_FORMATS:
+        raise HTTPException(status_code=404, detail="Formato de compartilhamento não encontrado.")
+    expires, signature = create_export_share_signature(
+        settings,
+        inventory_id=inventory.id,
+        format_name=format_name,
+    )
+    path = (
+        f"/api/v1/shared/exports/{inventory.id}/{format_name}"
+        f"?expires={expires}&signature={signature}"
+    )
+    return {"path": path, "expires": expires}
+
+
+@app.get("/api/v1/shared/exports/{inventory_id}/{format_name}")
+def shared_inventory_export(
+    inventory_id: str,
+    format_name: str,
+    expires: int = Query(),
+    signature: str = Query(min_length=64, max_length=64),
+    session: Session = Depends(get_session),
+) -> Response:
+    if not validate_export_share_signature(
+        settings,
+        inventory_id=inventory_id,
+        format_name=format_name,
+        expires=expires,
+        signature=signature,
+    ):
+        raise HTTPException(status_code=404, detail="Link de compartilhamento inválido ou expirado.")
+    inventory = session.get(InventoryRow, inventory_id)
+    if (
+        inventory is None
+        or inventory.status != "FINISHED"
+        or inventory.tombstone
+        or inventory.report_snapshot is None
+    ):
+        raise HTTPException(status_code=404, detail="Arquivo compartilhado não encontrado.")
+    return _export_response(inventory.report_snapshot, format_name)
 
 
 @app.post("/api/v1/inventories/join", response_model=JoinInventoryResponse)
@@ -465,30 +633,43 @@ def join_inventory(
     if len(recent_failures) >= 10:
         raise HTTPException(status_code=429, detail="Muitas tentativas. Aguarde 15 minutos para tentar novamente.")
 
-    inventory = session.scalar(select(InventoryRow).where(
-        InventoryRow.participation_code == payload.code,
-        InventoryRow.status == "OPEN",
-        InventoryRow.tombstone.is_(False),
-    ))
+    inventory = session.scalar(
+        select(InventoryRow).where(
+            InventoryRow.participation_code == payload.code,
+            InventoryRow.status == "OPEN",
+            InventoryRow.tombstone.is_(False),
+        )
+    )
     attempt_hash = hashlib.sha256(payload.code.encode("ascii")).hexdigest()
-    session.add(ParticipationAttemptRow(
-        id=str(uuid4()), user_id=user.id, code_hash=attempt_hash,
-        successful=inventory is not None, created_at=now,
-    ))
+    session.add(
+        ParticipationAttemptRow(
+            id=str(uuid4()),
+            user_id=user.id,
+            code_hash=attempt_hash,
+            successful=inventory is not None,
+            created_at=now,
+        )
+    )
     if inventory is None:
         session.commit()
         raise HTTPException(status_code=404, detail="Código inválido ou inventário já finalizado.")
 
     access_token = secrets.token_urlsafe(48)
     token_hash = hashlib.sha256(access_token.encode("utf-8")).hexdigest()
-    participant = session.scalar(select(InventoryParticipantRow).where(
-        InventoryParticipantRow.inventory_id == inventory.id,
-        InventoryParticipantRow.user_id == user.id,
-    ))
+    participant = session.scalar(
+        select(InventoryParticipantRow).where(
+            InventoryParticipantRow.inventory_id == inventory.id,
+            InventoryParticipantRow.user_id == user.id,
+        )
+    )
     if participant is None:
         participant = InventoryParticipantRow(
-            id=str(uuid4()), inventory_id=inventory.id, user_id=user.id,
-            access_token_hash=token_hash, joined_at=now, last_accessed_at=now,
+            id=str(uuid4()),
+            inventory_id=inventory.id,
+            user_id=user.id,
+            access_token_hash=token_hash,
+            joined_at=now,
+            last_accessed_at=now,
         )
         session.add(participant)
     else:
@@ -516,15 +697,23 @@ def email_inventory_report(
         if format_name == "pdf":
             attachments.append(EmailAttachment(f"Inventario_{suffix}.pdf", export_pdf(report), "application", "pdf"))
         elif format_name == "xlsx":
-            attachments.append(EmailAttachment(
-                f"Inventario_{suffix}.xlsx", export_xlsx(report), "application",
-                "vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            ))
+            attachments.append(
+                EmailAttachment(
+                    f"Inventario_{suffix}.xlsx",
+                    export_xlsx(report),
+                    "application",
+                    "vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            )
         else:
-            attachments.append(EmailAttachment(
-                f"Inventario_{suffix}.docx", export_docx(report), "application",
-                "vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ))
+            attachments.append(
+                EmailAttachment(
+                    f"Inventario_{suffix}.docx",
+                    export_docx(report),
+                    "application",
+                    "vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            )
     if sum(len(item.content) for item in attachments) > settings.email_attachment_max_mb * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Os anexos excedem o limite de envio. Baixe os arquivos separadamente.")
     try:
@@ -549,8 +738,6 @@ def sync(
 ) -> dict[str, object]:
     try:
         team_id = _sync_team(session, user, str(payload.teamId) if payload.teamId else None)
-        if payload.inventory is not None and session.get(InventoryRow, str(payload.inventoryId)) is None and team_id is None:
-            raise HTTPException(status_code=422, detail="Sua conta precisa ser associada a uma equipe antes da primeira sincronização.")
         return synchronize(session, payload, sync_token, team_id=team_id, actor_user_id=user.id)
     except SyncNotFoundError as error:
         session.rollback()

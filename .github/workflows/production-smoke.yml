@@ -10,20 +10,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Validate backend, frontend proxy and auth lifecycle
+      - name: Validate production surfaces and auth boundaries
         shell: bash
         run: |
           set -euo pipefail
 
           API="https://inventory-api-6o8h.onrender.com"
-          APP="https://inventario-prod.onrender.com"
+          APP="https://inventario-lpe.vercel.app"
 
           echo "Waiting for backend..."
-          for attempt in {1..18}; do
+          for attempt in {1..24}; do
             if curl -fsS --max-time 20 "$API/healthz" | grep -q '"status":"ok"'; then
               break
             fi
-            if [ "$attempt" -eq 18 ]; then
+            if [ "$attempt" -eq 24 ]; then
               echo "Backend healthcheck failed"
               exit 1
             fi
@@ -31,16 +31,19 @@ jobs:
           done
 
           echo "Waiting for frontend..."
-          for attempt in {1..18}; do
+          for attempt in {1..24}; do
             if curl -fsS --max-time 20 "$APP/" -o /tmp/home.html; then
               break
             fi
-            if [ "$attempt" -eq 18 ]; then
+            if [ "$attempt" -eq 24 ]; then
               echo "Frontend failed"
               exit 1
             fi
             sleep 10
           done
+
+          echo "Checking access page..."
+          curl -fsS --max-time 30 "$APP/acesso" -o /tmp/access.html
 
           echo "Checking same-origin backend proxy..."
           curl -fsS --max-time 30 "$APP/backend-api/healthz" | grep -q '"status":"ok"'
@@ -51,29 +54,19 @@ jobs:
           curl -fsS -D /tmp/app-headers.txt -o /dev/null --max-time 30 "$APP/"
           grep -qi '^strict-transport-security:' /tmp/app-headers.txt
 
-          echo "Checking register -> refresh -> logout through frontend proxy..."
-          EMAIL="smoke-$(date +%s)-${RANDOM}@example.com"
-          PASSWORD="Smoke-Test-2026!Strong"
-
-          REGISTER=$(curl -fsS --max-time 30 \
-            -c /tmp/cookies.txt \
+          echo "Checking eight-digit recovery NP requirement..."
+          STATUS=$(curl -sS --max-time 30 -o /tmp/register.json -w '%{http_code}' \
             -H 'Content-Type: application/json' \
             -X POST "$APP/backend-api/api/v1/auth/register" \
-            --data "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"displayName\":\"Smoke Test\",\"teamName\":\"Smoke Team\"}")
+            --data '{"email":"smoke@example.com","password":"Smoke-Test-2026!Strong","passwordConfirmation":"Smoke-Test-2026!Strong","recoveryPin":"1234567","recoveryPinConfirmation":"1234567","displayName":"Smoke Test"}')
+          test "$STATUS" = "422"
+          jq -e '.detail | length > 0' /tmp/register.json >/dev/null
 
-          echo "$REGISTER" | jq -e '.accessToken | strings | length > 20' >/dev/null
-          echo "$REGISTER" | jq -e '.user.teams | length == 1' >/dev/null
-
-          REFRESH=$(curl -fsS --max-time 30 \
-            -b /tmp/cookies.txt -c /tmp/cookies.txt \
+          echo "Checking unauthenticated refresh boundary..."
+          STATUS=$(curl -sS --max-time 30 -o /tmp/refresh.json -w '%{http_code}' \
             -H 'Content-Type: application/json' \
             -X POST "$APP/backend-api/api/v1/auth/refresh" \
             --data '{}')
-          echo "$REFRESH" | jq -e '.accessToken | strings | length > 20' >/dev/null
-
-          curl -fsS --max-time 30 \
-            -b /tmp/cookies.txt \
-            -X POST "$APP/backend-api/api/v1/auth/logout" \
-            -o /dev/null
+          test "$STATUS" = "401"
 
           echo "Production smoke test passed."

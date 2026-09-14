@@ -1,7 +1,7 @@
 """adiciona NP pessoal para recuperação sem e-mail
 
-Revision ID: 0006_recovery_pin
-Revises: 0005_access_sharing
+Revision ID: 0007_recovery_pin
+Revises: 0006_entry_layers
 Create Date: 2026-09-12 06:00:00
 """
 
@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0006_recovery_pin"
-down_revision = "0005_access_sharing"
+revision = "0007_recovery_pin"
+down_revision = "0006_entry_layers"
 branch_labels = None
 depends_on = None
 

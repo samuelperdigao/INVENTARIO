@@ -21,8 +21,8 @@ def test_preview_contract_and_server_validation() -> None:
         json={
             "inventory": {"id": str(uuid4()), "date": "2026-09-11", "revision": 2},
             "entries": [
-                {"id": str(uuid4()), "side": "DE", "bay": "15", "lot": "000123", "quantity": 19},
-                {"id": str(uuid4()), "side": "EF", "bay": "21", "lot": "000123", "quantity": 1},
+                {"id": str(uuid4()), "side": "DE", "bay": "15", "layer": "A1", "lot": "000123", "quantity": 19},
+                {"id": str(uuid4()), "side": "EF", "bay": "21", "layer": "A10", "lot": "000123", "quantity": 1},
             ],
         },
     )
@@ -30,11 +30,20 @@ def test_preview_contract_and_server_validation() -> None:
     body = response.json()
     assert body["revision"] == 2
     assert body["lots"][0]["classification"] == "PEÇA_SOLTEIRA"
+    assert body["lots"][0]["locations"][0]["layer"] in {"A1", "A10"}
 
-    invalid = client.post(
+    invalid_lot = client.post(
         "/api/v1/analysis/preview",
         json={"inventory": {"id": str(uuid4()), "date": "2026-09-11", "revision": 1}, "entries": [
-            {"id": str(uuid4()), "side": "EF", "bay": "1", "lot": "L", "quantity": 0}
+            {"id": str(uuid4()), "side": "EF", "bay": "1", "layer": "A1", "lot": "ABC", "quantity": 1}
         ]},
     )
-    assert invalid.status_code == 422
+    assert invalid_lot.status_code == 422
+
+    invalid_layer = client.post(
+        "/api/v1/analysis/preview",
+        json={"inventory": {"id": str(uuid4()), "date": "2026-09-11", "revision": 1}, "entries": [
+            {"id": str(uuid4()), "side": "EF", "bay": "1", "layer": "A11", "lot": "123", "quantity": 1}
+        ]},
+    )
+    assert invalid_layer.status_code == 422

@@ -2,7 +2,7 @@ import { v4 as uuidv4, v7 as uuidv7 } from "uuid";
 
 import { db } from "@/lib/db";
 import { localDateIso } from "@/lib/local-date";
-import type { EntryDraft, Inventory, InventoryEntry } from "@/lib/models";
+import { INVENTORY_LAYERS, type EntryDraft, type Inventory, type InventoryEntry } from "@/lib/models";
 
 function timestamp(): string {
   return new Date().toISOString();
@@ -12,10 +12,28 @@ function normalizeText(value: string): string {
   return value.trim();
 }
 
+export class DuplicateLotError extends Error {
+  readonly duplicates: InventoryEntry[];
+
+  constructor(duplicates: InventoryEntry[]) {
+    super("Este lote já possui lançamento neste inventário.");
+    this.name = "DuplicateLotError";
+    this.duplicates = duplicates;
+  }
+}
+
+export interface EntrySaveOptions {
+  allowDuplicate?: boolean;
+  createdByUserId?: string;
+  createdByName?: string;
+}
+
 export function validateEntryDraft(draft: EntryDraft): string | undefined {
   if (draft.side !== "EF" && draft.side !== "DE") return "Selecione o lado.";
   if (!normalizeText(draft.bay)) return "Informe o vão.";
+  if (draft.layer != null && !INVENTORY_LAYERS.includes(draft.layer)) return "Selecione uma camada válida de A1 até A10.";
   if (!normalizeText(draft.lot)) return "Informe o lote.";
+  if (!/^\d+$/.test(normalizeText(draft.lot))) return "O lote deve conter somente números.";
   if (!Number.isInteger(draft.quantity) || draft.quantity <= 0) {
     return "A quantidade deve ser um inteiro positivo.";
   }
@@ -67,18 +85,32 @@ export async function listActiveEntries(inventoryId: string): Promise<InventoryE
   return db.entries.filter((entry) => entry.inventoryId === inventoryId && !entry.tombstone).toArray();
 }
 
-export async function createEntry(inventoryId: string, draft: EntryDraft): Promise<InventoryEntry> {
+export async function findDuplicateLotEntries(inventoryId: string, lot: string, excludeEntryId?: string): Promise<InventoryEntry[]> {
+  const normalizedLot = normalizeText(lot);
+  return db.entries
+    .where("[inventoryId+lot]")
+    .equals([inventoryId, normalizedLot])
+    .filter((entry) => !entry.tombstone && entry.id !== excludeEntryId)
+    .sortBy("createdAt");
+}
+
+export async function createEntry(inventoryId: string, draft: EntryDraft, options: EntrySaveOptions = {}): Promise<InventoryEntry> {
   const validationError = validateEntryDraft(draft);
   if (validationError) throw new Error(validationError);
 
   const now = timestamp();
+  const normalizedLot = normalizeText(draft.lot);
   const entry: InventoryEntry = {
     id: uuidv7(),
     inventoryId,
     side: draft.side,
     bay: normalizeText(draft.bay),
-    lot: normalizeText(draft.lot),
+    layer: draft.layer || undefined,
+    lot: normalizedLot,
     quantity: draft.quantity,
+    createdByUserId: options.createdByUserId,
+    createdByName: options.createdByName,
+    duplicateConfirmed: Boolean(options.allowDuplicate),
     createdAt: now,
     updatedAt: now,
     revision: 1,
@@ -90,6 +122,10 @@ export async function createEntry(inventoryId: string, draft: EntryDraft): Promi
   await db.transaction("rw", db.inventories, db.entries, async () => {
     const inventory = await db.inventories.get(inventoryId);
     if (!inventory || inventory.tombstone) throw new Error("Inventário não encontrado.");
+    if (!options.allowDuplicate) {
+      const duplicates = await findDuplicateLotEntries(inventoryId, normalizedLot);
+      if (duplicates.length > 0) throw new DuplicateLotError(duplicates);
+    }
     await db.entries.add(entry);
     await bumpInventory(inventory, now);
   });
@@ -112,7 +148,7 @@ export async function markInventoryFinished(inventoryId: string, revision: numbe
   });
 }
 
-export async function updateEntry(entryId: string, draft: EntryDraft): Promise<InventoryEntry> {
+export async function updateEntry(entryId: string, draft: EntryDraft, options: EntrySaveOptions = {}): Promise<InventoryEntry> {
   const validationError = validateEntryDraft(draft);
   if (validationError) throw new Error(validationError);
 
@@ -123,12 +159,19 @@ export async function updateEntry(entryId: string, draft: EntryDraft): Promise<I
     if (!entry || entry.tombstone) throw new Error("Registro não encontrado.");
     const inventory = await db.inventories.get(entry.inventoryId);
     if (!inventory || inventory.tombstone) throw new Error("Inventário não encontrado.");
+    const normalizedLot = normalizeText(draft.lot);
+    if (!options.allowDuplicate) {
+      const duplicates = await findDuplicateLotEntries(entry.inventoryId, normalizedLot, entry.id);
+      if (duplicates.length > 0) throw new DuplicateLotError(duplicates);
+    }
     updatedEntry = {
       ...entry,
       side: draft.side,
       bay: normalizeText(draft.bay),
-      lot: normalizeText(draft.lot),
+      layer: draft.layer || undefined,
+      lot: normalizedLot,
       quantity: draft.quantity,
+      duplicateConfirmed: Boolean(options.allowDuplicate),
       updatedAt: now,
       revision: entry.revision + 1,
       syncStatus: "PENDING",

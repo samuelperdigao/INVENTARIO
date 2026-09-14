@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import styles from "@/components/inventory-home.module.css";
+import { BrandLogo } from "@/components/brand-logo";
+import { Icon } from "@/components/icon";
 import { logoutAccount, restoreSession, type AuthUser } from "@/lib/auth-client";
 import { createInventory, listOpenInventories } from "@/lib/inventory-repository";
 import { formatBrazilianDate } from "@/lib/local-date";
@@ -47,14 +50,9 @@ export function InventoryHome() {
   }, [router]);
 
   const labels = useMemo(() => visualLabels(inventories), [inventories]);
-  const canCreateInventory = (user?.teams.length ?? 0) > 0;
   const isTeamAdmin = user?.teams.some((team) => team.role === "ADMIN") ?? false;
 
   async function handleCreate(): Promise<void> {
-    if (!canCreateInventory) {
-      setError("Sua conta precisa ser associada a uma equipe antes de iniciar um novo inventário.");
-      return;
-    }
     setCreating(true); setError(undefined);
     try { router.push(`/inventarios/${(await createInventory()).id}`); }
     catch { setError("Não foi possível criar o inventário local. Nenhum dado foi salvo."); setCreating(false); }
@@ -79,9 +77,21 @@ export function InventoryHome() {
   if (loading || !user) return <main className="shell"><p className="muted">Carregando seu painel…</p></main>;
 
   return (
-    <main className="shell dashboard-shell">
+    <main className={`shell dashboard-shell ${styles.dashboardShell}`}>
+      <aside className="dashboard-sidebar" aria-label="Navegação do sistema">
+        <Link className="brand-link" href="/dashboard" aria-label="INVENTÁRIO, painel"><BrandLogo compact subtitle="Beam Blanks e Blocos" /></Link>
+        <nav className="dashboard-nav">
+          <Link className="dashboard-nav-link active" href="/dashboard" aria-current="page"><span aria-hidden="true"><Icon name="home" size={17} /></span>Início</Link>
+          <button className="dashboard-nav-link" type="button" onClick={() => void handleCreate()} disabled={creating}><span aria-hidden="true"><Icon name="plus" size={17} /></span>Novo inventário</button>
+          <a className="dashboard-nav-link" href="#em-andamento"><span aria-hidden="true"><Icon name="boxes" size={17} /></span>Em andamento</a>
+          <Link className="dashboard-nav-link" href="/historico"><span aria-hidden="true"><Icon name="history" size={17} /></span>Histórico</Link>
+          {isTeamAdmin ? <Link className="dashboard-nav-link" href="/equipe"><span aria-hidden="true"><Icon name="users" size={17} /></span>Equipe</Link> : null}
+        </nav>
+        <p className="sidebar-footnote">Operação local com sincronização central protegida.</p>
+      </aside>
+      <div className="dashboard-content">
       <header className="dashboard-topbar">
-        <Link className="app-brand brand-link" href="/dashboard"><span className="brand-mark beam-mark" aria-hidden="true"><span /></span><span><strong>INVENTARIO</strong><small>Laminação de Perfis</small></span></Link>
+        <Link className="brand-link mobile-dashboard-brand" href="/dashboard" aria-label="INVENTÁRIO, painel"><BrandLogo compact subtitle="Beam Blanks e Blocos" /></Link>
         <div className="account-actions">
           {isTeamAdmin ? <Link className="text-button" href="/equipe">Equipe</Link> : null}
           <span className="user-chip"><span>{firstName(user.displayName).slice(0, 1).toUpperCase()}</span>{user.displayName}</span>
@@ -90,20 +100,19 @@ export function InventoryHome() {
       </header>
 
       <section className="dashboard-hero">
-        <div><p className="eyebrow">Painel operacional</p><h1>Bem-vindo(a), {firstName(user.displayName)}!</h1><p>Aplicativo de Inventário da Laminação de Perfis</p></div>
+        <div><p className="eyebrow">Painel operacional</p><h1>Bem-vindo(a), {firstName(user.displayName)}!</h1><p>Aplicativo de Inventário de Beam Blanks e Blocos</p></div>
         <div className="dashboard-status"><span className="live-dot">Conta verificada</span><small>{user.email}</small></div>
       </section>
 
-      {user.teams.length === 0 ? <p className="notice">Sua conta está ativa, mas ainda não foi associada a uma equipe operacional. Você pode participar de um inventário usando o código de seis números. Para iniciar um novo inventário, solicite a associação a um administrador.</p> : null}
       {error ? <p className="error" role="alert">{error}</p> : null}
 
       <section className="quick-actions" aria-labelledby="quick-actions-title">
         <div className="section-header"><div><p className="eyebrow">Acesso rápido</p><h2 id="quick-actions-title">O que você precisa fazer?</h2></div></div>
         <div className="action-grid">
-          <button className="action-card primary-action" type="button" onClick={() => void handleCreate()} disabled={creating || !canCreateInventory} aria-disabled={!canCreateInventory}><span className="action-icon">+</span><span><strong>{creating ? "Criando…" : "Iniciar novo inventário"}</strong><small>{canCreateInventory ? "Começar uma nova conferência neste dispositivo" : "Disponível após associação a uma equipe"}</small></span></button>
-          <a className="action-card" href="#em-andamento"><span className="action-icon">↻</span><span><strong>Continuar inventário</strong><small>{inventories.length ? `${inventories.length} em andamento neste dispositivo` : "Nenhum inventário local aberto"}</small></span></a>
-          <button className="action-card" type="button" onClick={() => document.getElementById("participar")?.scrollIntoView({ behavior: "smooth" })}><span className="action-icon">#</span><span><strong>Participar de inventário</strong><small>Entrar com um código de seis números</small></span></button>
-          <Link className="action-card" href="/historico"><span className="action-icon">□</span><span><strong>Histórico</strong><small>Consultar e exportar inventários finalizados</small></span></Link>
+          <button className="action-card primary-action" type="button" onClick={() => void handleCreate()} disabled={creating}><span className="action-icon"><Icon name="plus" size={20} /></span><span><strong>{creating ? "Criando…" : "Iniciar novo inventário"}</strong><small>Começar uma nova conferência neste dispositivo</small></span></button>
+          <a className="action-card" href="#em-andamento"><span className="action-icon"><Icon name="boxes" size={20} /></span><span><strong>Continuar inventário</strong><small>{inventories.length ? `${inventories.length} em andamento neste dispositivo` : "Nenhum inventário local aberto"}</small></span></a>
+          <button className="action-card" type="button" onClick={() => document.getElementById("participar")?.scrollIntoView({ behavior: "smooth" })}><span className="action-icon"><Icon name="users" size={20} /></span><span><strong>Participar de inventário</strong><small>Entrar com um código de seis números</small></span></button>
+          <Link className="action-card" href="/historico"><span className="action-icon"><Icon name="file" size={20} /></span><span><strong>Histórico</strong><small>Consultar e exportar inventários finalizados</small></span></Link>
         </div>
       </section>
 
@@ -123,6 +132,7 @@ export function InventoryHome() {
 
           <section className="card section-card stack" aria-labelledby="guide-title"><div><p className="eyebrow">Guia rápido</p><h2 id="guide-title">Fluxo do inventário</h2></div><ol className="guide-list"><li><span>1</span><div><strong>Lance os registros</strong><small>Informe lado, vão, lote e quantidade.</small></div></li><li><span>2</span><div><strong>Sincronize a equipe</strong><small>Compartilhe o código de seis números.</small></div></li><li><span>3</span><div><strong>Confira a análise</strong><small>Revise fragmentações e divergências.</small></div></li><li><span>4</span><div><strong>Finalize e compartilhe</strong><small>Gere PDF, Excel ou Word.</small></div></li></ol></section>
         </aside>
+      </div>
       </div>
     </main>
   );

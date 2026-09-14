@@ -1,0 +1,81 @@
+name: Quality Gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: quality-gates-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      INVENTORY_ENV: development
+      INVENTORY_AUTH_SECRET: ci-secret-with-more-than-thirty-two-characters
+      BACKEND_PROXY_URL: http://127.0.0.1:8000
+      NEXT_PUBLIC_ANALYSIS_API_BASE_URL: /backend-api
+      NEXT_PUBLIC_SYNC_API_BASE_URL: /backend-api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Frontend tests
+        run: pnpm test
+
+      - name: Production build
+        run: pnpm build
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create backend virtual environment
+        run: python -m venv backend/.venv
+
+      - name: Install backend dependencies
+        run: backend/.venv/bin/python -m pip install -r backend/requirements.txt
+
+      - name: Backend tests
+        env:
+          INVENTORY_DATABASE_URL: sqlite:////tmp/inventario-tests.db
+        run: backend/.venv/bin/python -m pytest backend/tests -q
+
+      - name: Alembic upgrade gate
+        env:
+          INVENTORY_DATABASE_URL: sqlite:////tmp/inventario-alembic.db
+        run: backend/.venv/bin/python -m alembic -c backend/alembic.ini upgrade head
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Browser flows
+        env:
+          INVENTORY_DATABASE_URL: sqlite:///./backend/inventario-e2e.db
+        run: pnpm e2e

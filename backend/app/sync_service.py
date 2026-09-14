@@ -12,7 +12,14 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.persistence import InventoryEntryRow, InventoryParticipantRow, InventoryRow, SyncConflictRow, SyncEventRow
+from app.persistence import (
+    InventoryEntryRow,
+    InventoryParticipantRow,
+    InventoryRow,
+    SyncConflictRow,
+    SyncEventRow,
+    UserRow,
+)
 from app.schemas import SyncEntry, SyncInventory, SyncRequest
 
 EntityType = Literal["inventory", "entry"]
@@ -64,14 +71,19 @@ def _inventory_record(row: InventoryRow) -> dict[str, Any]:
     }
 
 
-def _entry_record(row: InventoryEntryRow) -> dict[str, Any]:
+def _entry_record(session: Session, row: InventoryEntryRow) -> dict[str, Any]:
+    creator = session.get(UserRow, row.created_by_user_id) if row.created_by_user_id else None
     return {
         "id": row.id,
         "inventoryId": row.inventory_id,
         "side": row.side,
         "bay": row.bay,
+        "layer": row.layer,
         "lot": row.lot,
         "quantity": row.quantity,
+        "createdByUserId": row.created_by_user_id,
+        "createdByName": creator.display_name if creator else None,
+        "duplicateConfirmed": row.duplicate_confirmed,
         "createdAt": _timestamp(row.created_at),
         "updatedAt": _timestamp(row.updated_at),
         "revision": row.revision,
@@ -95,8 +107,10 @@ def _entry_matches(row: InventoryEntryRow, incoming: SyncEntry) -> bool:
         row.inventory_id == str(incoming.inventoryId)
         and row.side == incoming.side
         and row.bay == incoming.bay
+        and row.layer == incoming.layer
         and row.lot == incoming.lot
         and row.quantity == incoming.quantity
+        and row.duplicate_confirmed == incoming.duplicateConfirmed
         and row.tombstone == incoming.tombstone
         and _timestamp(row.deleted_at) == _timestamp(incoming.deletedAt)
         and row.revision == incoming.revision
@@ -133,7 +147,13 @@ def _record_conflict(
     return {"entityType": entity_type, "entityId": entity_id, "serverRecord": server_record}
 
 
-def _create_inventory(session: Session, incoming: SyncInventory, sync_token: str, team_id: str, owner_user_id: str) -> InventoryRow:
+def _create_inventory(
+    session: Session,
+    incoming: SyncInventory,
+    sync_token: str,
+    team_id: str | None,
+    owner_user_id: str,
+) -> InventoryRow:
     row = InventoryRow(
         id=str(incoming.id),
         date=incoming.date,
@@ -183,14 +203,17 @@ def _apply_inventory(
     )
 
 
-def _create_entry(session: Session, incoming: SyncEntry) -> InventoryEntryRow:
+def _create_entry(session: Session, incoming: SyncEntry, actor_user_id: str) -> InventoryEntryRow:
     row = InventoryEntryRow(
         id=str(incoming.id),
         inventory_id=str(incoming.inventoryId),
         side=incoming.side,
         bay=incoming.bay,
+        layer=incoming.layer,
         lot=incoming.lot,
         quantity=incoming.quantity,
+        created_by_user_id=actor_user_id,
+        duplicate_confirmed=incoming.duplicateConfirmed,
         created_at=incoming.createdAt,
         updated_at=incoming.updatedAt,
         revision=incoming.revision,
@@ -214,8 +237,10 @@ def _apply_entry(
     if incoming.syncBaseRevision == row.revision and incoming.revision > row.revision:
         row.side = incoming.side
         row.bay = incoming.bay
+        row.layer = incoming.layer
         row.lot = incoming.lot
         row.quantity = incoming.quantity
+        row.duplicate_confirmed = incoming.duplicateConfirmed
         row.updated_at = incoming.updatedAt
         row.revision = incoming.revision
         row.tombstone = incoming.tombstone
@@ -229,7 +254,7 @@ def _apply_entry(
         entity_id=row.id,
         device_id=device_id,
         incoming=incoming,
-        server_record=_entry_record(row),
+        server_record=_entry_record(session, row),
     )
 
 
@@ -241,16 +266,11 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
     """
 
     inventory_id = str(payload.inventoryId)
-    # FINISHED is a server-owned transition. The sync schema also represents
-    # remote inventories, so it accepts the value for responses, but clients
-    # must never create or change an inventory to that state through sync.
     if payload.inventory is not None and payload.inventory.status != "OPEN":
         raise SyncFinalizationRequiredError()
     inventory = session.get(InventoryRow, inventory_id)
     if inventory is None:
         if payload.inventory is None:
-            raise SyncNotFoundError()
-        if team_id is None:
             raise SyncNotFoundError()
         inventory = _create_inventory(session, payload.inventory, sync_token, team_id, actor_user_id)
         acknowledged_inventory = True
@@ -261,11 +281,12 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
                 InventoryParticipantRow.user_id == actor_user_id,
             )
         )
+        owner_access = inventory.owner_user_id == actor_user_id
         team_access = inventory.team_id == team_id and team_id is not None
         participant_access = participant is not None and hmac.compare_digest(participant.access_token_hash, _hash_token(sync_token))
-        if not team_access and not participant_access:
+        if not owner_access and not team_access and not participant_access:
             raise SyncNotFoundError()
-        if team_access and not hmac.compare_digest(inventory.sync_token_hash, _hash_token(sync_token)):
+        if (owner_access or team_access) and not hmac.compare_digest(inventory.sync_token_hash, _hash_token(sync_token)):
             raise SyncAuthorizationError()
         if participant_access and participant is not None:
             participant.last_accessed_at = datetime.now(timezone.utc)
@@ -299,7 +320,7 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
                     )
                 )
                 continue
-            _create_entry(session, incoming)
+            _create_entry(session, incoming, actor_user_id)
             acknowledged_entry_ids.append(str(incoming.id))
             continue
         if row.inventory_id != inventory.id:
@@ -311,7 +332,7 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
                     entity_id=row.id,
                     device_id=str(payload.deviceId),
                     incoming=incoming,
-                    server_record=_entry_record(row),
+                    server_record=_entry_record(session, row),
                 )
             )
             continue
@@ -339,7 +360,7 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
             continue
         row = session.get(InventoryEntryRow, entity_id)
         if row is not None:
-            returned_entries.append(_entry_record(row))
+            returned_entries.append(_entry_record(session, row))
 
     session.commit()
     return {

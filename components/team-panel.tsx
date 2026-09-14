@@ -54,7 +54,7 @@ export function TeamPanel() {
   return (
     <main className="shell dashboard-shell">
       <header className="dashboard-topbar">
-        <Link className="app-brand brand-link" href="/dashboard"><span className="brand-mark beam-mark" aria-hidden="true"><span /></span><span><strong>INVENTARIO</strong><small>Laminação de Perfis</small></span></Link>
+        <Link className="app-brand brand-link" href="/dashboard"><span className="brand-mark beam-mark" aria-hidden="true"><span /></span><span><strong>INVENTARIO</strong><small>Beam Blanks e Blocos</small></span></Link>
         <Link className="text-button" href="/dashboard">Voltar ao painel</Link>
       </header>
 

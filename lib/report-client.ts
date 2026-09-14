@@ -1,15 +1,29 @@
 "use client";
 
+import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedSession } from "@/lib/auth-client";
 
-export type ReportFormat = "pdf" | "xlsx" | "docx";
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
+export type ReportFormat = "xls" | "xlsx" | "pdf" | "docx";
+export type ShareableReportFormat = "xlsx" | "pdf" | "docx";
+export type ShareReportResult = "shared" | "cancelled" | "unsupported";
+export type PreparedShareResources = {
+  pdf?: File;
+  xlsx?: string;
+  docx?: string;
+};
 
 const mediaTypes: Record<ReportFormat, string> = {
+  xls: "application/vnd.ms-excel",
   pdf: "application/pdf",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+
+const formatLabels: Record<ReportFormat, string> = {
+  xls: "Excel compatível (.xls)",
+  xlsx: "Excel moderno (.xlsx)",
+  pdf: "PDF",
+  docx: "Word",
 };
 
 function filenameFrom(response: Response, format: ReportFormat): string {
@@ -18,19 +32,124 @@ function filenameFrom(response: Response, format: ReportFormat): string {
   return match?.[1] ?? `Inventario.${format}`;
 }
 
-export async function fetchReportFile(inventoryId: string, format: ReportFormat, syncToken?: string): Promise<File> {
+function isDomExceptionNamed(cause: unknown, ...names: string[]): boolean {
+  return cause instanceof DOMException && names.includes(cause.name);
+}
+
+function isPermissionDenied(cause: unknown): boolean {
+  if (isDomExceptionNamed(cause, "NotAllowedError", "SecurityError")) return true;
+  if (!(cause instanceof Error)) return false;
+  return /permission denied|not allowed|permission policy/i.test(cause.message);
+}
+
+export function reportErrorMessage(cause: unknown, fallback = "Não foi possível concluir a operação."): string {
+  if (isDomExceptionNamed(cause, "AbortError")) return "Compartilhamento cancelado.";
+  if (isPermissionDenied(cause)) {
+    return "O navegador bloqueou o compartilhamento nativo. Tente novamente pelo navegador do celular.";
+  }
+  if (!(cause instanceof Error)) return fallback;
+  if (/failed to fetch|networkerror|load failed/i.test(cause.message)) {
+    return "Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.";
+  }
+  return cause.message || fallback;
+}
+
+async function authHeaders(syncToken?: string): Promise<Record<string, string>> {
   const session = await getAuthenticatedSession();
   const headers: Record<string, string> = { Authorization: `Bearer ${session.accessToken}` };
   if (syncToken) headers["X-Inventory-Sync-Token"] = syncToken;
-  const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventoryId}/exports/${format}`, {
-    credentials: "include",
-    headers,
-  });
+  return headers;
+}
+
+export async function fetchReportFile(inventoryId: string, format: ReportFormat, syncToken?: string): Promise<File> {
+  let response: Response;
+  try {
+    const path = format === "xls" || format === "xlsx"
+      ? `/api/v1/inventories/${inventoryId}/export/excel?format=${format}`
+      : `/api/v1/inventories/${inventoryId}/exports/${format}`;
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      credentials: "include",
+      headers: await authHeaders(syncToken),
+    });
+  } catch (cause) {
+    throw new Error(reportErrorMessage(cause, "Não foi possível buscar o arquivo do inventário."));
+  }
+
   if (!response.ok) {
     const body = await response.json().catch(() => undefined) as { detail?: string } | undefined;
     throw new Error(body?.detail ?? "Não foi possível gerar o relatório.");
   }
   return new File([await response.blob()], filenameFrom(response, format), { type: mediaTypes[format] });
+}
+
+function publicShareUrl(path: string): string {
+  if (apiBaseUrl.startsWith("/")) {
+    return `${window.location.origin}${apiBaseUrl}${path}`;
+  }
+  return `${apiBaseUrl.replace(/\/$/, "")}${path}`;
+}
+
+export async function createTemporaryShareLink(
+  inventoryId: string,
+  format: "xlsx" | "docx",
+  syncToken?: string,
+): Promise<string> {
+  const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventoryId}/share-links/${format}`, {
+    method: "POST",
+    credentials: "include",
+    headers: await authHeaders(syncToken),
+  });
+  const body = await response.json().catch(() => undefined) as { path?: string; detail?: string } | undefined;
+  if (!response.ok || !body?.path) {
+    throw new Error(body?.detail ?? "Não foi possível preparar o compartilhamento do arquivo.");
+  }
+  return publicShareUrl(body.path);
+}
+
+export async function prepareResourcesForSharing(
+  inventoryId: string,
+  syncToken?: string,
+): Promise<PreparedShareResources> {
+  const [pdf, xlsx, docx] = await Promise.all([
+    fetchReportFile(inventoryId, "pdf", syncToken),
+    createTemporaryShareLink(inventoryId, "xlsx", syncToken),
+    createTemporaryShareLink(inventoryId, "docx", syncToken),
+  ]);
+  return { pdf, xlsx, docx };
+}
+
+function shareWithNative(shareData: ShareData): Promise<ShareReportResult> {
+  if (typeof navigator.share !== "function") return Promise.resolve("unsupported");
+
+  return navigator.share(shareData)
+    .then(() => "shared" as const)
+    .catch((cause: unknown) => {
+      if (isDomExceptionNamed(cause, "AbortError")) return "cancelled" as const;
+      throw new Error(reportErrorMessage(cause, "Não foi possível abrir o compartilhamento nativo."));
+    });
+}
+
+export function sharePreparedResource(
+  resource: File | string,
+  format: ReportFormat,
+): Promise<ShareReportResult> {
+  if (resource instanceof File) {
+    const shareData: ShareData = {
+      title: `Inventário em ${formatLabels[format]}`,
+      text: `Relatório final do inventário em ${formatLabels[format]}.`,
+      files: [resource],
+    };
+    if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [resource] })) {
+      return Promise.resolve("unsupported");
+    }
+    return shareWithNative(shareData);
+  }
+
+  return shareWithNative({
+    title: `Inventário em ${formatLabels[format]}`,
+    text: `Acesse o arquivo ${formatLabels[format]} do inventário:`,
+    url: resource,
+  });
 }
 
 export function downloadFile(file: File): void {
@@ -45,28 +164,4 @@ export function downloadFile(file: File): void {
 
 export async function downloadReport(inventoryId: string, format: ReportFormat, syncToken?: string): Promise<void> {
   downloadFile(await fetchReportFile(inventoryId, format, syncToken));
-}
-
-export async function sharePdfReport(inventoryId: string, syncToken?: string): Promise<"shared" | "downloaded"> {
-  const file = await fetchReportFile(inventoryId, "pdf", syncToken);
-  const shareData: ShareData = { title: "Relatório de inventário", text: "Relatório final do inventário.", files: [file] };
-  if (typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare(shareData)) {
-    await navigator.share(shareData);
-    return "shared";
-  }
-  downloadFile(file);
-  return "downloaded";
-}
-
-export async function emailReports(inventoryId: string, formats: ReportFormat[]): Promise<string> {
-  const session = await getAuthenticatedSession();
-  const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventoryId}/email`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.accessToken}` },
-    body: JSON.stringify({ formats }),
-  });
-  const body = await response.json().catch(() => undefined) as { message?: string; detail?: string } | undefined;
-  if (!response.ok) throw new Error(body?.detail ?? "Não foi possível enviar os relatórios por e-mail.");
-  return body?.message ?? "Relatório enviado por e-mail.";
 }

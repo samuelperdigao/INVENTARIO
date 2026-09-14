@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date as DateType, datetime
 from typing import Any
 
 from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, JSON, String, UniqueConstraint
@@ -15,7 +15,7 @@ class InventoryRow(Base):
     __tablename__ = "inventories"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    date: Mapped[date] = mapped_column(Date, nullable=False)
+    date: Mapped[DateType] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -105,13 +105,22 @@ class ParticipationAttemptRow(Base):
 
 class InventoryEntryRow(Base):
     __tablename__ = "inventory_entries"
+    __table_args__ = (
+        CheckConstraint(
+            "layer IS NULL OR layer IN ('A1','A2','A3','A4','A5','A6','A7','A8','A9','A10')",
+            name="ck_inventory_entries_layer",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     inventory_id: Mapped[str] = mapped_column(ForeignKey("inventories.id", ondelete="RESTRICT"), index=True, nullable=False)
     side: Mapped[str] = mapped_column(String(2), nullable=False)
     bay: Mapped[str] = mapped_column(String(100), nullable=False)
+    layer: Mapped[str | None] = mapped_column(String(3), index=True)
     lot: Mapped[str] = mapped_column(String(255), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    duplicate_confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revision: Mapped[int] = mapped_column(Integer, nullable=False)

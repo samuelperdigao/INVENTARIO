@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date as DateType, datetime
 from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
+
+
+Layer = Literal["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"]
 
 
 class ApiModel(BaseModel):
@@ -15,7 +18,7 @@ class ApiModel(BaseModel):
 
 class PreviewInventory(ApiModel):
     id: UUID
-    date: date
+    date: DateType
     revision: StrictInt = Field(ge=1)
 
 
@@ -23,7 +26,8 @@ class PreviewEntry(ApiModel):
     id: UUID
     side: Literal["EF", "DE"]
     bay: str = Field(min_length=1, max_length=100)
-    lot: str = Field(min_length=1, max_length=255)
+    layer: Layer | None = None
+    lot: str = Field(min_length=1, max_length=255, pattern=r"^\d+$")
     quantity: StrictInt = Field(gt=0)
 
 
@@ -35,6 +39,7 @@ class AnalysisPreviewRequest(ApiModel):
 class AnalysisLocation(ApiModel):
     side: Literal["EF", "DE"]
     bay: str
+    layer: Layer | None = None
     quantity: StrictInt = Field(gt=0)
 
 
@@ -75,7 +80,7 @@ class AnalysisReport(ApiModel):
 
 class SyncInventory(ApiModel):
     id: UUID
-    date: date
+    date: DateType
     status: Literal["OPEN", "FINISHED"]
     createdAt: datetime
     updatedAt: datetime
@@ -90,8 +95,12 @@ class SyncEntry(ApiModel):
     inventoryId: UUID
     side: Literal["EF", "DE"]
     bay: str = Field(min_length=1, max_length=100)
-    lot: str = Field(min_length=1, max_length=255)
+    layer: Layer | None = None
+    lot: str = Field(min_length=1, max_length=255, pattern=r"^\d+$")
     quantity: StrictInt = Field(gt=0)
+    createdByUserId: UUID | None = None
+    createdByName: str | None = Field(default=None, max_length=120)
+    duplicateConfirmed: bool = False
     createdAt: datetime
     updatedAt: datetime
     revision: StrictInt = Field(ge=1)
@@ -223,7 +232,7 @@ class FinalizeInventoryRequest(ApiModel):
 
 class InventoryHistoryItem(ApiModel):
     id: UUID
-    date: date
+    date: DateType
     status: Literal["OPEN", "FINISHED"]
     revision: StrictInt = Field(ge=1)
     finalizedAt: datetime | None = None

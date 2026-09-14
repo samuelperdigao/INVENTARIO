@@ -1,5 +1,7 @@
 # ESPECIFICAÇÃO DO APLICATIVO DE INVENTÁRIO — V1
 
+> Documento histórico de evolução. Para comportamento vigente, use `docs/REGRAS_NEGOCIO.md`; para estado operacional, use `docs/STATUS.md`.
+
 **Status:** Especificação inicial aprovada para desenvolvimento  
 **Versão:** 1.0  
 **Data de criação:** 10/09/2026  
@@ -852,66 +854,84 @@ O relatório final deverá conter pelo menos:
 
 # 25. EXPORTAÇÃO PARA EXCEL
 
-O sistema deverá gerar arquivo `.xlsx` real.
+O sistema gera dois formatos reais. O `.xls` é o formato padrão da equipe,
+porque os computadores antigos da operação abrem Excel 97-2003, mas
+apresentam erro com `.xlsx`. O backend gera o `.xls` diretamente em BIFF8 com
+`xlwt`; não é permitido renomear um `.xlsx`, converter no navegador ou exigir
+LibreOffice no servidor.
 
-Não utilizar CSV como formato principal.
+O `.xlsx` moderno continua disponível e é gerado com `openpyxl`. Ambos usam a
+mesma preparação `build_inventory_report_data()`, que é a fonte única de
+inventário, locais, quantidades, consolidação, divergências e recomendações.
 
-Nome sugerido:
+Nomes:
 
 ```text
-Inventario_10-09-2026.xlsx
+Inventario_2026-09-12.xls
+Inventario_2026-09-12.xlsx
 ```
 
-## Aba 1 — Inventário
+O endpoint preferencial é:
 
-Estrutura:
+```text
+GET /api/v1/inventories/{inventory_id}/export/excel
+GET /api/v1/inventories/{inventory_id}/export/excel?format=xls
+GET /api/v1/inventories/{inventory_id}/export/excel?format=xlsx
+```
 
-| Lado | Vão | Lote | Quantidade de peças |
-|---|---|---|---:|
-| EF | 01 | 458721 | 12 |
-| EF | 01 | 458735 | 8 |
-| DE | 15 | 2815634434 | 19 |
-| EF | 21 | 2815634434 | 1 |
+Sem `format`, o retorno é `.xls`. O endpoint histórico
+`/api/v1/inventories/{inventory_id}/exports/{format}` permanece disponível para
+consumidores existentes.
 
-Requisitos:
+As respostas são bytes binários e informam MIME, `Content-Disposition:
+attachment` e `Content-Length`. Os tipos são `application/vnd.ms-excel` para
+`.xls` e `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+para `.xlsx`.
 
-- cabeçalhos;
-- filtros;
-- largura automática;
-- formatação adequada;
-- lote tratado como texto;
-- organização por lado e vão.
+## Abas e conteúdo
 
-## Aba 2 — Lotes consolidados
+As quatro abas devem aparecer nesta ordem:
 
-| Lote | Total físico | Nº de locais | Situação |
-|---|---:|---:|---|
-| 2815634434 | 20 | 2 | Peça solteira |
+1. `RESUMO`;
+2. `INVENTÁRIO`;
+3. `LOTES CONSOLIDADOS`;
+4. `DIVERGÊNCIAS`.
 
-## Aba 3 — Divergências
+### RESUMO
 
-| Lote | Local principal | Qtd. principal | Local divergente | Qtd. divergente | Classificação |
-|---|---|---:|---|---:|---|
-| 2815634434 | DE / Vão 15 | 19 | EF / Vão 21 | 1 | Peça solteira |
+Contém o título `Aplicativo Inventário da Laminação de Perfis`, data do
+inventário, totais de registros, peças, lotes e vãos, quantidade de
+divergências e lotes fragmentados, totais separados por DE e EF,
+classificações, aviso visual para fragmentação e observações operacionais.
 
-## Aba 4 — Resumo
+### INVENTÁRIO
 
-Poderá conter:
+Contém lado, vão, camada quando informada, lote como texto e quantidade de
+peças como número. Deve ter cabeçalho azul escuro com texto branco, filtros,
+congelamento do cabeçalho, larguras adequadas, linhas alternadas, destaque de
+DE e EF, total ao final e configuração de impressão em A4.
 
-- total de lotes;
-- total de registros;
-- total de peças;
-- lotes regulares;
-- lotes fragmentados;
-- peças solteiras;
-- grupos deslocados;
-- situações ambíguas;
-- itens para revisão.
+### LOTES CONSOLIDADOS
 
-Tecnologias Python recomendadas:
+Contém lote, total físico de peças, vão principal, lado principal, outros
+locais, situação do lote, indicação de fragmentação e recomendação de ação.
 
-- pandas;
-- openpyxl.
+### DIVERGÊNCIAS
+
+Contém lote, locais e quantidades principal e divergente, classificação e
+recomendação de conferência, localização ou realocação. As cores estáticas são
+vermelho para divergência crítica, laranja para atenção, amarelo para
+conferência e verde para situação regular.
+
+## Limitações do `.xls`
+
+O formato legado não usa macros, links externos, tabelas estruturadas,
+fórmulas dinâmicas, arrays dinâmicos ou recursos exclusivos do Microsoft 365.
+Totais e valores são calculados no backend. O limite histórico é de 65.536
+linhas por planilha e pequenas diferenças visuais em relação ao `.xlsx` são
+aceitáveis, desde que os dados e totais permaneçam iguais.
+
+Tecnologias: `xlwt` para BIFF8 e `openpyxl` para OOXML.
 
 ---
 

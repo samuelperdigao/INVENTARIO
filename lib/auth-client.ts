@@ -1,5 +1,7 @@
 "use client";
 
+import { apiBaseUrl } from "@/lib/api-config";
+
 export interface AuthTeam {
   id: string;
   name: string;
@@ -19,7 +21,6 @@ interface AuthResponse {
   user: AuthUser;
 }
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_SYNC_API_BASE_URL ?? process.env.NEXT_PUBLIC_ANALYSIS_API_BASE_URL ?? "http://localhost:8000";
 const cachedUserKey = "inventory-cached-user";
 let accessToken: string | undefined;
 let currentUser: AuthUser | undefined;

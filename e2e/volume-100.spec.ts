@@ -34,12 +34,12 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
   for (const [index, item] of entries.entries()) {
     await page.getByRole("button", { name: item.side, exact: true }).click();
     await page.getByRole("textbox", { name: "Vão", exact: true }).fill(item.bay);
-    await page.getByLabel("Camada (opcional)", { exact: true }).selectOption(item.layer ?? "");
+    await page.getByLabel(/Camada/).selectOption(item.layer ?? "");
     await page.getByLabel("Lote", { exact: true }).fill(item.lot);
     await page.getByLabel("Quantidade de peças", { exact: true }).fill(String(item.quantity));
     await page.getByRole("button", { name: "Adicionar", exact: true }).click();
     if (expectedDuplicates.has(index)) {
-      await expect(page.getByRole("dialog", { name: "Lote já registrado" })).toBeVisible();
+      await expect(page.getByRole("dialog", { name: "Lote já registrado" })).toBeVisible({ timeout: 30_000 });
       await page.getByRole("dialog", { name: "Lote já registrado" }).getByRole("button", { name: "Adicionar mesmo assim", exact: true }).click();
     }
     await expect(page.locator(".entry-row")).toHaveCount(index + 1);

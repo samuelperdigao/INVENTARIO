@@ -99,7 +99,7 @@ def test_xls_is_biff8_with_same_tabs_and_text_lots() -> None:
     content = export_xls(report())
     assert len(content) > 0
     assert content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
-    workbook = open_workbook(file_contents=content)
+    workbook = open_workbook(file_contents=content, formatting_info=True)
     assert workbook.sheet_names() == ["RESUMO", "INVENTÁRIO", "LOTES CONSOLIDADOS", "LOTES PARA CONFERÊNCIA"]
     assert sum(name.name == "_FilterDatabase" for name in workbook.name_obj_list) == 0
     assert all(not workbook.sheet_by_name(name).show_grid_lines for name in workbook.sheet_names())
@@ -118,6 +118,8 @@ def test_xls_is_biff8_with_same_tabs_and_text_lots() -> None:
     assert conference.cell_value(4, 0) == "10"
     assert conference.cell_value(4, 2) == "5 PEÇAS FORA DO LOCAL PRINCIPAL"
     assert conference.cell_value(4, 5) == 5
+    assert workbook.sheet_by_name("LOTES CONSOLIDADOS").rowinfo_map[4].height >= 900
+    assert conference.rowinfo_map[4].height >= 600
 
 
 def test_pdf_and_docx_are_valid_and_contain_critical_content() -> None:

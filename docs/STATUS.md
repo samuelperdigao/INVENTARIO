@@ -86,22 +86,25 @@ Branch: `feat/fluxo-acesso-compartilhamento-v1`.
 ## Validação desta entrega
 
 Branch de trabalho: `feat/fluxo-acesso-compartilhamento-v1`.
-Commit publicado: `3ab62a8`.
+Commit publicado anteriormente: `7eff966`. Esta continuação adiciona somente
+ajustes de impressão BIFF8 e a cobertura correspondente.
 
 - `pnpm lint`: aprovado.
 - `pnpm typecheck`: aprovado.
 - `pnpm test`: 9 arquivos e 39 testes aprovados.
 - `backend/.venv/bin/python -m pytest backend/tests -q`: 36 testes aprovados, com 2 avisos de depreciação de dependências.
 - `pnpm build`: aprovado.
-- Inspeção local dos quatro arquivos: XLS BIFF8, XLSX, PDF e DOCX válidos; totais e situações visíveis coerentes.
-- `pnpm exec playwright install chromium`: bloqueado por timeout e respostas 502 do CDN do Playwright.
-- `pnpm e2e`: executado, mas os 6 cenários não iniciaram porque o executável Chromium não estava disponível no ambiente.
+- Inspeção estrutural dos quatro arquivos: XLS BIFF8, XLSX, PDF e DOCX válidos; totais e situações visíveis coerentes.
+- `.xls`: alturas de linhas com múltiplos locais e escala de impressão legada cobertas pelo teste BIFF8.
+- `pnpm exec playwright install chromium`: os três espelhos do CDN retornaram erro, timeout ou ZIP truncado.
+- Chrome for Testing `145.0.7632.6` foi instalado pelo artefato oficial direto e respondeu na revisão esperada pelo Playwright.
+- `pnpm e2e`: 6 cenários aprovados em 2m23s usando o backend local do runner.
 - Produção: frontend público respondeu e a folha de estilos publicada contém os estados `single-piece`, `multiple-pieces`, `distributed` e `conference-table`; API pública expôs `LotPresentation` e `lotsForConference` no OpenAPI.
 
 ## Pendências
 
-- Reexecutar o E2E em um runner com Chromium disponível.
 - Fazer conferência visual em Excel antigo e Excel moderno no ambiente da equipe.
+- A conversão visual local do `.xls` não foi repetível: o Calc alfa entrou em loop de CPU e o Calc estável instalado não iniciou sob as restrições de usuário do sandbox. A validação BIFF8 estrutural e os testes de conteúdo continuam aprovados.
 - Validar a PWA em Android físico.
 - Validar instalação, cache e compartilhamento em Safari/iPhone físico.
 - Planejar a separação incremental dos routers de `backend/app/main.py` somente junto de nova evolução funcional e cobertura de contrato.

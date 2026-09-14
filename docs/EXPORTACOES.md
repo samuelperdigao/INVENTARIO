@@ -77,6 +77,11 @@ impressão em A4, quantidades numéricas, lotes como texto, linhas alternadas,
 conteúdo centralizado e linhas de grade ocultas. Os dois formatos são
 exportados sem filtros ou menus de filtro nas colunas.
 
+No `.xls`, as linhas que contêm mais de um local ou texto longo recebem altura
+proporcional à quebra de linha. `RESUMO`, `LOTES CONSOLIDADOS` e `LOTES PARA
+CONFERÊNCIA` usam escala explícita de impressão, com redução adicional nas abas
+mais largas, para manter suas colunas na largura imprimível do A4 legado.
+
 O `.xls` não usa macros, links externos, tabelas estruturadas, fórmulas
 dinâmicas ou recursos do Microsoft 365. Valores e totais são calculados no
 backend. Por ser BIFF8, o arquivo possui o limite histórico de 65.536 linhas

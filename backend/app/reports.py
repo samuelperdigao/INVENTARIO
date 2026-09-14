@@ -426,6 +426,18 @@ def _xls_row_style(styles: dict[str, xlwt.XFStyle], kind: str, row_offset: int) 
     return styles["body_alt"] if row_offset % 2 else styles["body"]
 
 
+def _xls_row_height(values: list[object]) -> int:
+    """Reserva altura BIFF8 suficiente para texto quebrado e múltiplos locais."""
+
+    line_count = max(
+        (str(value or "").count("\n") + 1 for value in values),
+        default=1,
+    )
+    if any(len(str(value or "")) > 34 for value in values):
+        line_count = max(line_count, 2)
+    return min(1200, 300 * line_count)
+
+
 def _xls_add_sheet(
     workbook: xlwt.Workbook,
     name: str,
@@ -439,6 +451,7 @@ def _xls_add_sheet(
     number_columns: set[int] | None = None,
     row_kinds: list[str] | None = None,
     landscape: bool = True,
+    print_scaling: int = 85,
 ) -> None:
     sheet = workbook.add_sheet(name)
     styles = _xls_styles()
@@ -473,7 +486,7 @@ def _xls_add_sheet(
                 style.num_format_str = "@"
                 value = str(value)
             sheet.write(row_number, column_index, value, style)
-        sheet.row(row_number).height = 360 if any(len(str(value or "")) > 34 for value in values) else 300
+        sheet.row(row_number).height = _xls_row_height(values)
 
     sheet.set_panes_frozen(True)
     sheet.set_horz_split_pos(4)
@@ -484,7 +497,7 @@ def _xls_add_sheet(
     sheet.set_paper_size_code(9)  # A4 no catálogo BIFF8.
     sheet.set_fit_width_to_pages(1)
     sheet.set_fit_height_to_pages(0)
-    sheet.set_print_scaling(85)
+    sheet.set_print_scaling(print_scaling)
 
 
 def generate_xls_report(report: dict[str, Any]) -> bytes:
@@ -507,6 +520,7 @@ def generate_xls_report(report: dict[str, Any]) -> bytes:
         widths=[38, 92],
         number_columns={1},
         landscape=False,
+        print_scaling=60,
     )
     _xls_add_sheet(
         workbook,
@@ -549,6 +563,7 @@ def generate_xls_report(report: dict[str, Any]) -> bytes:
         text_columns={0},
         number_columns={1, 5},
         row_kinds=conference_kinds,
+        print_scaling=60,
     )
     buffer = BytesIO()
     workbook.save(buffer)

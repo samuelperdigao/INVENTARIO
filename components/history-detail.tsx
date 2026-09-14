@@ -16,6 +16,7 @@ import {
   type ReportFormat,
   type ShareableReportFormat,
 } from "@/lib/report-client";
+import { LotLocations } from "@/components/lot-locations";
 import type { AnalysisClassification, AnalysisLocation, AnalysisSummary } from "@/lib/models";
 
 const shareFormats: ShareableReportFormat[] = ["pdf", "xlsx", "docx"];
@@ -156,7 +157,7 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
         {message ? <p className="notice" role="status">{message}</p> : null}
       </section>
 
-      <section className="card section-card stack"><div><p className="eyebrow">Conferência</p><h2>Lotes consolidados</h2></div><div className="report-table-wrap"><table className="report-table"><thead><tr><th>Lote</th><th>Total físico</th><th>Locais</th><th>Classificação</th></tr></thead><tbody>{report.lots.map((lot) => <tr key={lot.lot}><td>{lot.lot}</td><td>{lot.totalQuantity}</td><td>{lot.locations.map((location) => `${location.side} · ${location.bay} (${location.quantity})`).join(", ")}</td><td><span className={`classification-tag ${lot.classification === "OK" ? "good" : "attention"}`}>{lot.classification.replaceAll("_", " ")}</span></td></tr>)}</tbody></table></div></section>
+      <section className="card section-card stack"><div><p className="eyebrow">Conferência</p><h2>Lotes consolidados</h2></div><div className="report-table-wrap"><table className="report-table"><thead><tr><th>Lote</th><th>Total físico</th><th>Locais</th><th>Classificação</th></tr></thead><tbody>{report.lots.map((lot) => <tr key={lot.lot}><td>{lot.lot}</td><td>{lot.totalQuantity}</td><td className="report-table-locations"><LotLocations locations={lot.locations} classification={lot.classification} /></td><td><span className={`classification-tag ${lot.classification === "OK" ? "good" : "attention"}`}>{lot.classification.replaceAll("_", " ")}</span></td></tr>)}</tbody></table></div></section>
     </div> : null}
   </main>;
 }

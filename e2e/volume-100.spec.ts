@@ -6,7 +6,7 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
   test.setTimeout(240_000);
   const { ownerEmail } = seedUsers("volume-export");
   await login(page, ownerEmail);
-  await page.getByRole("button", { name: "Iniciar novo inventário", exact: true }).click();
+  await page.getByRole("button", { name: /^Iniciar novo inventário/ }).click();
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
 
   const entries: Array<{ side: "EF" | "DE"; bay: string; layer?: string; lot: string; quantity: number }> = [

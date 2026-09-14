@@ -10,6 +10,8 @@ Atualizado em 14/09/2026.
 - PostgreSQL ativo no Neon.
 - Migration `0007_recovery_pin` registrada como aplicada no ambiente principal.
 - O workflow `Production Smoke` da `main` em `acc1cff` concluiu com sucesso.
+- O commit `3ab62a8` foi integrado à `main`; o check da Vercel concluiu com sucesso.
+- O deploy Render `dep-dajsg3id0e5s73diru40` está `live` para o mesmo commit; `/healthz` respondeu `{"status":"ok"}`.
 
 ## Funcionalidades concluídas
 
@@ -81,10 +83,25 @@ Branch: `feat/fluxo-acesso-compartilhamento-v1`.
 - Os testes verificam assinatura OLE, ZIP, abas, ausência de filtros e linhas de grade, MIME, `Content-Disposition`, `Content-Length`, totais iguais e download como Blob.
 - Word permanece em `.docx`; uma variante `.rtf` ou `.doc` ficou fora desta entrega por não haver geração legada segura na estrutura atual.
 
+## Validação desta entrega
+
+Branch de trabalho: `feat/fluxo-acesso-compartilhamento-v1`.
+Commit publicado: `3ab62a8`.
+
+- `pnpm lint`: aprovado.
+- `pnpm typecheck`: aprovado.
+- `pnpm test`: 9 arquivos e 39 testes aprovados.
+- `backend/.venv/bin/python -m pytest backend/tests -q`: 36 testes aprovados, com 2 avisos de depreciação de dependências.
+- `pnpm build`: aprovado.
+- Inspeção local dos quatro arquivos: XLS BIFF8, XLSX, PDF e DOCX válidos; totais e situações visíveis coerentes.
+- `pnpm exec playwright install chromium`: bloqueado por timeout e respostas 502 do CDN do Playwright.
+- `pnpm e2e`: executado, mas os 6 cenários não iniciaram porque o executável Chromium não estava disponível no ambiente.
+- Produção: frontend público respondeu e a folha de estilos publicada contém os estados `single-piece`, `multiple-pieces`, `distributed` e `conference-table`; API pública expôs `LotPresentation` e `lotsForConference` no OpenAPI.
+
 ## Pendências
 
-- Publicar o branch e repetir o teste funcional de volume com 100 lançamentos no aplicativo publicado.
-- Fazer conferência visual final dos arquivos em Excel antigo, Excel moderno, PDF e Word no ambiente da equipe.
+- Reexecutar o E2E em um runner com Chromium disponível.
+- Fazer conferência visual em Excel antigo e Excel moderno no ambiente da equipe.
 - Validar a PWA em Android físico.
 - Validar instalação, cache e compartilhamento em Safari/iPhone físico.
 - Planejar a separação incremental dos routers de `backend/app/main.py` somente junto de nova evolução funcional e cobertura de contrato.

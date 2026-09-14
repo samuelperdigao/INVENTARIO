@@ -21,7 +21,7 @@ O estado operacional mais recente fica em [`docs/STATUS.md`](docs/STATUS.md).
 - IndexedDB como fonte primária da operação offline.
 - Detecção de lotes repetidos com confirmação explícita e identificação do autor.
 - Sincronização incremental com cursor, revisões, idempotência, tombstones e resolução de conflitos.
-- Análise determinística de lotes fragmentados e peças deslocadas.
+- Análise determinística de lotes, com apresentação operacional de lotes OK e lotes para conferência.
 - Finalização irreversível na V1, histórico e exportações Excel, PDF e Word.
 - Exportação Excel compatível `.xls` BIFF8 como opção padrão da equipe, com `.xlsx` moderno preservado.
 - Compartilhamento nativo no celular e links temporários assinados para arquivos de escritório.

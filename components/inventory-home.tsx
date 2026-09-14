@@ -130,7 +130,7 @@ export function InventoryHome() {
             <p className="security-note">O código identifica o inventário aberto. A segurança continua vinculada à sua conta e a um token interno protegido.</p>
           </section>
 
-          <section className="card section-card stack" aria-labelledby="guide-title"><div><p className="eyebrow">Guia rápido</p><h2 id="guide-title">Fluxo do inventário</h2></div><ol className="guide-list"><li><span>1</span><div><strong>Lance os registros</strong><small>Informe lado, vão, lote e quantidade.</small></div></li><li><span>2</span><div><strong>Sincronize a equipe</strong><small>Compartilhe o código de seis números.</small></div></li><li><span>3</span><div><strong>Confira a análise</strong><small>Revise fragmentações e divergências.</small></div></li><li><span>4</span><div><strong>Finalize e compartilhe</strong><small>Gere PDF, Excel ou Word.</small></div></li></ol></section>
+        <section className="card section-card stack" aria-labelledby="guide-title"><div><p className="eyebrow">Guia rápido</p><h2 id="guide-title">Fluxo do inventário</h2></div><ol className="guide-list"><li><span>1</span><div><strong>Lance os registros</strong><small>Informe lado, vão, lote e quantidade.</small></div></li><li><span>2</span><div><strong>Sincronize a equipe</strong><small>Compartilhe o código de seis números.</small></div></li><li><span>3</span><div><strong>Confira a análise</strong><small>Revise os lotes para conferência.</small></div></li><li><span>4</span><div><strong>Finalize e compartilhe</strong><small>Gere PDF, Excel ou Word.</small></div></li></ol></section>
         </aside>
       </div>
       </div>

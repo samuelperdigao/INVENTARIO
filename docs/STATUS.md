@@ -21,11 +21,11 @@ Atualizado em 14/09/2026.
 - Camada opcional nos lançamentos; quando informada, aceita A1 a A10.
 - Lote numérico, autoria e confirmação de duplicidade.
 - Sincronização incremental, idempotência, tombstones e conflitos.
-- Análise de lotes fragmentados.
+- Análise determinística de lotes com apresentação operacional para o operador.
 - Finalização central irreversível, histórico e exportações PDF, Excel e Word.
 - Exportação `.xls` BIFF8 gerada diretamente no backend e apresentada como padrão para os computadores antigos da equipe.
 - Exportação `.xlsx` moderna preservada, com fonte única de dados, quatro abas na ordem oficial e contratos binários de MIME, nome e tamanho.
-- Exportações Excel, PDF e Word revisadas para incluir resumo, inventário, lotes consolidados, divergências e recomendações sem duplicar a lógica de análise.
+- Exportações Excel, PDF e Word revisadas para usar resumo, inventário, lotes consolidados e lotes para conferência, com uma linha por lote e sem duplicar a lógica de análise.
 - Compartilhamento nativo e links temporários assinados.
 
 ## Auditoria de manutenção
@@ -77,7 +77,7 @@ Branch: `feat/fluxo-acesso-compartilhamento-v1`.
 - `xlwt` gera `.xls` diretamente em BIFF8/OLE, sem conversão no navegador ou dependência do LibreOffice.
 - `openpyxl` mantém o `.xlsx` moderno.
 - O endpoint `/api/v1/inventories/{id}/export/excel` usa `.xls` por padrão e aceita `?format=xlsx`.
-- O teste de volume local cobre 100 registros, 95 lotes, 1.269 peças e 4 lotes fragmentados nos quatro formatos.
+- O teste de volume local cobre 100 registros, 95 lotes, 1.269 peças, 91 lotes OK e 4 lotes para conferência nos quatro formatos.
 - Os testes verificam assinatura OLE, ZIP, abas, ausência de filtros e linhas de grade, MIME, `Content-Disposition`, `Content-Length`, totais iguais e download como Blob.
 - Word permanece em `.docx`; uma variante `.rtf` ou `.doc` ficou fora desta entrega por não haver geração legada segura na estrutura atual.
 

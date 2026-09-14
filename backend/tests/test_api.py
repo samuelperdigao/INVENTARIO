@@ -31,6 +31,9 @@ def test_preview_contract_and_server_validation() -> None:
     assert body["revision"] == 2
     assert body["lots"][0]["classification"] == "PEÇA_SOLTEIRA"
     assert body["lots"][0]["locations"][0]["layer"] in {"A1", "A10"}
+    assert body["lots"][0]["presentation"]["situation"] == "1 PEÇA FORA DO LOCAL PRINCIPAL"
+    assert body["lots"][0]["presentation"]["primaryLocation"]["display"].endswith("19 pç")
+    assert body["summary"]["lotsForConference"] == 1
 
     invalid_lot = client.post(
         "/api/v1/analysis/preview",

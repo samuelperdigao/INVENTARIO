@@ -105,7 +105,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
           <span className="inventory-rail-step active"><b>01</b><span><strong>Lançar</strong><small>Registrar itens</small></span></span>
           <span className="inventory-rail-step"><b>02</b><span><strong>Conferir</strong><small>Revisar registros</small></span></span>
           <span className="inventory-rail-step"><b>03</b><span><strong>Sincronizar</strong><small>Enviar dados</small></span></span>
-          <span className="inventory-rail-step"><b>04</b><span><strong>Analisar</strong><small>Ver divergências</small></span></span>
+          <span className="inventory-rail-step"><b>04</b><span><strong>Analisar</strong><small>Ver lotes para conferência</small></span></span>
           <span className="inventory-rail-step"><b>05</b><span><strong>Finalizar</strong><small>Gerar relatório</small></span></span>
         </nav>
         <p className="inventory-rail-foot"><Icon name="cloud" size={14} /> Salvo localmente</p>

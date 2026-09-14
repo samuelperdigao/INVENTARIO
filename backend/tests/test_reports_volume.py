@@ -71,24 +71,45 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
 
     legacy = open_workbook(file_contents=xls)
     modern = load_workbook(BytesIO(xlsx))
-    expected_tabs = ["RESUMO", "INVENTÁRIO", "LOTES CONSOLIDADOS", "DIVERGÊNCIAS"]
+    expected_tabs = ["RESUMO", "INVENTÁRIO", "LOTES CONSOLIDADOS", "LOTES PARA CONFERÊNCIA"]
     assert legacy.sheet_names() == expected_tabs
     assert modern.sheetnames == expected_tabs
     assert sum(name.name == "_FilterDatabase" for name in legacy.name_obj_list) == 0
     assert all(not legacy.sheet_by_name(name).show_grid_lines for name in expected_tabs)
     assert all(modern[name].sheet_view.showGridLines is False for name in expected_tabs)
     assert all(modern[name].auto_filter.ref is None for name in expected_tabs)
+    legacy_text = "\n".join(
+        str(legacy.sheet_by_name(name).cell_value(row, column))
+        for name in expected_tabs
+        for row in range(legacy.sheet_by_name(name).nrows)
+        for column in range(legacy.sheet_by_name(name).ncols)
+    )
+    modern_text = "\n".join(
+        str(cell.value)
+        for name in expected_tabs
+        for row in modern[name].iter_rows()
+        for cell in row
+    )
+    for technical_name in ("PEÇA_SOLTEIRA", "GRUPO_DESLOCADO", "DISTRIBUIÇÃO_AMBÍGUA", "DIVERGÊNCIAS"):
+        assert technical_name not in legacy_text
+        assert technical_name not in modern_text
 
     legacy_summary = _xls_summary(legacy)
     modern_summary = _xlsx_summary(modern)
-    for label in ("Total de registros", "Total de peças", "Total de lotes", "Quantidade de lotes fragmentados"):
+    for label in ("Total de registros", "Total de peças", "Total de lotes", "Lotes OK", "Lotes para conferência"):
         assert legacy_summary[label] == modern_summary[label] == {
             "Total de registros": 100,
             "Total de peças": 1269,
             "Total de lotes": 95,
-            "Quantidade de lotes fragmentados": 4,
+            "Lotes OK": 91,
+            "Lotes para conferência": 4,
         }[label]
     assert report["summary"]["fragmentedLots"] == 4
+    assert report["summary"]["lotsOk"] == 91
+    assert report["summary"]["lotsForConference"] == 4
+    assert report["summary"]["singlePieceOutsideLots"] == 1
+    assert report["summary"]["multiplePiecesOutsideLots"] == 1
+    assert report["summary"]["distributedLots"] == 2
 
     legacy_inventory = legacy.sheet_by_name("INVENTÁRIO")
     modern_inventory = modern["INVENTÁRIO"]
@@ -99,24 +120,63 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
     modern_lots = modern["LOTES CONSOLIDADOS"]
     legacy_lot_row = next(row for row in range(4, legacy_lots.nrows) if legacy_lots.cell_value(row, 0) == "900001")
     modern_lot_row = next(row for row in range(5, modern_lots.max_row + 1) if modern_lots.cell(row, 1).value == "900001")
-    assert "PEÇA_SOLTEIRA" in str(legacy_lots.cell_value(legacy_lot_row, 5))
-    assert "PEÇA_SOLTEIRA" in str(modern_lots.cell(modern_lot_row, 6).value)
+    assert legacy_lots.cell_value(legacy_lot_row, 3) == "1 PEÇA FORA DO LOCAL PRINCIPAL"
+    assert modern_lots.cell(modern_lot_row, 4).value == "1 PEÇA FORA DO LOCAL PRINCIPAL"
+    expected_situations = {
+        "900001": "1 PEÇA FORA DO LOCAL PRINCIPAL",
+        "900002": "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL",
+        "900003": "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL",
+        "900004": "5 PEÇAS FORA DO LOCAL PRINCIPAL",
+    }
+    assert {
+        str(legacy_lots.cell_value(row, 0)): legacy_lots.cell_value(row, 3)
+        for row in range(4, legacy_lots.nrows)
+        if legacy_lots.cell_value(row, 0) in expected_situations
+    } == expected_situations
+    assert {
+        str(modern_lots.cell(row, 1).value): modern_lots.cell(row, 4).value
+        for row in range(5, modern_lots.max_row + 1)
+        if modern_lots.cell(row, 1).value in expected_situations
+    } == expected_situations
     assert any(legacy_lots.cell_value(row, 0) == "910090" for row in range(4, legacy_lots.nrows))
     assert any(modern_lots.cell(row, 1).value == "910090" for row in range(5, modern_lots.max_row + 1))
 
-    legacy_divergences = legacy.sheet_by_name("DIVERGÊNCIAS")
-    modern_divergences = modern["DIVERGÊNCIAS"]
-    assert any(legacy_divergences.cell_value(row, 0) == "900001" for row in range(4, legacy_divergences.nrows))
-    assert any(modern_divergences.cell(row, 1).value == "900001" for row in range(5, modern_divergences.max_row + 1))
+    legacy_conference = legacy.sheet_by_name("LOTES PARA CONFERÊNCIA")
+    modern_conference = modern["LOTES PARA CONFERÊNCIA"]
+    assert any(legacy_conference.cell_value(row, 0) == "900001" for row in range(4, legacy_conference.nrows))
+    assert any(modern_conference.cell(row, 1).value == "900001" for row in range(5, modern_conference.max_row + 1))
+    assert all(legacy_conference.cell_value(row, 0) != "910090" for row in range(4, legacy_conference.nrows))
+    assert all(modern_conference.cell(row, 1).value != "910090" for row in range(5, modern_conference.max_row + 1))
 
     pdf_reader = PdfReader(BytesIO(pdf))
     pdf_text = "".join(page.extract_text() or "" for page in pdf_reader.pages)
     assert pdf_reader.pages[0].mediabox.width > pdf_reader.pages[0].mediabox.height
     assert "900001" in pdf_text
     assert "910090" in pdf_text
-    assert "PEÇA_SOLTEIRA" in pdf_text
+    assert "1 PEÇA FORA DO LOCAL PRINCIPAL" in pdf_text
+    assert "5 PEÇAS FORA DO LOCAL PRINCIPAL" in pdf_text
+    assert "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL" in pdf_text
+    assert "PEÇA_SOLTEIRA" not in pdf_text
+    for label, value in (("Total de registros", "100"), ("Total de peças", "1269"), ("Total de lotes", "95"), ("Lotes OK", "91"), ("Lotes para conferência", "4")):
+        assert f"{label}\n{value}" in pdf_text
     document = Document(BytesIO(docx))
     docx_text = "\n".join(cell.text for table in document.tables for row in table.rows for cell in row.cells)
     assert "900001" in docx_text
     assert "910090" in docx_text
-    assert "PEÇA_SOLTEIRA" in docx_text
+    assert "1 PEÇA FORA DO LOCAL PRINCIPAL" in docx_text
+    assert "5 PEÇAS FORA DO LOCAL PRINCIPAL" in docx_text
+    assert "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL" in docx_text
+    assert "PEÇA_SOLTEIRA" not in docx_text
+    docx_summary = {
+        row.cells[0].text: row.cells[1].text
+        for table in document.tables
+        for row in table.rows
+        if len(row.cells) == 2
+    }
+    assert {label: docx_summary[label] for label in ("Total de registros", "Total de peças", "Total de lotes", "Lotes OK", "Lotes para conferência")} == {
+        "Total de registros": "100",
+        "Total de peças": "1269",
+        "Total de lotes": "95",
+        "Lotes OK": "91",
+        "Lotes para conferência": "4",
+    }

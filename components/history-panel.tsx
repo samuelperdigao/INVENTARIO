@@ -14,7 +14,7 @@ export interface HistoryItem {
   finalizedAt?: string;
   createdByName?: string;
   finalizedByName?: string;
-  summary?: { lotsAnalyzed: number; totalPieces?: number; fragmentedLots: number; reviewItems: number };
+  summary?: { lotsAnalyzed: number; totalPieces?: number; fragmentedLots?: number; reviewItems?: number; lotsForConference?: number };
 }
 
 export function HistoryPanel({ standalone = false }: { standalone?: boolean }) {
@@ -62,7 +62,7 @@ export function HistoryPanel({ standalone = false }: { standalone?: boolean }) {
     {loading ? <p className="muted">Carregando histórico…</p> : null}
     {message ? <p className={message.startsWith("Sua conta") ? "notice" : "error"} role="status">{message}</p> : null}
     {!loading && items?.length === 0 && !message ? <p className="empty-state">Nenhum inventário finalizado neste histórico.</p> : null}
-    <div className="history-list">{items?.map((item) => <Link className="history-row" href={`/historico/${item.id}`} key={item.id}><div className="history-date"><span>{formatBrazilianDate(item.date)}</span><small>Finalizado em {item.finalizedAt ? new Date(item.finalizedAt).toLocaleString("pt-BR") : "data não informada"}</small></div><div className="inventory-card-meta"><span className="micro-pill">{item.summary?.lotsAnalyzed ?? 0} lote(s)</span><span className="micro-pill">{item.summary?.fragmentedLots ?? 0} fragmentado(s)</span></div><span className="chevron" aria-hidden="true">›</span></Link>)}</div>
+    <div className="history-list">{items?.map((item) => <Link className="history-row" href={`/historico/${item.id}`} key={item.id}><div className="history-date"><span>{formatBrazilianDate(item.date)}</span><small>Finalizado em {item.finalizedAt ? new Date(item.finalizedAt).toLocaleString("pt-BR") : "data não informada"}</small></div><div className="inventory-card-meta"><span className="micro-pill">{item.summary?.lotsAnalyzed ?? 0} lote(s)</span><span className="micro-pill">{item.summary?.lotsForConference ?? item.summary?.fragmentedLots ?? 0} lote(s) para conferência</span></div><span className="chevron" aria-hidden="true">›</span></Link>)}</div>
   </section>;
 
   if (!standalone) return content;

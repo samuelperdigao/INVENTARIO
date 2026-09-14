@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
 
 import { formatLotLocation, LotLocations } from "@/components/lot-locations";
-import type { AnalysisClassification, AnalysisLocation } from "@/lib/models";
+import type { AnalysisClassification, AnalysisLocation, LotPresentation } from "@/lib/models";
 
 function location(side: "EF" | "DE", bay: string, quantity: number): AnalysisLocation {
   return { side, bay, quantity };
@@ -106,4 +106,25 @@ it("não repete quantidade física para lotes OK mesmo com classificação sem a
   expect(list).not.toHaveTextContent("pç");
   expect(list).not.toHaveTextContent("(");
   expect(list).not.toHaveTextContent(")");
+});
+
+it("mantém camada no local apresentado pelo backend", () => {
+  const presentation: LotPresentation = {
+    situation: "1 PEÇA FORA DO LOCAL PRINCIPAL",
+    tone: "single-piece",
+    requiresConference: true,
+    primaryLocation: { label: "DE 15 · A1", display: "DE 15 · A1 · 19 pç", quantity: 19, isPrimary: true },
+    otherLocations: [{ label: "DE 15 · A2", display: "DE 15 · A2 · 1 pç", quantity: 1, isPrimary: false }],
+    locations: [
+      { label: "DE 15 · A1", display: "DE 15 · A1 · 19 pç", quantity: 19, isPrimary: true },
+      { label: "DE 15 · A2", display: "DE 15 · A2 · 1 pç", quantity: 1, isPrimary: false },
+    ],
+    outOfPrimaryQuantity: 1,
+    action: "Conferir a peça localizada em DE 15 · A2.",
+  };
+  render(<LotLocations classification="PEÇA_SOLTEIRA" locations={[location("DE", "15", 19)]} presentation={presentation} />);
+
+  const list = screen.getByRole("list", { name: "Locais do lote" });
+  expect(within(list).getByRole("listitem", { name: "DE 15 · A1 · 19 pç" })).toBeInTheDocument();
+  expect(within(list).getByRole("listitem", { name: "DE 15 · A2 · 1 pç" })).toBeInTheDocument();
 });

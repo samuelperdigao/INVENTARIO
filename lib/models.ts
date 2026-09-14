@@ -58,6 +58,26 @@ export interface AnalysisLocation {
   quantity: number;
 }
 
+export type PresentationTone = "ok" | "single-piece" | "multiple-pieces" | "distributed" | "review";
+
+export interface PresentationLocation {
+  label: string;
+  display: string;
+  quantity: number;
+  isPrimary: boolean;
+}
+
+export interface LotPresentation {
+  situation: string;
+  tone: PresentationTone;
+  requiresConference: boolean;
+  primaryLocation: PresentationLocation | null;
+  otherLocations: PresentationLocation[];
+  locations: PresentationLocation[];
+  outOfPrimaryQuantity: number | null;
+  action: string;
+}
+
 export interface LotAnalysis {
   lot: string;
   totalQuantity: number;
@@ -67,6 +87,8 @@ export interface LotAnalysis {
   primaryLocation?: AnalysisLocation;
   displacedQuantity: number;
   recommendation?: string;
+  /** Presente nas respostas novas; caches antigos podem não ter este campo. */
+  presentation?: LotPresentation;
 }
 
 export interface AnalysisSummary {
@@ -77,6 +99,12 @@ export interface AnalysisSummary {
   displacedGroups: number;
   ambiguousDistributions: number;
   reviewItems: number;
+  lotsOk?: number;
+  lotsForConference?: number;
+  singlePieceOutsideLots?: number;
+  multiplePiecesOutsideLots?: number;
+  distributedLots?: number;
+  reviewLots?: number;
 }
 
 export interface AnalysisReport {

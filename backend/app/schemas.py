@@ -43,6 +43,24 @@ class AnalysisLocation(ApiModel):
     quantity: StrictInt = Field(gt=0)
 
 
+class PresentationLocation(ApiModel):
+    label: str
+    display: str
+    quantity: StrictInt = Field(gt=0)
+    isPrimary: bool
+
+
+class LotPresentation(ApiModel):
+    situation: str
+    tone: Literal["ok", "single-piece", "multiple-pieces", "distributed", "review"]
+    requiresConference: bool
+    primaryLocation: PresentationLocation | None = None
+    otherLocations: list[PresentationLocation]
+    locations: list[PresentationLocation]
+    outOfPrimaryQuantity: StrictInt | None = None
+    action: str
+
+
 class LotAnalysis(ApiModel):
     lot: str
     totalQuantity: StrictInt = Field(gt=0)
@@ -58,6 +76,7 @@ class LotAnalysis(ApiModel):
     primaryLocation: AnalysisLocation | None = None
     displacedQuantity: StrictInt = Field(ge=0)
     recommendation: str | None = None
+    presentation: LotPresentation
 
 
 class AnalysisSummary(ApiModel):
@@ -68,6 +87,12 @@ class AnalysisSummary(ApiModel):
     displacedGroups: StrictInt = Field(ge=0)
     ambiguousDistributions: StrictInt = Field(ge=0)
     reviewItems: StrictInt = Field(ge=0)
+    lotsOk: StrictInt = Field(default=0, ge=0)
+    lotsForConference: StrictInt = Field(default=0, ge=0)
+    singlePieceOutsideLots: StrictInt = Field(default=0, ge=0)
+    multiplePiecesOutsideLots: StrictInt = Field(default=0, ge=0)
+    distributedLots: StrictInt = Field(default=0, ge=0)
+    reviewLots: StrictInt = Field(default=0, ge=0)
 
 
 class AnalysisReport(ApiModel):

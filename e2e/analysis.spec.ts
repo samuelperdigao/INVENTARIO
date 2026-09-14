@@ -26,7 +26,8 @@ test("envia lançamentos ao motor online e identifica o cache quando fica offlin
   await expect(page.getByText("Lote 000123")).toHaveCount(2);
 
   await page.getByRole("button", { name: "Atualizar análise" }).click();
-  await expect(page.getByText("PEÇA_SOLTEIRA")).toBeVisible();
+  await expect(page.getByText("1 PEÇA FORA DO LOCAL PRINCIPAL", { exact: true })).toBeVisible();
+  await expect(page.getByText("PEÇA_SOLTEIRA", { exact: true })).toHaveCount(0);
 
   await context.setOffline(true);
   await page.getByRole("button", { name: "Atualizar análise" }).click();

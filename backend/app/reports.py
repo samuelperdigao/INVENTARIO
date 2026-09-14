@@ -14,6 +14,7 @@ from xml.sax.saxutils import escape
 
 import xlwt
 from docx import Document
+from docx.enum.section import WD_ORIENT
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
@@ -31,6 +32,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.engine import AnalysisEntry, analyze_entries
+from app.presentation import apply_report_presentation, build_lot_presentation
 
 
 BLUE_DARK = "1F4E78"
@@ -45,11 +47,11 @@ ALERT_YELLOW = "FFF2CC"
 GOOD_GREEN = "E2F0D9"
 
 _ALERT_COLORS = {
-    "PEÇA_SOLTEIRA": ALERT_RED,
-    "GRUPO_DESLOCADO": ALERT_ORANGE,
-    "DISTRIBUIÇÃO_AMBÍGUA": ALERT_YELLOW,
-    "REVISAR": ALERT_ORANGE,
-    "OK": GOOD_GREEN,
+    "single-piece": ALERT_YELLOW,
+    "multiple-pieces": ALERT_ORANGE,
+    "distributed": ALERT_RED,
+    "review": ALERT_ORANGE,
+    "ok": GOOD_GREEN,
 }
 
 
@@ -57,14 +59,6 @@ def _natural_key(value: str) -> list[object]:
     import re
 
     return [int(part) if part.isdigit() else part.casefold() for part in re.split(r"(\d+)", value)]
-
-
-def _location(location: dict[str, Any] | None) -> str:
-    if not location:
-        return "—"
-    layer = location.get("layer")
-    suffix = f" · Camada {layer}" if layer else ""
-    return f"{location['side']} · Vão {location['bay']}{suffix}"
 
 
 def build_inventory_report_data(
@@ -77,7 +71,7 @@ def build_inventory_report_data(
     """Prepara a fonte única consumida por todos os exportadores."""
 
     raw_entries = list(entries)
-    analysis = analyze_entries(inventory_id, revision, raw_entries)
+    analysis = apply_report_presentation(analyze_entries(inventory_id, revision, raw_entries))
     analysis["generatedAt"] = (generated_at or datetime.now().astimezone()).isoformat()
     records = [
         {
@@ -116,28 +110,6 @@ def build_consolidated_report(
     return build_inventory_report_data(inventory_id, inventory_date, revision, entries, generated_at)
 
 
-def _divergences(report: dict[str, Any]) -> list[dict[str, Any]]:
-    """Mantém a definição existente de divergência com local principal confiável."""
-
-    result: list[dict[str, Any]] = []
-    for lot in report["lots"]:
-        primary = lot.get("primaryLocation")
-        if not primary:
-            continue
-        for location in lot["locations"]:
-            if location != primary:
-                result.append(
-                    {
-                        "lot": lot["lot"],
-                        "primary": primary,
-                        "other": location,
-                        "classification": lot["classification"],
-                        "recommendation": lot.get("recommendation") or "Revisar distribuição.",
-                    }
-                )
-    return result
-
-
 def _side_totals(report: dict[str, Any]) -> tuple[dict[str, int], dict[str, int]]:
     records = report["records"]
     pieces = {"DE": 0, "EF": 0}
@@ -153,38 +125,34 @@ def _side_totals(report: dict[str, Any]) -> tuple[dict[str, int], dict[str, int]
 def _summary_rows(report: dict[str, Any]) -> list[tuple[str, object]]:
     side_pieces, side_counts = _side_totals(report)
     summary = report["summary"]
-    divergence_count = len(_divergences(report))
     bay_count = len({(record["side"], record["bay"]) for record in report["records"]})
-    fragmented = int(summary["fragmentedLots"])
-    if fragmented and divergence_count:
+    lots_ok = int(summary.get("lotsOk", summary.get("regularLots", 0)))
+    lots_for_conference = int(summary.get("lotsForConference", summary.get("fragmentedLots", 0)))
+    single_piece_lots = int(summary.get("singlePieceOutsideLots", summary.get("loosePieces", 0)))
+    multiple_piece_lots = int(summary.get("multiplePiecesOutsideLots", summary.get("displacedGroups", 0)))
+    distributed_lots = int(summary.get("distributedLots", summary.get("ambiguousDistributions", 0)))
+    if lots_for_conference:
         observation = (
-            f"Há {fragmented} lote(s) fragmentado(s) e {divergence_count} divergência(s). "
-            "Conferir localização, reunir peças quando aplicável e registrar a ação tomada."
-        )
-    elif fragmented:
-        observation = (
-            f"Há {fragmented} lote(s) fragmentado(s) com distribuição ambígua. "
-            "Conferir fisicamente antes de realocar."
+            f"Há {lots_for_conference} lote(s) para conferência. "
+            "Consulte a seção LOTES PARA CONFERÊNCIA para verificar locais e quantidades."
         )
     else:
-        observation = "Nenhuma divergência operacional identificada."
+        observation = "Nenhum lote precisa de conferência."
     return [
         ("Data do inventário", report["inventoryDate"]),
         ("Total de registros", report["totalRecords"]),
         ("Total de peças", report["totalPieces"]),
         ("Total de lotes", summary["lotsAnalyzed"]),
         ("Total de vãos", bay_count),
-        ("Quantidade de divergências", divergence_count),
-        ("Quantidade de lotes fragmentados", fragmented),
+        ("Lotes OK", lots_ok),
+        ("Lotes para conferência", lots_for_conference),
+        ("1 peça fora do local principal", single_piece_lots),
+        ("Lotes com múltiplas peças fora do local principal", multiple_piece_lots),
+        ("Lotes distribuídos em mais de um local", distributed_lots),
         ("Peças lado DE", side_pieces["DE"]),
         ("Peças lado EF", side_pieces["EF"]),
         ("Registros lado DE", side_counts["DE"]),
         ("Registros lado EF", side_counts["EF"]),
-        ("Lotes regulares", summary["regularLots"]),
-        ("Peças solteiras", summary["loosePieces"]),
-        ("Grupos deslocados", summary["displacedGroups"]),
-        ("Distribuições ambíguas", summary["ambiguousDistributions"]),
-        ("Itens para revisão", summary["reviewItems"]),
         ("Observações importantes", observation),
     ]
 
@@ -192,41 +160,56 @@ def _summary_rows(report: dict[str, Any]) -> list[tuple[str, object]]:
 def _consolidated_rows(report: dict[str, Any]) -> list[list[object]]:
     rows: list[list[object]] = []
     for lot in report["lots"]:
-        primary = lot.get("primaryLocation")
-        locations = list(lot.get("locations", []))
-        other_locations = [location for location in locations if primary is None or location != primary]
-        classification = str(lot["classification"])
-        situation = "OK" if not lot.get("fragmented") else f"FRAGMENTADO | {classification}"
-        recommendation = lot.get("recommendation") or (
-            "Nenhuma ação necessária." if classification == "OK" else "Conferir distribuição do lote."
-        )
+        presentation = lot.get("presentation") or build_lot_presentation(lot)
+        requires_conference = bool(presentation["requiresConference"])
+        location_summary = "\n".join(
+            str(location["display"] if requires_conference else location["label"])
+            for location in presentation["locations"]
+        ) or "—"
         rows.append(
             [
                 str(lot["lot"]),
                 int(lot["totalQuantity"]),
-                primary.get("bay") if primary else "Não definido",
-                primary.get("side") if primary else "Não definido",
-                ", ".join(_location(location) for location in other_locations) or "Nenhum",
-                situation,
-                recommendation,
+                location_summary,
+                str(presentation["situation"]),
             ]
         )
     return rows
 
 
-def _divergence_rows(report: dict[str, Any]) -> list[list[object]]:
-    return [
-        [
-            str(item["lot"]),
-            _location(item["primary"]),
-            int(item["primary"]["quantity"]),
-            _location(item["other"]),
-            int(item["other"]["quantity"]),
-            str(item["classification"]),
-            str(item["recommendation"]),
-        ]
-        for item in _divergences(report)
-    ]
+def _conference_rows(report: dict[str, Any]) -> list[list[object]]:
+    """Retorna uma linha por lote que realmente exige conferência."""
+
+    rows: list[list[object]] = []
+    for lot in report["lots"]:
+        presentation = lot.get("presentation") or build_lot_presentation(lot)
+        if not presentation["requiresConference"]:
+            continue
+        primary = presentation.get("primaryLocation")
+        other_locations = presentation.get("otherLocations", [])
+        rows.append(
+            [
+                str(lot["lot"]),
+                int(lot["totalQuantity"]),
+                str(presentation["situation"]),
+                str(primary["display"] if primary else "Não definido"),
+                "\n".join(str(location["display"]) for location in other_locations) or "—",
+                int(presentation["outOfPrimaryQuantity"])
+                if presentation.get("outOfPrimaryQuantity") is not None
+                else "Não aplicável",
+                str(presentation["action"]),
+            ]
+        )
+    return rows
+
+
+def _conference_row_kinds(report: dict[str, Any]) -> list[str]:
+    kinds: list[str] = []
+    for lot in report["lots"]:
+        presentation = lot.get("presentation") or build_lot_presentation(lot)
+        if presentation["requiresConference"]:
+            kinds.append(str(presentation["tone"]))
+    return kinds
 
 
 def _report_subtitle(report: dict[str, Any]) -> str:
@@ -362,32 +345,32 @@ def generate_xlsx_report(report: dict[str, Any]) -> bytes:
     _xlsx_add_sheet(
         workbook,
         "LOTES CONSOLIDADOS",
-        ["Lote", "Total físico de peças", "Vão principal", "Lado principal", "Outros locais encontrados", "Situação do lote", "Recomendação"],
+        ["Lote", "Total de peças", "Localização", "Situação"],
         lot_rows,
         title="LOTES CONSOLIDADOS",
         subtitle=subtitle,
-        widths=[16, 20, 15, 17, 38, 30, 58],
+        widths=[18, 18, 70, 46],
         text_columns={1},
         number_columns={2},
-        row_kinds=[str(lot["classification"]) for lot in report["lots"]],
+        row_kinds=[str(lot.get("presentation", {}).get("tone", "review")) for lot in report["lots"]],
     )
-    divergence_rows = _divergence_rows(report)
-    if not divergence_rows:
-        divergence_rows = [["—", "—", "", "—", "", "OK", "Nenhuma ação necessária."]]
-        divergence_kinds = ["OK"]
+    conference_rows = _conference_rows(report)
+    if not conference_rows:
+        conference_rows = [["—", "—", "Nenhum lote para conferência", "—", "—", "—", "Nenhum lote precisa de conferência."]]
+        conference_kinds = ["ok"]
     else:
-        divergence_kinds = [str(item["classification"]) for item in _divergences(report)]
+        conference_kinds = _conference_row_kinds(report)
     _xlsx_add_sheet(
         workbook,
-        "DIVERGÊNCIAS",
-        ["Lote", "Local principal", "Qtd. principal", "Local divergente", "Qtd. divergente", "Classificação", "Recomendação"],
-        divergence_rows,
-        title="DIVERGÊNCIAS",
+        "LOTES PARA CONFERÊNCIA",
+        ["Lote", "Total", "Situação", "Local principal", "Outros locais", "Peças fora", "Ação recomendada"],
+        conference_rows,
+        title="LOTES PARA CONFERÊNCIA",
         subtitle=subtitle,
-        widths=[16, 28, 17, 28, 17, 26, 58],
+        widths=[18, 16, 42, 34, 46, 16, 72],
         text_columns={1},
-        number_columns={3, 5},
-        row_kinds=divergence_kinds,
+        number_columns={2, 6},
+        row_kinds=conference_kinds,
     )
     buffer = BytesIO()
     workbook.save(buffer)
@@ -432,13 +415,13 @@ def _xls_styles() -> dict[str, xlwt.XFStyle]:
 def _xls_row_style(styles: dict[str, xlwt.XFStyle], kind: str, row_offset: int) -> xlwt.XFStyle:
     if kind == "total":
         return styles["total"]
-    if kind == "PEÇA_SOLTEIRA":
-        return styles["alert_red"]
-    if kind in {"GRUPO_DESLOCADO", "REVISAR"}:
-        return styles["alert_orange"]
-    if kind == "DISTRIBUIÇÃO_AMBÍGUA":
+    if kind == "single-piece":
         return styles["alert_yellow"]
-    if kind == "OK":
+    if kind in {"multiple-pieces", "review"}:
+        return styles["alert_orange"]
+    if kind == "distributed":
+        return styles["alert_red"]
+    if kind == "ok":
         return styles["good"]
     return styles["body_alt"] if row_offset % 2 else styles["body"]
 
@@ -480,7 +463,7 @@ def _xls_add_sheet(
             style = base_style
             if name == "INVENTÁRIO" and column_index == 0 and value in {"DE", "EF"}:
                 style = styles["body_de"] if value == "DE" else styles["body_ef"]
-            if column_index in number_columns and kind not in {"total", "PEÇA_SOLTEIRA", "GRUPO_DESLOCADO", "DISTRIBUIÇÃO_AMBÍGUA", "REVISAR", "OK"}:
+            if column_index in number_columns and kind not in {"total", "single-piece", "multiple-pieces", "distributed", "review", "ok"}:
                 style = styles["body_alt_number"] if row_offset % 2 else styles["body_number"]
             elif column_index in number_columns:
                 style = copy(style)
@@ -540,32 +523,32 @@ def generate_xls_report(report: dict[str, Any]) -> bytes:
     _xls_add_sheet(
         workbook,
         "LOTES CONSOLIDADOS",
-        ["Lote", "Total físico de peças", "Vão principal", "Lado principal", "Outros locais encontrados", "Situação do lote", "Recomendação"],
+        ["Lote", "Total de peças", "Localização", "Situação"],
         _consolidated_rows(report),
         title="LOTES CONSOLIDADOS",
         subtitle=subtitle,
-        widths=[16, 20, 15, 17, 38, 30, 58],
+        widths=[18, 18, 70, 46],
         text_columns={0},
         number_columns={1},
-        row_kinds=[str(lot["classification"]) for lot in report["lots"]],
+        row_kinds=[str(lot.get("presentation", {}).get("tone", "review")) for lot in report["lots"]],
     )
-    divergence_rows = _divergence_rows(report)
-    if not divergence_rows:
-        divergence_rows = [["—", "—", "", "—", "", "OK", "Nenhuma ação necessária."]]
-        divergence_kinds = ["OK"]
+    conference_rows = _conference_rows(report)
+    if not conference_rows:
+        conference_rows = [["—", "—", "Nenhum lote para conferência", "—", "—", "—", "Nenhum lote precisa de conferência."]]
+        conference_kinds = ["ok"]
     else:
-        divergence_kinds = [str(item["classification"]) for item in _divergences(report)]
+        conference_kinds = _conference_row_kinds(report)
     _xls_add_sheet(
         workbook,
-        "DIVERGÊNCIAS",
-        ["Lote", "Local principal", "Qtd. principal", "Local divergente", "Qtd. divergente", "Classificação", "Recomendação"],
-        divergence_rows,
-        title="DIVERGÊNCIAS",
+        "LOTES PARA CONFERÊNCIA",
+        ["Lote", "Total", "Situação", "Local principal", "Outros locais", "Peças fora", "Ação recomendada"],
+        conference_rows,
+        title="LOTES PARA CONFERÊNCIA",
         subtitle=subtitle,
-        widths=[16, 28, 17, 28, 17, 26, 58],
+        widths=[18, 16, 42, 34, 46, 16, 72],
         text_columns={0},
-        number_columns={2, 4},
-        row_kinds=divergence_kinds,
+        number_columns={1, 5},
+        row_kinds=conference_kinds,
     )
     buffer = BytesIO()
     workbook.save(buffer)
@@ -654,14 +637,14 @@ def export_pdf(report: dict[str, Any]) -> bytes:
         [[record["side"], record["bay"], record.get("layer") or "—", str(record["lot"]), int(record["quantity"])] for record in report["records"]]
     )
     inventory_rows.append(["TOTAL", "", "", "", int(report["totalPieces"])])
-    lot_rows = [["Lote", "Total físico", "Vão principal", "Lado principal", "Outros locais", "Situação", "Recomendação"]] + _consolidated_rows(report)
-    divergence_data = _divergence_rows(report)
-    if not divergence_data:
-        divergence_data = [["—", "—", "", "—", "", "OK", "Nenhuma ação necessária."]]
-        divergence_kinds = ["OK"]
+    lot_rows = [["Lote", "Total de peças", "Localização", "Situação"]] + _consolidated_rows(report)
+    conference_data = _conference_rows(report)
+    if not conference_data:
+        conference_data = [["—", "—", "Nenhum lote para conferência", "—", "—", "—", "Nenhum lote precisa de conferência."]]
+        conference_kinds = ["ok"]
     else:
-        divergence_kinds = [str(item["classification"]) for item in _divergences(report)]
-    divergence_rows = [["Lote", "Local principal", "Qtd.", "Local divergente", "Qtd.", "Classificação", "Recomendação"]] + divergence_data
+        conference_kinds = _conference_row_kinds(report)
+    conference_rows = [["Lote", "Total", "Situação", "Local principal", "Outros locais", "Peças fora", "Ação recomendada"]] + conference_data
     story: list[Any] = [
         Paragraph("Aplicativo Inventário da Laminação de Perfis", title_style),
         Paragraph("Relatório de Inventário", heading_style),
@@ -681,12 +664,12 @@ def export_pdf(report: dict[str, Any]) -> bytes:
         Paragraph("Lotes consolidados", heading_style),
         _pdf_table(
             lot_rows,
-            [1.8 * cm, 2.2 * cm, 2.5 * cm, 2.6 * cm, 5.2 * cm, 4.2 * cm, 7.0 * cm],
-            [str(lot["classification"]) for lot in report["lots"]],
+            [2.0 * cm, 2.5 * cm, 13.3 * cm, 9.3 * cm],
+            [str(lot.get("presentation", {}).get("tone", "review")) for lot in report["lots"]],
         ),
         PageBreak(),
-        Paragraph("Divergências e recomendações", heading_style),
-        _pdf_table(divergence_rows, [1.8 * cm, 4.7 * cm, 1.5 * cm, 4.7 * cm, 1.5 * cm, 4.0 * cm, 7.4 * cm], divergence_kinds),
+        Paragraph("Lotes para conferência", heading_style),
+        _pdf_table(conference_rows, [2.0 * cm, 1.6 * cm, 4.5 * cm, 4.2 * cm, 5.0 * cm, 1.7 * cm, 8.1 * cm], conference_kinds),
     ]
     document.build(story, onFirstPage=_pdf_page_frame, onLaterPages=_pdf_page_frame)
     return buffer.getvalue()
@@ -775,10 +758,13 @@ def _docx_add_page_field(paragraph: Any) -> None:
 def export_docx(report: dict[str, Any]) -> bytes:
     document = Document()
     section = document.sections[0]
-    section.top_margin = Cm(1.7)
-    section.bottom_margin = Cm(1.5)
-    section.left_margin = Cm(1.4)
-    section.right_margin = Cm(1.4)
+    section.orientation = WD_ORIENT.LANDSCAPE
+    section.page_width = Cm(29.7)
+    section.page_height = Cm(21.0)
+    section.top_margin = Cm(1.4)
+    section.bottom_margin = Cm(1.3)
+    section.left_margin = Cm(1.2)
+    section.right_margin = Cm(1.2)
     section.header_distance = Cm(0.7)
     section.footer_distance = Cm(0.7)
     header = section.header.paragraphs[0]
@@ -821,25 +807,25 @@ def export_docx(report: dict[str, Any]) -> bytes:
     document.add_heading("Lotes consolidados", level=1)
     _docx_add_table(
         document,
-        ["Lote", "Total físico", "Vão principal", "Lado principal", "Outros locais", "Situação", "Recomendação"],
+        ["Lote", "Total de peças", "Localização", "Situação"],
         _consolidated_rows(report),
-        [1.5, 1.7, 1.8, 1.9, 3.3, 2.5, 4.7],
-        row_kinds=[str(lot["classification"]) for lot in report["lots"]],
+        [2.4, 2.5, 14.5, 7.5],
+        row_kinds=[str(lot.get("presentation", {}).get("tone", "review")) for lot in report["lots"]],
     )
     document.add_page_break()
-    document.add_heading("Divergências e recomendações", level=1)
-    divergence_data = _divergence_rows(report)
-    if not divergence_data:
-        divergence_data = [["—", "—", "", "—", "", "OK", "Nenhuma ação necessária."]]
-        divergence_kinds = ["OK"]
+    document.add_heading("Lotes para conferência", level=1)
+    conference_data = _conference_rows(report)
+    if not conference_data:
+        conference_data = [["—", "—", "Nenhum lote para conferência", "—", "—", "—", "Nenhum lote precisa de conferência."]]
+        conference_kinds = ["ok"]
     else:
-        divergence_kinds = [str(item["classification"]) for item in _divergences(report)]
+        conference_kinds = _conference_row_kinds(report)
     _docx_add_table(
         document,
-        ["Lote", "Local principal", "Qtd.", "Local divergente", "Qtd.", "Classificação", "Recomendação"],
-        divergence_data,
-        [1.5, 2.7, 1.2, 2.7, 1.2, 2.6, 5.1],
-        row_kinds=divergence_kinds,
+        ["Lote", "Total", "Situação", "Local principal", "Outros locais", "Peças fora", "Ação recomendada"],
+        conference_data,
+        [2.2, 1.5, 4.5, 4.2, 5.0, 2.0, 8.0],
+        row_kinds=conference_kinds,
     )
     buffer = BytesIO()
     document.save(buffer)

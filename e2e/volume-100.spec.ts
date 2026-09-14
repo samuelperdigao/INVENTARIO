@@ -53,7 +53,8 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
   await page.getByRole("button", { name: "Sincronizar agora", exact: true }).click();
   await expect(page.getByText("Sincronização concluída.", { exact: true })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Atualizar análise", exact: true }).click();
-  await expect(page.getByText("PEÇA_SOLTEIRA", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("1 PEÇA FORA DO LOCAL PRINCIPAL", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("PEÇA_SOLTEIRA", { exact: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Finalizar inventário", exact: true }).click();
   const finishDialog = page.getByRole("dialog", { name: "Finalizar inventário?" });
@@ -64,6 +65,7 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
   await page.locator(".history-row").first().click();
   await expect(page.getByText("100", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("Lotes consolidados", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Lotes para conferência", exact: true })).toBeVisible();
 
   for (const extension of ["xls", "xlsx", "pdf", "docx"] as const) {
     const label = extension === "xls"

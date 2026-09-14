@@ -28,6 +28,7 @@ from app.persistence import (
     InventoryEntryRow, InventoryParticipantRow, InventoryRow,
     ParticipationAttemptRow, TeamMemberRow, TeamRow, UserRow,
 )
+from app.presentation import apply_report_presentation
 from app.reports import build_consolidated_report, export_docx, export_pdf, export_xls, export_xlsx
 from app.schemas import (
     AddTeamMemberRequest, AnalysisPreviewRequest, AnalysisReport, AuthResponse,
@@ -291,14 +292,14 @@ def add_team_member(
 
 @app.post("/api/v1/analysis/preview", response_model=AnalysisReport)
 def preview_analysis(payload: AnalysisPreviewRequest) -> dict[str, object]:
-    return analyze_entries(
+    return apply_report_presentation(analyze_entries(
         inventory_id=str(payload.inventory.id),
         revision=payload.inventory.revision,
         entries=(
             AnalysisEntry(side=entry.side, bay=entry.bay, layer=entry.layer, lot=entry.lot, quantity=entry.quantity)
             for entry in payload.entries
         ),
-    )
+    ))
 
 
 def _authorized_for_inventory(session: Session, inventory: InventoryRow, user: UserRow) -> bool:
@@ -377,7 +378,7 @@ def inventory_lot_matches(
 
 def _central_report(session: Session, inventory: InventoryRow) -> dict[str, object]:
     if inventory.report_snapshot is not None:
-        return inventory.report_snapshot
+        return apply_report_presentation(inventory.report_snapshot)
     rows = session.scalars(
         select(InventoryEntryRow).where(
             InventoryEntryRow.inventory_id == inventory.id,
@@ -396,7 +397,7 @@ def _central_report(session: Session, inventory: InventoryRow) -> dict[str, obje
 
 
 def _history_item(inventory: InventoryRow) -> dict[str, object]:
-    snapshot = inventory.report_snapshot or {}
+    snapshot = apply_report_presentation(inventory.report_snapshot or {})
     return {
         "id": inventory.id,
         "date": inventory.date.isoformat(),
@@ -410,6 +411,7 @@ def _history_item(inventory: InventoryRow) -> dict[str, object]:
 
 
 def _export_response(report: dict[str, object], format_name: str) -> Response:
+    report = apply_report_presentation(report)
     date_value = str(report["inventoryDate"])
     suffix = date_value[:10]
     try:

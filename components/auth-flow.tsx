@@ -20,6 +20,7 @@ export function AuthFlow() {
   const [error, setError] = useState<string>();
 
   useEffect(() => {
+    router.prefetch("/dashboard");
     void restoreSession().then((user) => {
       if (!user) return;
       if (user.recoveryPinConfigured === false) setView("setup-pin");

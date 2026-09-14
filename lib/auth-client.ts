@@ -24,6 +24,7 @@ interface AuthResponse {
 const cachedUserKey = "inventory-cached-user";
 let accessToken: string | undefined;
 let currentUser: AuthUser | undefined;
+let refreshRequest: Promise<AuthUser | undefined> | undefined;
 
 function cacheUser(user: AuthUser): void {
   if (typeof window !== "undefined") window.localStorage.setItem(cachedUserKey, JSON.stringify(user));
@@ -112,13 +113,20 @@ export async function loginAccount(input: { email: string; password: string }): 
 }
 
 export async function restoreSession(): Promise<AuthUser | undefined> {
-  try {
-    return (await authRequest("/api/v1/auth/refresh", { method: "POST", body: "{}" })).user;
-  } catch {
-    accessToken = undefined;
-    currentUser = currentUser ?? cachedUser();
-    return currentUser;
-  }
+  if (accessToken && currentUser) return currentUser;
+  if (refreshRequest) return refreshRequest;
+
+  refreshRequest = authRequest("/api/v1/auth/refresh", { method: "POST", body: "{}" })
+    .then(({ user }) => user)
+    .catch(() => {
+      // A renovação iniciada ao abrir a tela pode terminar depois de um login
+      // bem-sucedido. Nesse caso, não deve apagar a sessão recém-criada.
+      if (!accessToken) currentUser = currentUser ?? cachedUser();
+      return currentUser;
+    })
+    .finally(() => { refreshRequest = undefined; });
+
+  return refreshRequest;
 }
 
 export async function getAuthenticatedContext(): Promise<{ accessToken: string; teamId: string }> {

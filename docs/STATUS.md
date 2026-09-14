@@ -1,6 +1,6 @@
 # Status do projeto
 
-Atualizado em 13/09/2026.
+Atualizado em 14/09/2026.
 
 ## Produção
 
@@ -18,7 +18,8 @@ Atualizado em 13/09/2026.
 - Inventário individual sem equipe obrigatória.
 - Equipes com papéis `ADMIN` e `OPERATOR`.
 - Participação em inventário aberto por código de seis dígitos.
-- Camadas A1 a A10, lote numérico, autoria e confirmação de duplicidade.
+- Camada opcional nos lançamentos; quando informada, aceita A1 a A10.
+- Lote numérico, autoria e confirmação de duplicidade.
 - Sincronização incremental, idempotência, tombstones e conflitos.
 - Análise de lotes fragmentados.
 - Finalização central irreversível, histórico e exportações PDF, Excel e Word.
@@ -39,7 +40,23 @@ Branch: `chore/repository-cleanup`.
 - Quality Gates configurados para Pull Requests e pushes na `main`.
 - Documentação histórica conflitante consolidada nos documentos oficiais.
 
-## Gates locais da manutenção
+## Validação da camada opcional
+
+Branch: `fix/camada-opcional-inventario`.
+Pull Request: `#14`.
+Quality Gates: execução `34804812322`, run `#23`.
+
+- `pnpm lint`: aprovado.
+- `pnpm typecheck`: aprovado.
+- Vitest: aprovado.
+- `pnpm build`: aprovado.
+- Pytest: aprovado.
+- Alembic `upgrade head`: aprovado.
+- Instalação do Chromium: aprovada.
+- Playwright: todos os fluxos de navegador aprovados.
+- Nenhuma migration nova necessária; o backend e o banco já aceitam camada nula.
+
+## Gates locais da manutenção anterior
 
 - `pnpm install --frozen-lockfile`: aprovado.
 - `pnpm audit --prod`: aprovado sem vulnerabilidades conhecidas.
@@ -49,12 +66,13 @@ Branch: `chore/repository-cleanup`.
 - Pytest: 32 testes aprovados, com 2 avisos de depreciação de dependências.
 - Alembic SQLite: upgrade até `0007`, downgrade até base e novo upgrade aprovados.
 - `pnpm build`: aprovado após todas as alterações.
-- Playwright: código não executado localmente porque o CDN do Chromium expirou e devolveu arquivos truncados durante o download. O workflow do Pull Request deve executar os 4 cenários antes do merge.
 
 ## Pendências
 
-- Executar os 4 cenários Playwright em ambiente com Chromium disponível.
-- Confirmar todos os checks do Pull Request antes de integrar.
+- Executar teste funcional de volume com 100 lançamentos no aplicativo publicado.
+- Revisar visualmente e ajustar a formatação do Excel com o inventário de 100 lançamentos.
+- Revisar paginação, quebras e organização do PDF com o inventário de 100 lançamentos.
+- Validar a apresentação do Word com o mesmo conjunto de dados.
 - Validar a PWA em Android físico.
 - Validar instalação, cache e compartilhamento em Safari/iPhone físico.
 - Planejar a separação incremental dos routers de `backend/app/main.py` somente junto de nova evolução funcional e cobertura de contrato.

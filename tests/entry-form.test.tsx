@@ -10,12 +10,12 @@ async function fillValidForm(): Promise<void> {
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: "EF" }));
   await user.type(screen.getByLabelText("Vão"), "12");
-  await user.selectOptions(screen.getByLabelText("Camada"), "A2");
+  await user.selectOptions(screen.getByLabelText("Camada (opcional)"), "A2");
   await user.type(screen.getByLabelText("Lote"), "0009");
   await user.type(screen.getByLabelText("Quantidade de peças"), "3");
 }
 
-it("valida lado, vão, camada, lote e quantidade", async () => {
+it("valida lado, vão, lote e quantidade sem exigir camada", async () => {
   render(<EntryForm onSave={vi.fn()} onCancelEdit={vi.fn()} />);
   fireEvent.submit(screen.getByRole("button", { name: "Adicionar" }).closest("form")!);
   expect(await screen.findByRole("alert")).toHaveTextContent("Selecione o lado");
@@ -27,16 +27,26 @@ it("valida lado, vão, camada, lote e quantidade", async () => {
 
   await user.type(screen.getByLabelText("Vão"), "1");
   fireEvent.submit(screen.getByRole("button", { name: "Adicionar" }).closest("form")!);
-  expect(await screen.findByRole("alert")).toHaveTextContent("Selecione a camada");
-
-  await user.selectOptions(screen.getByLabelText("Camada"), "A1");
-  fireEvent.submit(screen.getByRole("button", { name: "Adicionar" }).closest("form")!);
   expect(await screen.findByRole("alert")).toHaveTextContent("Informe o lote");
 
   await user.type(screen.getByLabelText("Lote"), "1");
   await user.type(screen.getByLabelText("Quantidade de peças"), "0");
   fireEvent.submit(screen.getByRole("button", { name: "Adicionar" }).closest("form")!);
   expect(await screen.findByRole("alert")).toHaveTextContent("inteiro positivo");
+});
+
+it("salva lançamento sem camada quando os demais campos são válidos", async () => {
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  render(<EntryForm onSave={onSave} onCancelEdit={vi.fn()} />);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "DE" }));
+  await user.type(screen.getByLabelText("Vão"), "21");
+  await user.type(screen.getByLabelText("Lote"), "123456");
+  await user.type(screen.getByLabelText("Quantidade de peças"), "7");
+  await user.click(screen.getByRole("button", { name: "Adicionar" }));
+
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith({ side: "DE", bay: "21", layer: undefined, lot: "123456", quantity: 7 }, undefined, false));
+  expect(screen.getByLabelText("Camada (opcional)")).toHaveValue("");
 });
 
 it("retém lado, vão e camada, limpa lote/quantidade e focaliza lote depois de salvar", async () => {
@@ -48,7 +58,7 @@ it("retém lado, vão e camada, limpa lote/quantidade e focaliza lote depois de 
   await waitFor(() => expect(onSave).toHaveBeenCalledWith({ side: "EF", bay: "12", layer: "A2", lot: "0009", quantity: 3 }, undefined, false));
   expect(screen.getByRole("button", { name: "EF" })).toHaveAttribute("aria-pressed", "true");
   expect(screen.getByLabelText("Vão")).toHaveValue("12");
-  expect(screen.getByLabelText("Camada")).toHaveValue("A2");
+  expect(screen.getByLabelText("Camada (opcional)")).toHaveValue("A2");
   expect(screen.getByLabelText("Lote")).toHaveValue("");
   expect(screen.getByLabelText("Quantidade de peças")).toHaveValue("");
   expect(document.activeElement).toBe(screen.getByLabelText("Lote"));

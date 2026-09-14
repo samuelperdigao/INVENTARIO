@@ -7,11 +7,12 @@ Branch de implementação: `feat/camadas-duplicidade-lote-v2`
 
 ### Camadas
 
-- Cada novo lançamento exige uma camada entre `A1` e `A10`.
+- A camada é opcional em novos lançamentos.
+- Quando informada, deve estar entre `A1` e `A10`.
 - `Vão` e `Camada` são exibidos lado a lado no formulário, inclusive em viewport móvel.
-- Registros legados continuam compatíveis com `layer` ausente.
-- A camada é persistida no IndexedDB, sincronizada com o backend e incluída nos relatórios PDF, XLSX e DOCX.
-- O motor de análise considera `lado + vão + camada` como posição física. Assim, o mesmo lote em A1 e A2 é tratado como distribuição em locais físicos distintos, sem perder a consolidação total por lote.
+- Lançamentos sem camada permanecem válidos e compatíveis em IndexedDB, sincronização, análise e exportações.
+- A camada é persistida no IndexedDB, sincronizada com o backend e incluída nos relatórios PDF, XLSX e DOCX quando informada.
+- O motor de análise considera `lado + vão + camada` como posição física. Quando a camada não é informada, o local é identificado por lado e vão com camada nula. Assim, o mesmo lote em A1 e A2 é tratado como distribuição em locais físicos distintos, sem perder a consolidação total por lote.
 
 ### Lote numérico
 
@@ -49,7 +50,7 @@ Campos adicionados a `inventory_entries`:
 
 Proteções:
 
-- `CHECK` limita `layer` a `A1` até `A10`, permitindo `NULL` apenas para compatibilidade histórica.
+- `CHECK` limita `layer` a `A1` até `A10` quando preenchida e permite `NULL`.
 - `created_by_user_id` referencia `users.id`.
 - Índices foram adicionados para camada e autoria.
 
@@ -86,6 +87,4 @@ A suíte frontend completa da branch-base possui uma falha isolada em `tests/rep
 
 ## Integração
 
-A implementação foi mantida em branch isolada porque `main` recebeu alterações concorrentes de compartilhamento durante o desenvolvimento. A única sobreposição de arquivos identificada entre os dois trabalhos é `backend/app/main.py`; os demais arquivos de compartilhamento permanecem fora desta implementação.
-
-Antes de integrar em `main`, deve-se preservar as alterações mais recentes de compartilhamento e combinar somente as adições desta versão ao `backend/app/main.py`.
+A implementação original foi mantida em branch isolada porque `main` recebeu alterações concorrentes de compartilhamento durante o desenvolvimento. A evolução de 14/09/2026 tornou a camada opcional sem nova migration porque o contrato HTTP e o banco já aceitavam `NULL`; a mudança necessária ficou concentrada no formulário, tipo de rascunho, validação local e testes.

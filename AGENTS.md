@@ -6,7 +6,7 @@
 - Leia este arquivo e os documentos apontados em `README.md` antes de alterar comportamento.
 - Trate `main` e a versão publicada como baseline estável.
 - Trabalhe em branch própria, mantenha commits pequenos e não reescreva o histórico da `main`.
-- Não altere Neon, Render ou Vercel para tarefas locais de manutenção.
+- Não altere Neon, Render ou Vercel para diagnósticos ou tarefas locais sem alteração; mudanças concluídas seguem o ciclo obrigatório de entrega abaixo.
 - Antes de integrar, execute todos os gates do `README.md` e registre limitações reais em `docs/STATUS.md`.
 
 ## Regras técnicas obrigatórias
@@ -27,6 +27,11 @@
 - O frontend usa `/backend-api` como proxy same-origin quando URLs públicas não forem fornecidas.
 - Secrets de produção existem somente nos provedores. `.env.example` contém apenas placeholders.
 - O service worker é validado com `pnpm build` e `pnpm start`; desenvolvimento não registra o worker.
+
+## Ciclo obrigatório de entrega
+
+- Sempre que uma alteração for realizada no projeto, após os gates aplicáveis, incorporá-la à `main`, fazer push sem force push e confirmar o deploy de produção nos provedores afetados. O frontend usa a Vercel e a API usa o Render. A tarefa só termina após a verificação do ambiente público ou o registro explícito de um bloqueio.
+- Antes de atualizar a `main`, fazer fetch e comparar os commits, preservando qualquer trabalho mais novo de outros agentes; usar merge ou fast-forward sem reescrever o histórico.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -26,7 +26,7 @@ def entry(
     base_revision: int = 0,
     tombstone: bool = False,
     *,
-    layer: str = "A1",
+    layer: str | None = "A1",
     duplicate_confirmed: bool = False,
 ) -> dict[str, object]:
     return {
@@ -134,6 +134,36 @@ def test_sync_is_idempotent_and_returns_layer_and_author_for_authorized_team() -
     pull = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[], cursor=0), headers=sync_headers(auth, token))
     assert pull.status_code == 200
     assert pull.json()["entries"][0]["lot"] == "000123"
+
+
+def test_sync_accepts_null_layer_and_allows_adding_it_later() -> None:
+    account, auth = register("optional-layer@gerdau.com.br", "Equipe camada")
+    team_id = account["user"]["teams"][0]["id"]
+    inventory_id, entry_id, token = str(uuid4()), str(uuid4()), str(uuid4())
+
+    created = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, entry_id, "000789", layer=None)]),
+        headers=sync_headers(auth, token),
+    )
+    assert created.status_code == 200
+    assert created.json()["entries"][0]["layer"] is None
+
+    added = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "000789", revision=2, base_revision=1, layer="A4")]),
+        headers=sync_headers(auth, token),
+    )
+    assert added.status_code == 200
+    assert added.json()["entries"][0]["layer"] == "A4"
+
+    removed = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "000789", revision=3, base_revision=2, layer=None)]),
+        headers=sync_headers(auth, token),
+    )
+    assert removed.status_code == 200
+    assert removed.json()["entries"][0]["layer"] is None
 
 
 def test_sync_rejects_non_numeric_lot_and_invalid_layer() -> None:

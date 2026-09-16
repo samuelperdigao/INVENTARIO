@@ -62,7 +62,7 @@ export function AnalysisPanel({ inventory, entries }: AnalysisPanelProps) {
           <div className="panel-copy">
             <p className="eyebrow">Consolidação inteligente</p>
             <h2>Análise</h2>
-            <p className="muted">Consolida os registros por lote e identifica fragmentações, peças solteiras e distribuições que exigem revisão.</p>
+            <p className="muted">Consolida os registros por lote e destaca os lotes que precisam de conferência física.</p>
           </div>
         </div>
         <button className="secondary" type="button" onClick={() => void handleAnalysis()} disabled={loading}>{loading ? "Analisando…" : "Atualizar análise"}</button>
@@ -72,13 +72,13 @@ export function AnalysisPanel({ inventory, entries }: AnalysisPanelProps) {
       {!report ? <p className="muted">A análise nova exige conexão com o serviço FastAPI. Os lançamentos locais continuam disponíveis sem rede.</p> : null}
       {report ? <>
         <div className="inventory-card-meta">
-          <span className="micro-pill">{report.summary.lotsAnalyzed} lote(s) analisado(s)</span>
-          <span className={`micro-pill ${report.summary.fragmentedLots === 0 ? "good" : ""}`}>{report.summary.fragmentedLots} fragmentado(s)</span>
+          <span className="micro-pill good">{report.summary.lotsOk ?? report.summary.regularLots} lote(s) OK</span>
+          <span className={`micro-pill ${(report.summary.lotsForConference ?? report.summary.fragmentedLots) === 0 ? "good" : ""}`}>{report.summary.lotsForConference ?? report.summary.fragmentedLots} lote(s) para conferência</span>
         </div>
         <ul className="report-list">
           {report.lots.map((lot) => <li key={lot.lot}>
-            <strong>Lote {lot.lot}</strong> · {lot.totalQuantity} peça(s) · <span className="report-classification">{lot.classification}</span>
-            {lot.recommendation ? <><br /><span className="muted">{lot.recommendation}</span></> : null}
+            <strong>Lote {lot.lot}</strong> · {lot.totalQuantity} peça(s) · <span className={`classification-tag ${lot.presentation?.tone ?? (lot.classification === "OK" ? "ok" : "review")}`}>{lot.presentation?.situation ?? (lot.classification === "OK" ? "OK" : "LOTE PARA CONFERÊNCIA")}</span>
+            {lot.presentation?.action && lot.presentation.requiresConference ? <><br /><span className="muted">{lot.presentation.action}</span></> : null}
           </li>)}
         </ul>
       </> : null}

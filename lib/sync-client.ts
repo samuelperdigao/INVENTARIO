@@ -103,7 +103,7 @@ function serializeEntry(entry: InventoryEntry) {
     inventoryId,
     side,
     bay,
-    layer,
+    layer: layer ?? null,
     lot,
     quantity,
     duplicateConfirmed: Boolean(duplicateConfirmed),

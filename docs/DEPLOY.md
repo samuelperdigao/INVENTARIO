@@ -74,6 +74,8 @@ Use a variável apenas no processo confiável. Não registre a linha real no his
 - Cadastro rejeita NP com tamanho diferente de oito dígitos.
 - Refresh sem sessão retorna 401.
 - Login, sincronização, participação, finalização e exportação do fluxo alterado são verificados quando aplicável.
+- Exportação Excel: sem `format`, o endpoint `/backend-api/api/v1/inventories/{id}/export/excel` deve retornar `.xls` com MIME `application/vnd.ms-excel`; `?format=xlsx` deve retornar `.xlsx` com MIME OOXML.
+- Para cada arquivo, conferir `Content-Disposition`, `Content-Length`, tamanho não nulo e extensão coerente com o conteúdo.
 
 ## Rollback
 

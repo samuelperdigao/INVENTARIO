@@ -2,7 +2,7 @@
 
 ## Relatório, finalização e histórico
 
-- O modelo consolidado único contém registros individuais ordenados, lotes consolidados, locais, classificação, local principal, divergências, recomendações e resumo. Excel, PDF e Word apenas o apresentam.
+- O modelo consolidado único contém registros individuais ordenados, lotes consolidados, locais, classificação interna, apresentação operacional, local principal, peças fora, recomendações e resumo. Excel, PDF e Word apenas o apresentam.
 - A finalização é central e exige uma revisão sincronizada. Ela gera e preserva o snapshot do relatório, registra `finalized_at`, muda o estado para `FINISHED` e bloqueia novas alterações por sincronização.
 - A V1 não define reabertura. Um inventário `FINISHED` é somente leitura no dispositivo e no servidor; os registros históricos permanecem preservados.
 - Histórico possui dois escopos: inventários criados ou acessados pelo usuário e inventários finalizados da equipe selecionada. Relatório e exportação de item `FINISHED` exigem autenticação e autorização, mas não solicitam token manual ao usuário.
@@ -16,26 +16,37 @@
 ## Dados locais
 
 - Cada inventário recebe UUIDv7, data local do dispositivo no formato `YYYY-MM-DD`, timestamps, revisão, `syncBaseRevision`, `syncStatus` e `tombstone`.
-- Cada lançamento também recebe UUIDv7, timestamps, revisão, `syncBaseRevision`, `syncStatus` e tombstone. Novos lançamentos exigem camada de A1 a A10 e lote composto apenas por números. Registros anteriores à V2 podem manter camada nula e são identificados como legados.
+- Cada lançamento também recebe UUIDv7, timestamps, revisão, `syncBaseRevision`, `syncStatus` e tombstone. A camada é opcional; quando informada, deve estar entre A1 e A10. Lançamentos sem camada permanecem válidos em operação local, sincronização, análise e relatórios.
 - Quantidade é inteiro positivo. EF e DE são os únicos lados válidos.
 - Registros não são mesclados na tela. Inclusão, edição e exclusão atualizam o inventário e o lançamento na mesma transação IndexedDB. Excluir cria um tombstone e oculta o registro.
 
 ## Operação
 
 - Um inventário novo começa sem lado selecionado.
-- Depois de salvar um lançamento, lado, vão e camada ficam selecionados, lote e quantidade são limpos e o foco retorna ao lote.
+- Depois de salvar um lançamento, lado e vão ficam selecionados. Se houver camada selecionada, ela também permanece; lote e quantidade são limpos e o foco retorna ao lote.
 - A lista sempre apresenta EF antes de DE; vãos e lotes usam ordenação natural.
 
 ## Motor determinístico
 
-- A chave de local é `(lado, vão normalizado, camada)` e a de lote é o lote normalizado.
+- A chave de local é `(lado, vão normalizado, camada)`, permitindo camada nula, e a de lote é o lote normalizado.
 - Ocorrências no mesmo local são consolidadas apenas no relatório; os lançamentos brutos continuam individuais.
 - Um lote em um local é `OK`.
-- Mais de um local recebe marcador `FRAGMENTADO`.
+- Mais de um local recebe internamente o marcador `FRAGMENTADO`.
 - Existe local principal apenas quando a maior concentração é única e é pelo menos três vezes a soma dos outros locais.
-- Com local principal confiável, divergência total igual a 1 é `PEÇA_SOLTEIRA`; maior que 1 é `GRUPO_DESLOCADO`.
+- Com local principal confiável, a quantidade fora igual a 1 é `PEÇA_SOLTEIRA`; maior que 1 é `GRUPO_DESLOCADO`.
 - Empates, `11 + 9` e qualquer distribuição sem confiança são `DISTRIBUIÇÃO_AMBÍGUA`.
 - `REVISAR` existe no contrato para regras futuras e não é inferido nesta versão.
+
+## Apresentação operacional
+
+- Os códigos acima pertencem ao motor e podem permanecer no contrato interno para compatibilidade. Eles não são textos destinados ao operador.
+- Um lote em um único local é exibido como `OK`. Em `LOTES CONSOLIDADOS`, a localização mostra apenas lado, vão e camada quando houver; a quantidade não é repetida.
+- `PEÇA_SOLTEIRA` é exibido como `1 PEÇA FORA DO LOCAL PRINCIPAL`, com local principal, outro local, quantidade fora e ação recomendada.
+- `GRUPO_DESLOCADO` é exibido como `{quantidade} PEÇAS FORA DO LOCAL PRINCIPAL`, usando a quantidade calculada pelo motor e listando todos os outros locais.
+- `DISTRIBUIÇÃO_AMBÍGUA` é exibido como `LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL`, sem inventar local principal e com orientação para conferência física.
+- A contagem operacional usa `Lotes OK` e `Lotes para conferência`. O relatório não usa quantidade de divergências como indicador principal.
+- A seção operacional equivalente em todos os formatos é `LOTES PARA CONFERÊNCIA`, com uma linha por lote e as colunas Lote, Total, Situação, Local principal, Outros locais, Peças fora e Ação recomendada.
+- As cores seguem a urgência: verde para OK, amarelo para uma peça fora, laranja para múltiplas peças fora e vermelho para lote distribuído sem local principal confiável.
 
 ## Análise online e cache local
 

@@ -22,8 +22,11 @@ interface AuthResponse {
 }
 
 const cachedUserKey = "inventory-cached-user";
+const authRequestTimeoutMs = 65_000;
 let accessToken: string | undefined;
+let accessTokenExpiresAt: number | undefined;
 let currentUser: AuthUser | undefined;
+let refreshPromise: Promise<AuthUser | undefined> | undefined;
 
 function cacheUser(user: AuthUser): void {
   if (typeof window !== "undefined") window.localStorage.setItem(cachedUserKey, JSON.stringify(user));
@@ -37,8 +40,42 @@ function cachedUser(): AuthUser | undefined {
   } catch { return undefined; }
 }
 
+function tokenExpiration(token: string): number | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return undefined;
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "=");
+    const parsed = JSON.parse(window.atob(base64)) as { exp?: unknown };
+    return typeof parsed.exp === "number" ? parsed.exp * 1000 : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function hasUsableAccessToken(): boolean {
+  if (!accessToken || !currentUser) return false;
+  if (accessTokenExpiresAt === undefined) return true;
+  return accessTokenExpiresAt - Date.now() > 30_000;
+}
+
+async function fetchAuth(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), authRequestTimeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (cause) {
+    if (cause instanceof Error && cause.name === "AbortError") {
+      throw new Error("O servidor demorou mais que o esperado. Verifique sua conexão e tente novamente.");
+    }
+    throw cause;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 async function authRequest(path: string, init: RequestInit = {}): Promise<AuthResponse> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const response = await fetchAuth(`${apiBaseUrl}${path}`, {
     ...init,
     credentials: "include",
     headers: { "Content-Type": "application/json", ...init.headers },
@@ -49,13 +86,14 @@ async function authRequest(path: string, init: RequestInit = {}): Promise<AuthRe
   }
   const result = await response.json() as AuthResponse;
   accessToken = result.accessToken;
+  accessTokenExpiresAt = tokenExpiration(result.accessToken);
   currentUser = result.user;
   cacheUser(result.user);
   return result;
 }
 
 async function messageRequest(path: string, body: object): Promise<string> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const response = await fetchAuth(`${apiBaseUrl}${path}`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -68,7 +106,7 @@ async function messageRequest(path: string, body: object): Promise<string> {
 
 async function authorizedUserRequest(path: string, body: object): Promise<AuthUser> {
   const session = await getAuthenticatedSession();
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const response = await fetchAuth(`${apiBaseUrl}${path}`, {
     method: "POST",
     credentials: "include",
     headers: {
@@ -111,14 +149,30 @@ export async function loginAccount(input: { email: string; password: string }): 
   return (await authRequest("/api/v1/auth/login", { method: "POST", body: JSON.stringify(input) })).user;
 }
 
-export async function restoreSession(): Promise<AuthUser | undefined> {
+export async function restoreSession(options: { force?: boolean } = {}): Promise<AuthUser | undefined> {
+  if (!options.force && hasUsableAccessToken()) return currentUser;
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      return (await authRequest("/api/v1/auth/refresh", { method: "POST", body: "{}" })).user;
+    } catch {
+      accessToken = undefined;
+      accessTokenExpiresAt = undefined;
+      currentUser = currentUser ?? cachedUser();
+      return currentUser;
+    }
+  })();
+
   try {
-    return (await authRequest("/api/v1/auth/refresh", { method: "POST", body: "{}" })).user;
-  } catch {
-    accessToken = undefined;
-    currentUser = currentUser ?? cachedUser();
-    return currentUser;
+    return await refreshPromise;
+  } finally {
+    refreshPromise = undefined;
   }
+}
+
+export function hasCachedUser(): boolean {
+  return cachedUser() !== undefined;
 }
 
 export async function getAuthenticatedContext(): Promise<{ accessToken: string; teamId: string }> {
@@ -129,7 +183,7 @@ export async function getAuthenticatedContext(): Promise<{ accessToken: string; 
 }
 
 export async function getAuthenticatedSession(): Promise<{ accessToken: string; user: AuthUser }> {
-  if (!accessToken || !currentUser) await restoreSession();
+  if (!hasUsableAccessToken()) await restoreSession();
   if (!accessToken || !currentUser) throw new Error("Entre na sua conta antes de sincronizar. Seus dados locais continuam preservados.");
   return { accessToken, user: currentUser };
 }
@@ -155,6 +209,7 @@ export async function logoutAccount(): Promise<void> {
     await fetch(`${apiBaseUrl}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
   } finally {
     accessToken = undefined;
+    accessTokenExpiresAt = undefined;
     currentUser = undefined;
     if (typeof window !== "undefined") {
       window.sessionStorage.removeItem("inventory-active-team");

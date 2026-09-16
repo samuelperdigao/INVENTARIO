@@ -34,8 +34,8 @@ export interface InventoryEntry extends LocalRecord {
   inventoryId: string;
   side: Side;
   bay: string;
-  /** Registros legados podem não possuir camada. */
-  layer?: InventoryLayer;
+  /** A camada é opcional; quando informada deve estar entre A1 e A10. */
+  layer?: InventoryLayer | null;
   lot: string;
   quantity: number;
   createdByUserId?: string;
@@ -46,7 +46,7 @@ export interface InventoryEntry extends LocalRecord {
 export interface EntryDraft {
   side: Side;
   bay: string;
-  layer: InventoryLayer;
+  layer?: InventoryLayer | null;
   lot: string;
   quantity: number;
 }
@@ -54,8 +54,28 @@ export interface EntryDraft {
 export interface AnalysisLocation {
   side: Side;
   bay: string;
-  layer?: InventoryLayer;
+  layer?: InventoryLayer | null;
   quantity: number;
+}
+
+export type PresentationTone = "ok" | "single-piece" | "multiple-pieces" | "distributed" | "review";
+
+export interface PresentationLocation {
+  label: string;
+  display: string;
+  quantity: number;
+  isPrimary: boolean;
+}
+
+export interface LotPresentation {
+  situation: string;
+  tone: PresentationTone;
+  requiresConference: boolean;
+  primaryLocation: PresentationLocation | null;
+  otherLocations: PresentationLocation[];
+  locations: PresentationLocation[];
+  outOfPrimaryQuantity: number | null;
+  action: string;
 }
 
 export interface LotAnalysis {
@@ -67,6 +87,8 @@ export interface LotAnalysis {
   primaryLocation?: AnalysisLocation;
   displacedQuantity: number;
   recommendation?: string;
+  /** Presente nas respostas novas; caches antigos podem não ter este campo. */
+  presentation?: LotPresentation;
 }
 
 export interface AnalysisSummary {
@@ -77,6 +99,12 @@ export interface AnalysisSummary {
   displacedGroups: number;
   ambiguousDistributions: number;
   reviewItems: number;
+  lotsOk?: number;
+  lotsForConference?: number;
+  singlePieceOutsideLots?: number;
+  multiplePiecesOutsideLots?: number;
+  distributedLots?: number;
+  reviewLots?: number;
 }
 
 export interface AnalysisReport {

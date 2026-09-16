@@ -28,7 +28,8 @@ from app.persistence import (
     InventoryEntryRow, InventoryParticipantRow, InventoryRow,
     ParticipationAttemptRow, TeamMemberRow, TeamRow, UserRow,
 )
-from app.reports import build_consolidated_report, export_docx, export_pdf, export_xlsx
+from app.presentation import apply_report_presentation
+from app.reports import build_consolidated_report, export_docx, export_pdf, export_xls, export_xlsx
 from app.schemas import (
     AddTeamMemberRequest, AnalysisPreviewRequest, AnalysisReport, AuthResponse,
     AuthenticatedUser, ConfigureRecoveryPinRequest, ConfirmPasswordResetRequest, CreateTeamRequest,
@@ -291,14 +292,14 @@ def add_team_member(
 
 @app.post("/api/v1/analysis/preview", response_model=AnalysisReport)
 def preview_analysis(payload: AnalysisPreviewRequest) -> dict[str, object]:
-    return analyze_entries(
+    return apply_report_presentation(analyze_entries(
         inventory_id=str(payload.inventory.id),
         revision=payload.inventory.revision,
         entries=(
             AnalysisEntry(side=entry.side, bay=entry.bay, layer=entry.layer, lot=entry.lot, quantity=entry.quantity)
             for entry in payload.entries
         ),
-    )
+    ))
 
 
 def _authorized_for_inventory(session: Session, inventory: InventoryRow, user: UserRow) -> bool:
@@ -377,7 +378,7 @@ def inventory_lot_matches(
 
 def _central_report(session: Session, inventory: InventoryRow) -> dict[str, object]:
     if inventory.report_snapshot is not None:
-        return inventory.report_snapshot
+        return apply_report_presentation(inventory.report_snapshot)
     rows = session.scalars(
         select(InventoryEntryRow).where(
             InventoryEntryRow.inventory_id == inventory.id,
@@ -396,7 +397,7 @@ def _central_report(session: Session, inventory: InventoryRow) -> dict[str, obje
 
 
 def _history_item(inventory: InventoryRow) -> dict[str, object]:
-    snapshot = inventory.report_snapshot or {}
+    snapshot = apply_report_presentation(inventory.report_snapshot or {})
     return {
         "id": inventory.id,
         "date": inventory.date.isoformat(),
@@ -410,26 +411,41 @@ def _history_item(inventory: InventoryRow) -> dict[str, object]:
 
 
 def _export_response(report: dict[str, object], format_name: str) -> Response:
+    report = apply_report_presentation(report)
     date_value = str(report["inventoryDate"])
-    suffix = f"{date_value[8:10]}-{date_value[5:7]}-{date_value[0:4]}"
-    if format_name == "xlsx":
-        content = export_xlsx(report)
-        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        extension = "xlsx"
-    elif format_name == "pdf":
-        content = export_pdf(report)
-        media_type = "application/pdf"
-        extension = "pdf"
-    elif format_name == "docx":
-        content = export_docx(report)
-        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        extension = "docx"
-    else:
-        raise HTTPException(status_code=404, detail="Formato de exportação não encontrado.")
+    suffix = date_value[:10]
+    try:
+        if format_name == "xls":
+            content = export_xls(report)
+            media_type = "application/vnd.ms-excel"
+            extension = "xls"
+        elif format_name == "xlsx":
+            content = export_xlsx(report)
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            extension = "xlsx"
+        elif format_name == "pdf":
+            content = export_pdf(report)
+            media_type = "application/pdf"
+            extension = "pdf"
+        elif format_name == "docx":
+            content = export_docx(report)
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            extension = "docx"
+        else:
+            raise HTTPException(status_code=404, detail="Formato de exportação não encontrado.")
+    except HTTPException:
+        raise
+    except Exception as cause:
+        raise HTTPException(status_code=500, detail="Não foi possível gerar o arquivo de exportação.") from cause
+    if not isinstance(content, bytes) or not content:
+        raise HTTPException(status_code=500, detail="A exportação gerou um arquivo vazio.")
     return Response(
         content=content,
         media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="Inventario_{suffix}.{extension}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="Inventario_{suffix}.{extension}"',
+            "Content-Length": str(len(content)),
+        },
     )
 
 
@@ -533,6 +549,20 @@ def inventory_export(
 ) -> Response:
     report = _central_report(session, _inventory_access(session, inventory_id, user, sync_token))
     return _export_response(report, format_name)
+
+
+@app.get("/api/v1/inventories/{inventory_id}/export/excel")
+def inventory_excel_export(
+    inventory_id: str,
+    format: str = Query(default="xls", pattern="^(xls|xlsx)$"),
+    sync_token: str | None = Header(default=None, min_length=32, alias="X-Inventory-Sync-Token"),
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Atalho compatível; o formato legado XLS é o padrão da equipe."""
+
+    report = _central_report(session, _inventory_access(session, inventory_id, user, sync_token))
+    return _export_response(report, format)
 
 
 @app.post("/api/v1/inventories/{inventory_id}/share-links/{format_name}")

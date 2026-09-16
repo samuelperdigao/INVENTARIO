@@ -15,12 +15,15 @@ import {
   sharePreparedResource,
   type PreparedShareResources,
   type ReportFormat,
+  type ShareableReportFormat,
 } from "@/lib/report-client";
 
-const formats: ReportFormat[] = ["pdf", "xlsx", "docx"];
+const shareFormats: ShareableReportFormat[] = ["pdf", "xlsx", "docx"];
+const downloadFormats: ReportFormat[] = ["xls", "xlsx", "pdf", "docx"];
 const formatLabel: Record<ReportFormat, string> = {
+  xls: "Excel compatível (.xls)",
+  xlsx: "Excel moderno (.xlsx)",
   pdf: "PDF",
-  xlsx: "Excel",
   docx: "Word",
 };
 
@@ -83,7 +86,7 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
     }
   }
 
-  function shareAction(format: ReportFormat): void {
+  function shareAction(format: ShareableReportFormat): void {
     const resource = preparedResources[format];
     if (!resource) {
       setMessage("Aguarde a preparação antes de compartilhar.");
@@ -142,7 +145,7 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
             <p className="muted">Ao tocar no formato, o menu nativo do celular abre para você escolher o aplicativo de destino.</p>
           </div>
           <div className="export-grid">
-            {formats.map((format) => <button
+            {shareFormats.map((format) => <button
               className="secondary"
               type="button"
               disabled={busy || preparingShare || !shareReady}
@@ -155,11 +158,24 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
         </div>
       </div> : null}
 
-      <details className="details-box">
-        <summary>Baixar arquivo</summary>
+      <details className="details-box" open>
+        <summary>Exportar Excel</summary>
         <div className="details-content">
+          <p className="muted">Excel compatível com o computador da empresa:</p>
           <div className="export-grid">
-            {formats.map((format) => <button
+            {downloadFormats.slice(0, 2).map((format) => <button
+              className="secondary"
+              type="button"
+              disabled={busy}
+              key={format}
+              onClick={() => void downloadAction(format)}
+            >
+              Baixar {formatLabel[format]}
+            </button>)}
+          </div>
+          <h3>Outros formatos</h3>
+          <div className="export-grid">
+            {downloadFormats.slice(2).map((format) => <button
               className="secondary"
               type="button"
               disabled={busy}

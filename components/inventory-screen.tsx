@@ -14,7 +14,7 @@ import { Icon } from "@/components/icon";
 import { getCurrentUser } from "@/lib/auth-client";
 import { findRemoteDuplicateLotEntries } from "@/lib/duplicate-client";
 import { formatBrazilianDate } from "@/lib/local-date";
-import { createEntry, DuplicateLotError, getInventory, listActiveEntries, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
+import { createEntry, DuplicateLotError, findDuplicateLotEntries, getInventory, listActiveEntries, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
 import type { EntryDraft, Inventory, InventoryEntry } from "@/lib/models";
 
 export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
@@ -58,6 +58,8 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
     if (!currentInventory) throw new Error("Inventário não encontrado neste dispositivo.");
 
     if (!allowDuplicate) {
+      const localDuplicates = await findDuplicateLotEntries(inventoryId, draft.lot, entryId);
+      if (localDuplicates.length > 0) throw new DuplicateLotError(localDuplicates);
       const remoteDuplicates = await findRemoteDuplicateLotEntries(currentInventory, draft.lot, entryId);
       if (remoteDuplicates.length > 0) throw new DuplicateLotError(remoteDuplicates);
     }
@@ -103,7 +105,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
           <span className="inventory-rail-step active"><b>01</b><span><strong>Lançar</strong><small>Registrar itens</small></span></span>
           <span className="inventory-rail-step"><b>02</b><span><strong>Conferir</strong><small>Revisar registros</small></span></span>
           <span className="inventory-rail-step"><b>03</b><span><strong>Sincronizar</strong><small>Enviar dados</small></span></span>
-          <span className="inventory-rail-step"><b>04</b><span><strong>Analisar</strong><small>Ver divergências</small></span></span>
+          <span className="inventory-rail-step"><b>04</b><span><strong>Analisar</strong><small>Ver lotes para conferência</small></span></span>
           <span className="inventory-rail-step"><b>05</b><span><strong>Finalizar</strong><small>Gerar relatório</small></span></span>
         </nav>
         <p className="inventory-rail-foot"><Icon name="cloud" size={14} /> Salvo localmente</p>

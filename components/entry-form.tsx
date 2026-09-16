@@ -32,10 +32,6 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
       setError("Informe o vão.");
       return undefined;
     }
-    if (!layer) {
-      setError("Selecione a camada.");
-      return undefined;
-    }
     if (!lot.trim()) {
       setError("Informe o lote.");
       return undefined;
@@ -48,7 +44,7 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
       setError("A quantidade deve ser um inteiro positivo.");
       return undefined;
     }
-    return { side, bay, layer, lot, quantity: Number(quantity) };
+    return { side, bay, layer: layer || undefined, lot, quantity: Number(quantity) };
   }
 
   async function persist(draft: EntryDraft, allowDuplicate = false): Promise<void> {
@@ -92,7 +88,7 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
             <div className="panel-copy">
               <p className="eyebrow">Lançamento</p>
               <h2>{editing ? "Editar registro" : "Novo registro"}</h2>
-              <p className="muted">Informe a posição física, o lote e a quantidade encontrada. Lado, vão e camada permanecem selecionados após salvar.</p>
+              <p className="muted">Informe a posição física, o lote e a quantidade encontrada. Lado e vão permanecem selecionados após salvar; a camada é opcional e, quando informada, também permanece selecionada.</p>
             </div>
           </div>
           {editing && <button className="secondary" type="button" onClick={onCancelEdit}>Cancelar edição</button>}
@@ -119,9 +115,9 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
           <label className="field" htmlFor="bay">Vão
             <input id="bay" name="bay" value={bay} onChange={(event) => setBay(event.target.value)} inputMode="numeric" autoComplete="off" placeholder="Ex.: 15" />
           </label>
-          <label className="field" htmlFor="layer">Camada
+          <label className="field" htmlFor="layer">Camada (opcional)
             <select id="layer" name="layer" value={layer} onChange={(event) => setLayer(event.target.value as InventoryLayer | "")}>
-              <option value="">Selecione</option>
+              <option value="">Sem camada</option>
               {INVENTORY_LAYERS.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
           </label>
@@ -164,7 +160,7 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
                   <strong>{entry.createdByName || "Usuário não identificado"}</strong>
                   <div className={styles.duplicateMeta}>
                     <span>Vão: {entry.bay}</span>
-                    <span>Camada: {entry.layer ?? "Legado"}</span>
+                    <span>Camada: {entry.layer ?? "Sem camada"}</span>
                     <span>Lado: {entry.side}</span>
                     <span>Quantidade: {entry.quantity}</span>
                   </div>

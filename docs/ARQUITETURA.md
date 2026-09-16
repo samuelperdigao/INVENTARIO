@@ -24,6 +24,7 @@ flowchart TD
 | Contrato HTTP | `backend/app/main.py`, `schemas.py` | Validar requisições e expor endpoints | Alterar migrations em runtime |
 | Serviços | `auth_service.py`, `sync_service.py`, `share_service.py` | Regras específicas de autenticação, sync e links | Renderizar UI |
 | Motor | `engine.py` | Classificação determinística | Depender de HTTP ou banco |
+| Apresentação de relatórios | `presentation.py` | Traduzir códigos internos em situação, locais, ação, quantidades e níveis visuais operacionais | Recalcular a regra determinística |
 | Relatórios | `reports.py` | Modelo consolidado e exportações | Criar regras paralelas de classificação |
 | Persistência | `database.py`, `persistence.py` | Engine, sessões e modelos SQLAlchemy | Criar schema de produção manualmente |
 
@@ -49,7 +50,7 @@ flowchart TD
 
 ## Análise e relatórios
 
-`backend/app/engine.py` recebe lançamentos e produz classificações determinísticas. `backend/app/reports.py` cria um único modelo consolidado e deriva Excel, PDF e Word desse modelo. A finalização salva o snapshot oficial e bloqueia novas mutações.
+`backend/app/engine.py` recebe lançamentos e produz classificações determinísticas internas. `backend/app/presentation.py` traduz essa saída para a linguagem operacional única, sem recalcular o motor. `backend/app/reports.py` prepara a fonte única em `build_inventory_report_data()` e deriva `.xls` BIFF8, `.xlsx`, PDF e Word desse modelo. A finalização salva o snapshot oficial e bloqueia novas mutações. Os detalhes do contrato de exportação estão em `docs/EXPORTACOES.md`.
 
 ## Banco e migrations
 

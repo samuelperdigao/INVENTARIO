@@ -31,7 +31,7 @@ export interface EntrySaveOptions {
 export function validateEntryDraft(draft: EntryDraft): string | undefined {
   if (draft.side !== "EF" && draft.side !== "DE") return "Selecione o lado.";
   if (!normalizeText(draft.bay)) return "Informe o vão.";
-  if (!INVENTORY_LAYERS.includes(draft.layer)) return "Selecione uma camada válida de A1 até A10.";
+  if (draft.layer != null && !INVENTORY_LAYERS.includes(draft.layer)) return "Selecione uma camada válida de A1 até A10.";
   if (!normalizeText(draft.lot)) return "Informe o lote.";
   if (!/^\d+$/.test(normalizeText(draft.lot))) return "O lote deve conter somente números.";
   if (!Number.isInteger(draft.quantity) || draft.quantity <= 0) {
@@ -105,7 +105,7 @@ export async function createEntry(inventoryId: string, draft: EntryDraft, option
     inventoryId,
     side: draft.side,
     bay: normalizeText(draft.bay),
-    layer: draft.layer,
+    layer: draft.layer || undefined,
     lot: normalizedLot,
     quantity: draft.quantity,
     createdByUserId: options.createdByUserId,
@@ -168,7 +168,7 @@ export async function updateEntry(entryId: string, draft: EntryDraft, options: E
       ...entry,
       side: draft.side,
       bay: normalizeText(draft.bay),
-      layer: draft.layer,
+      layer: draft.layer || undefined,
       lot: normalizedLot,
       quantity: draft.quantity,
       duplicateConfirmed: Boolean(options.allowDuplicate),

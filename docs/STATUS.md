@@ -1,6 +1,6 @@
 # Status do projeto
 
-Atualizado em 13/09/2026.
+Atualizado em 16/09/2026.
 
 ## Produção
 
@@ -10,6 +10,29 @@ Atualizado em 13/09/2026.
 - PostgreSQL ativo no Neon.
 - Migration `0007_recovery_pin` registrada como aplicada no ambiente principal.
 - O workflow `Production Smoke` da `main` em `acc1cff` concluiu com sucesso.
+- O commit `3ab62a8` foi integrado à `main`; o check da Vercel concluiu com sucesso.
+- O deploy Render `dep-dajsg3id0e5s73diru40` está `live` para o mesmo commit; `/healthz` respondeu `{"status":"ok"}`.
+
+## Otimização de acesso em validação
+
+Branch: `feat/frontend-reference-fidelity-v2`.
+
+- A tela inicial agora é renderizada diretamente em `/`, sem o redirecionamento adicional para `/acesso`.
+- A restauração de sessão não é chamada na tela de acesso quando não existe usuário local conhecido.
+- A sessão recém-criada no login é reutilizada no carregamento do painel, evitando um segundo `refresh` desnecessário.
+- A renovação automática considera a validade do token em memória e compartilha requests simultâneos de refresh.
+- Requests de autenticação possuem limite de espera de 65 segundos, com mensagem específica quando a API demora a responder.
+- Nenhuma regra offline, dado local, migration ou contrato de API foi alterado.
+- Render e Neon não foram reconfigurados nesta etapa; a API continua sujeita ao cold start do plano atual.
+
+## Gates da otimização
+
+- `pnpm lint`: aprovado.
+- `pnpm typecheck`: aprovado.
+- Vitest: 9 arquivos e 24 testes aprovados.
+- Pytest: 32 testes aprovados, com 2 avisos de depreciação de dependências.
+- `pnpm build`: aprovado.
+- Playwright: não executado porque o Chromium não está disponível no ambiente e o download pelo CDN expirou.
 
 ## Funcionalidades concluídas
 
@@ -18,10 +41,14 @@ Atualizado em 13/09/2026.
 - Inventário individual sem equipe obrigatória.
 - Equipes com papéis `ADMIN` e `OPERATOR`.
 - Participação em inventário aberto por código de seis dígitos.
-- Camadas A1 a A10, lote numérico, autoria e confirmação de duplicidade.
+- Camada opcional nos lançamentos; quando informada, aceita A1 a A10.
+- Lote numérico, autoria e confirmação de duplicidade.
 - Sincronização incremental, idempotência, tombstones e conflitos.
-- Análise de lotes fragmentados.
+- Análise determinística de lotes com apresentação operacional para o operador.
 - Finalização central irreversível, histórico e exportações PDF, Excel e Word.
+- Exportação `.xls` BIFF8 gerada diretamente no backend e apresentada como padrão para os computadores antigos da equipe.
+- Exportação `.xlsx` moderna preservada, com fonte única de dados, quatro abas na ordem oficial e contratos binários de MIME, nome e tamanho.
+- Exportações Excel, PDF e Word revisadas para usar resumo, inventário, lotes consolidados e lotes para conferência, com uma linha por lote e sem duplicar a lógica de análise.
 - Compartilhamento nativo e links temporários assinados.
 
 ## Auditoria de manutenção
@@ -39,7 +66,23 @@ Branch: `chore/repository-cleanup`.
 - Quality Gates configurados para Pull Requests e pushes na `main`.
 - Documentação histórica conflitante consolidada nos documentos oficiais.
 
-## Gates locais da manutenção
+## Validação da camada opcional
+
+Branch: `fix/camada-opcional-inventario`.
+Pull Request: `#14`.
+Quality Gates: execução `34804812322`, run `#23`.
+
+- `pnpm lint`: aprovado.
+- `pnpm typecheck`: aprovado.
+- Vitest: aprovado.
+- `pnpm build`: aprovado.
+- Pytest: aprovado.
+- Alembic `upgrade head`: aprovado.
+- Instalação do Chromium: aprovada.
+- Playwright: todos os fluxos de navegador aprovados.
+- Nenhuma migration nova necessária; o backend e o banco já aceitam camada nula.
+
+## Gates locais da manutenção anterior
 
 - `pnpm install --frozen-lockfile`: aprovado.
 - `pnpm audit --prod`: aprovado sem vulnerabilidades conhecidas.
@@ -49,12 +92,40 @@ Branch: `chore/repository-cleanup`.
 - Pytest: 32 testes aprovados, com 2 avisos de depreciação de dependências.
 - Alembic SQLite: upgrade até `0007`, downgrade até base e novo upgrade aprovados.
 - `pnpm build`: aprovado após todas as alterações.
-- Playwright: código não executado localmente porque o CDN do Chromium expirou e devolveu arquivos truncados durante o download. O workflow do Pull Request deve executar os 4 cenários antes do merge.
+
+## Validação das exportações Excel
+
+Branch: `feat/fluxo-acesso-compartilhamento-v1`.
+
+- `xlwt` gera `.xls` diretamente em BIFF8/OLE, sem conversão no navegador ou dependência do LibreOffice.
+- `openpyxl` mantém o `.xlsx` moderno.
+- O endpoint `/api/v1/inventories/{id}/export/excel` usa `.xls` por padrão e aceita `?format=xlsx`.
+- O teste de volume local cobre 100 registros, 95 lotes, 1.269 peças, 91 lotes OK e 4 lotes para conferência nos quatro formatos.
+- Os testes verificam assinatura OLE, ZIP, abas, ausência de filtros e linhas de grade, MIME, `Content-Disposition`, `Content-Length`, totais iguais e download como Blob.
+- Word permanece em `.docx`; uma variante `.rtf` ou `.doc` ficou fora desta entrega por não haver geração legada segura na estrutura atual.
+
+## Validação desta entrega
+
+Branch de trabalho: `feat/fluxo-acesso-compartilhamento-v1`.
+Commit publicado anteriormente: `7eff966`. Esta continuação adiciona somente
+ajustes de impressão BIFF8 e a cobertura correspondente.
+
+- `pnpm lint`: aprovado.
+- `pnpm typecheck`: aprovado.
+- `pnpm test`: 9 arquivos e 39 testes aprovados.
+- `backend/.venv/bin/python -m pytest backend/tests -q`: 36 testes aprovados, com 2 avisos de depreciação de dependências.
+- `pnpm build`: aprovado.
+- Inspeção estrutural dos quatro arquivos: XLS BIFF8, XLSX, PDF e DOCX válidos; totais e situações visíveis coerentes.
+- `.xls`: alturas de linhas com múltiplos locais e escala de impressão legada cobertas pelo teste BIFF8.
+- `pnpm exec playwright install chromium`: os três espelhos do CDN retornaram erro, timeout ou ZIP truncado.
+- Chrome for Testing `145.0.7632.6` foi instalado pelo artefato oficial direto e respondeu na revisão esperada pelo Playwright.
+- `pnpm e2e`: 6 cenários aprovados em 2m23s usando o backend local do runner.
+- Produção: frontend público respondeu e a folha de estilos publicada contém os estados `single-piece`, `multiple-pieces`, `distributed` e `conference-table`; API pública expôs `LotPresentation` e `lotsForConference` no OpenAPI.
 
 ## Pendências
 
-- Executar os 4 cenários Playwright em ambiente com Chromium disponível.
-- Confirmar todos os checks do Pull Request antes de integrar.
+- Fazer conferência visual em Excel antigo e Excel moderno no ambiente da equipe.
+- A conversão visual local do `.xls` não foi repetível: o Calc alfa entrou em loop de CPU e o Calc estável instalado não iniciou sob as restrições de usuário do sandbox. A validação BIFF8 estrutural e os testes de conteúdo continuam aprovados.
 - Validar a PWA em Android físico.
 - Validar instalação, cache e compartilhamento em Safari/iPhone físico.
 - Planejar a separação incremental dos routers de `backend/app/main.py` somente junto de nova evolução funcional e cobertura de contrato.
@@ -64,5 +135,6 @@ Branch: `chore/repository-cleanup`.
 - Regras vigentes: `docs/REGRAS_NEGOCIO.md`.
 - Arquitetura: `docs/ARQUITETURA.md`.
 - Deploy: `docs/DEPLOY.md`.
+- Exportações: `docs/EXPORTACOES.md`.
 - Especificação histórica: `docs/ESPECIFICACAO_INVENTARIO_V1.md`.
 - Decisão de camadas e duplicidade: `docs/CAMADAS_DUPLICIDADE_V2.md`.

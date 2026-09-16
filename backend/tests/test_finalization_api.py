@@ -35,11 +35,22 @@ def test_finalization_history_and_exports_are_authorized_and_immutable() -> None
     history = client.get(f"/api/v1/inventories/history?teamId={team_id}", headers=auth)
     assert history.status_code == 200
     assert history.json()[0]["id"] == inventory_id
-    for extension, media_type in [("xlsx", "spreadsheetml"), ("pdf", "application/pdf"), ("docx", "wordprocessingml")]:
+    for extension, media_type in [("xls", "application/vnd.ms-excel"), ("xlsx", "spreadsheetml"), ("pdf", "application/pdf"), ("docx", "wordprocessingml")]:
         exported = client.get(f"/api/v1/inventories/{inventory_id}/exports/{extension}", headers=headers)
         assert exported.status_code == 200
         assert media_type in exported.headers["content-type"]
-        assert f". {extension}".replace(" ", "") in exported.headers["content-disposition"]
+        assert f"Inventario_2026-09-11.{extension}" in exported.headers["content-disposition"]
+        assert int(exported.headers["content-length"]) == len(exported.content) > 0
+    default_excel = client.get(f"/api/v1/inventories/{inventory_id}/export/excel", headers=headers)
+    assert default_excel.status_code == 200
+    assert default_excel.headers["content-type"].startswith("application/vnd.ms-excel")
+    assert "Inventario_2026-09-11.xls" in default_excel.headers["content-disposition"]
+    assert int(default_excel.headers["content-length"]) == len(default_excel.content) > 0
+    modern_excel = client.get(f"/api/v1/inventories/{inventory_id}/export/excel?format=xlsx", headers=headers)
+    assert modern_excel.status_code == 200
+    assert modern_excel.headers["content-type"].startswith("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    assert "Inventario_2026-09-11.xlsx" in modern_excel.headers["content-disposition"]
+    assert int(modern_excel.headers["content-length"]) == len(modern_excel.content) > 0
 
     for extension, media_type in [("xlsx", "spreadsheetml"), ("docx", "wordprocessingml")]:
         link_response = client.post(

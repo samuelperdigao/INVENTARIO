@@ -5,27 +5,39 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
-  configureRecoveryPin, confirmPasswordReset, loginAccount, registerAccount, restoreSession,
+  configureRecoveryPin, confirmPasswordReset, hasCachedUser, loginAccount, registerAccount, restoreSession,
 } from "@/lib/auth-client";
 import { BrandLogo } from "@/components/brand-logo";
 
 type View = "login" | "register" | "reset" | "setup-pin";
 
-export function AuthFlow() {
+export function AuthFlow({ showBackLink = true }: { showBackLink?: boolean }) {
   const router = useRouter();
   const [view, setView] = useState<View>("login");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
+  const [slowRequest, setSlowRequest] = useState(false);
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
 
   useEffect(() => {
+    router.prefetch("/dashboard");
+    if (!hasCachedUser()) return;
+    let active = true;
     void restoreSession().then((user) => {
+      if (!active) return;
       if (!user) return;
       if (user.recoveryPinConfigured === false) setView("setup-pin");
       else router.replace("/dashboard");
     });
+    return () => { active = false; };
   }, [router]);
+
+  useEffect(() => {
+    if (!busy) return;
+    const timeoutId = window.setTimeout(() => setSlowRequest(true), 3_500);
+    return () => window.clearTimeout(timeoutId);
+  }, [busy]);
 
   function changeView(next: View): void {
     setView(next);
@@ -35,7 +47,7 @@ export function AuthFlow() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setBusy(true); setMessage(undefined); setError(undefined);
+    setBusy(true); setSlowRequest(false); setMessage(undefined); setError(undefined);
     const form = new FormData(event.currentTarget);
     const submittedEmail = String(form.get("email") ?? email).trim().toLowerCase();
     try {
@@ -87,7 +99,7 @@ export function AuthFlow() {
 
       <section className="auth-main">
         <div className="auth-card">
-          <Link className="back-link" href="/">‹ Voltar para o início</Link>
+          {showBackLink ? <Link className="back-link" href="/">‹ Voltar para o início</Link> : null}
           <p className="eyebrow">Conta INVENTARIO</p>
           <h2>{title}</h2>
           <p className="muted auth-description">{description}</p>
@@ -99,8 +111,9 @@ export function AuthFlow() {
             {view === "register" || view === "reset" || view === "setup-pin" ? <label>NP pessoal de recuperação<input className="code-input" name="recoveryPin" inputMode="numeric" autoComplete="off" pattern="\d{8}" minLength={8} maxLength={8} required placeholder="00000000" /><small>Use os 8 números do seu NP. Ele não será exibido novamente.</small></label> : null}
             {view === "register" || view === "setup-pin" ? <label>Confirmar NP pessoal<input className="code-input" name="recoveryPinConfirmation" inputMode="numeric" autoComplete="off" pattern="\d{8}" minLength={8} maxLength={8} required placeholder="00000000" /></label> : null}
             {view === "reset" ? <><label>Nova senha<input name="newPassword" type="password" autoComplete="new-password" minLength={12} required /></label><label>Confirmar nova senha<input name="passwordConfirmation" type="password" autoComplete="new-password" minLength={12} required /></label></> : null}
-            <button className="primary" type="submit" disabled={busy}>{busy ? "Aguarde…" : view === "login" ? "Entrar" : view === "register" ? "Criar conta e acessar" : view === "reset" ? "Atualizar senha" : "Salvar NP e continuar"}</button>
+            <button className="primary" type="submit" disabled={busy}>{busy ? (slowRequest ? "Servidor demorando…" : "Conectando…") : view === "login" ? "Entrar" : view === "register" ? "Criar conta e acessar" : view === "reset" ? "Atualizar senha" : "Salvar NP e continuar"}</button>
           </form>
+          {busy && slowRequest ? <p className="notice" role="status">O servidor pode estar acordando. Aguarde mais alguns segundos.</p> : null}
           {message ? <p className="notice" role="status">{message}</p> : null}
           {error ? <p className="error" role="alert">{error}</p> : null}
           <div className="auth-links">

@@ -35,9 +35,9 @@ aprovados. Android/iPhone Safari continuam sendo gates físicos pendentes.
 - Migration `0008_inventory_lot_references` aplicada na inicialização do deploy do ambiente principal.
 - Os workflows `Quality Gates` e `Production Smoke` do commit `cbc55dd` concluíram com sucesso.
 - O frontend publicado na Vercel continua respondendo e a rewrite `/backend-api/healthz` respondeu `{"status":"ok"}`.
-- A confirmação do backend novo no Render está bloqueada: na consulta de 17/09/2026, o deploy `live` ainda correspondia ao commit `9e05c46`, não ao `cbc55dd`.
-- O smoke público funcional confirmou a divergência: tanto `https://inventory-api-6o8h.onrender.com/api/v1/analysis/preview` quanto a rewrite da Vercel aceitaram `lot: "123"` com HTTP 200. No `cbc55dd`, esse lote deve ser recusado com HTTP 422.
-- Nenhuma ação de redeploy ou alteração de configuração foi executada; aguarda-se o deploy automático do Render e nova validação funcional.
+- O redeploy manual do Render foi concluído com `live` para o commit `adfdc60`, que contém o código funcional do `cbc55dd`.
+- O smoke público funcional confirmou a correção: tanto `https://inventory-api-6o8h.onrender.com/api/v1/analysis/preview` quanto a rewrite da Vercel recusam `lot: "123"` com HTTP 422 e aceitam `2712345678` com HTTP 200.
+- O health check direto da API e a rewrite `/backend-api/healthz` respondem `{"status":"ok"}`; não houve logs de erro no intervalo do redeploy e da validação.
 
 ## Histórico — entrega publicada: referência opcional de lotes SAP
 

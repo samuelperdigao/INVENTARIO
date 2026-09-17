@@ -2,6 +2,8 @@ export type Side = "EF" | "DE";
 export const INVENTORY_LAYERS = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"] as const;
 export type InventoryLayer = (typeof INVENTORY_LAYERS)[number];
 export type SyncStatus = "PENDING" | "SYNCED" | "ERROR";
+export type ReferenceSourceType = "SAP_EXCEL";
+export type ReferenceLotStatus = "EXPECTED_FOUND" | "EXPECTED_MISSING" | "OUTSIDE_REFERENCE";
 export type AnalysisClassification =
   | "OK"
   | "PEÇA_SOLTEIRA"
@@ -28,6 +30,86 @@ export interface Inventory extends LocalRecord {
   syncToken: string;
   /** Código amigável de seis dígitos, emitido pelo servidor enquanto aberto. */
   participationCode?: string;
+}
+
+export interface InventoryReference {
+  id: string;
+  inventoryId: string;
+  sourceType: ReferenceSourceType;
+  originalFilename: string;
+  importedAt: string;
+  updatedAt: string;
+  totalLots: number;
+  revision: number;
+  createdByName?: string;
+  status: "ACTIVE";
+  lotsComplete: boolean;
+}
+
+export interface ReferenceLotItem {
+  lotNumber: string;
+  foundPhysically: boolean;
+  physicalQuantity: number;
+  physicalOccurrences: number;
+  fragmented: boolean;
+}
+
+export interface LocalReferenceLot {
+  id: string;
+  inventoryId: string;
+  lotNumber: string;
+}
+
+export interface ReferenceSummary {
+  available: boolean;
+  totalLots: number;
+  foundLots: number;
+  pendingLots: number;
+  outsideReferenceLots: number;
+  fragmentedLots: number;
+  physicalDistinctLots: number;
+}
+
+export interface ReferenceState {
+  reference?: InventoryReference;
+  summary: ReferenceSummary;
+  lots: ReferenceLotItem[];
+  page: number;
+  pageSize: number;
+  totalMatchingLots: number;
+  totalPages: number;
+}
+
+export interface ReferenceColumn {
+  index: number;
+  label: string;
+}
+
+export interface ReferencePreview {
+  originalFilename: string;
+  sourceType: ReferenceSourceType;
+  headerRow?: number;
+  columns: ReferenceColumn[];
+  selectedColumn?: number;
+  selectedColumnLabel?: string;
+  requiresColumnSelection: boolean;
+  totalRows: number;
+  validLotOccurrences: number;
+  uniqueLots: number;
+  duplicateRows: number;
+  ignoredRows: number;
+  sample: string[];
+  warnings: string[];
+}
+
+export interface ReferenceImportSummary {
+  totalRows: number;
+  validLotOccurrences: number;
+  uniqueLots: number;
+  duplicateRows: number;
+  ignoredRows: number;
+  sample: string[];
+  warnings: string[];
 }
 
 export interface InventoryEntry extends LocalRecord {
@@ -89,6 +171,8 @@ export interface LotAnalysis {
   recommendation?: string;
   /** Presente nas respostas novas; caches antigos podem não ter este campo. */
   presentation?: LotPresentation;
+  referenceStatus?: ReferenceLotStatus;
+  physicalFound?: boolean;
 }
 
 export interface AnalysisSummary {
@@ -113,6 +197,13 @@ export interface AnalysisReport {
   generatedAt: string;
   lots: LotAnalysis[];
   summary: AnalysisSummary;
+  reference?: ReferenceSummary & {
+    sourceType?: ReferenceSourceType;
+    originalFilename?: string;
+    importedAt?: string;
+    updatedAt?: string;
+    missingLots?: number;
+  };
 }
 
 export interface AnalysisCache {

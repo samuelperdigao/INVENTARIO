@@ -116,3 +116,30 @@ it("preserva o formulário quando o armazenamento falha", async () => {
   expect(screen.getByLabelText("Lote")).toHaveValue("0009");
   expect(screen.getByLabelText("Quantidade de peças")).toHaveValue("3");
 });
+
+it("consulta a referência sem bloquear o salvamento local", async () => {
+  let resolveReference: ((value: boolean | null) => void) | undefined;
+  const referenceChecker = vi.fn(() => new Promise<boolean | null>((resolve) => { resolveReference = resolve; }));
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  render(<EntryForm onSave={onSave} onCancelEdit={vi.fn()} referenceChecker={referenceChecker} />);
+  await fillValidForm();
+
+  fireEvent.submit(screen.getByRole("button", { name: "Adicionar" }).closest("form")!);
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith({ side: "EF", bay: "12", layer: "A2", lot: "0009", quantity: 3 }, undefined, false));
+  expect(referenceChecker).toHaveBeenCalledWith("0009");
+  expect(screen.getByLabelText("Lote")).toHaveValue("");
+
+  resolveReference?.(true);
+});
+
+it("exibe lote fora da referência sem impedir o lançamento", async () => {
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  const referenceChecker = vi.fn().mockResolvedValue(false);
+  render(<EntryForm onSave={onSave} onCancelEdit={vi.fn()} referenceChecker={referenceChecker} />);
+  await fillValidForm();
+  fireEvent.blur(screen.getByLabelText("Lote"));
+
+  await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("não consta na referência SAP"));
+  await userEvent.setup().click(screen.getByRole("button", { name: "Adicionar" }));
+  await waitFor(() => expect(onSave).toHaveBeenCalled());
+});

@@ -40,6 +40,8 @@ Quando as duas variáveis públicas não existem, o frontend usa `/backend-api`.
 | `INVENTORY_SMTP_FROM_EMAIL` | Sim para envio | Remetente autorizado |
 | `INVENTORY_SMTP_SECURITY` | Condicional | `starttls` ou `ssl` em produção |
 | `INVENTORY_EMAIL_ATTACHMENT_MAX_MB` | Não | Padrão 15 |
+| `INVENTORY_REFERENCE_MAX_MB` | Não | Limite do `.xlsx` da referência SAP; padrão 15 |
+| `INVENTORY_REFERENCE_MAX_ROWS` | Não | Limite de linhas lidas; padrão 250000 |
 
 Não copie valores reais para Git, documentação, logs, issues ou Pull Requests.
 
@@ -48,7 +50,7 @@ Não copie valores reais para Git, documentação, logs, issues ou Pull Requests
 1. Criar a branch de release a partir da `main` atual.
 2. Executar todos os quality gates locais.
 3. Abrir Pull Request e aguardar o workflow `Quality Gates` concluir com sucesso.
-4. Para uma nova migration, fazer backup lógico e executar `alembic upgrade head` contra o Neon em terminal confiável.
+4. Para a referência SAP, confirmar a revisão `0008_inventory_lot_references`, fazer backup lógico e executar `alembic upgrade head` contra o Neon em terminal confiável.
 5. Confirmar `alembic current` na revisão esperada.
 6. Integrar o Pull Request sem force push.
 7. Aguardar os deploys automáticos de Render e Vercel.
@@ -76,6 +78,7 @@ Use a variável apenas no processo confiável. Não registre a linha real no his
 - Login, sincronização, participação, finalização e exportação do fluxo alterado são verificados quando aplicável.
 - Exportação Excel: sem `format`, o endpoint `/backend-api/api/v1/inventories/{id}/export/excel` deve retornar `.xls` com MIME `application/vnd.ms-excel`; `?format=xlsx` deve retornar `.xlsx` com MIME OOXML.
 - Para cada arquivo, conferir `Content-Disposition`, `Content-Length`, tamanho não nulo e extensão coerente com o conteúdo.
+- Com referência SAP ativa, confirmar prévia/importação de `.xlsx`, consulta de pertencimento de lote e a seção/aba `CONCILIAÇÃO`; confirmar também que um lote fora da referência continua sendo lançado.
 
 ## Rollback
 

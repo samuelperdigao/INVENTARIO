@@ -63,7 +63,7 @@ class LotPresentation(ApiModel):
 
 class LotAnalysis(ApiModel):
     lot: str
-    totalQuantity: StrictInt = Field(gt=0)
+    totalQuantity: StrictInt = Field(ge=0)
     locations: list[AnalysisLocation]
     fragmented: bool
     classification: Literal[
@@ -77,6 +77,8 @@ class LotAnalysis(ApiModel):
     displacedQuantity: StrictInt = Field(ge=0)
     recommendation: str | None = None
     presentation: LotPresentation
+    referenceStatus: Literal["EXPECTED_FOUND", "EXPECTED_MISSING", "OUTSIDE_REFERENCE"] | None = None
+    physicalFound: bool = True
 
 
 class AnalysisSummary(ApiModel):
@@ -95,12 +97,95 @@ class AnalysisSummary(ApiModel):
     reviewLots: StrictInt = Field(default=0, ge=0)
 
 
+class ReferenceColumn(ApiModel):
+    index: StrictInt = Field(ge=1, le=256)
+    label: str = Field(min_length=1, max_length=120)
+
+
+class ReferencePreviewResponse(ApiModel):
+    originalFilename: str = Field(min_length=1, max_length=255)
+    sourceType: Literal["SAP_EXCEL"]
+    headerRow: StrictInt | None = Field(default=None, ge=1)
+    columns: list[ReferenceColumn] = Field(min_length=1, max_length=256)
+    selectedColumn: StrictInt | None = Field(default=None, ge=1, le=256)
+    selectedColumnLabel: str | None = Field(default=None, max_length=120)
+    requiresColumnSelection: bool
+    totalRows: StrictInt = Field(ge=0)
+    validLotOccurrences: StrictInt = Field(ge=0)
+    uniqueLots: StrictInt = Field(ge=0)
+    duplicateRows: StrictInt = Field(ge=0)
+    ignoredRows: StrictInt = Field(ge=0)
+    sample: list[str] = Field(max_length=5)
+    warnings: list[str] = Field(max_length=20)
+
+
+class ReferenceImportSummary(ApiModel):
+    totalRows: StrictInt = Field(ge=0)
+    validLotOccurrences: StrictInt = Field(ge=0)
+    uniqueLots: StrictInt = Field(ge=1)
+    duplicateRows: StrictInt = Field(ge=0)
+    ignoredRows: StrictInt = Field(ge=0)
+    sample: list[str] = Field(max_length=5)
+    warnings: list[str] = Field(max_length=20)
+
+
+class ReferenceMetadata(ApiModel):
+    sourceType: Literal["SAP_EXCEL"]
+    originalFilename: str = Field(min_length=1, max_length=255)
+    importedAt: datetime
+    updatedAt: datetime
+    totalLots: StrictInt = Field(ge=1)
+    revision: StrictInt = Field(ge=1)
+    createdByName: str | None = Field(default=None, max_length=120)
+
+
+class ReferenceSummary(ApiModel):
+    available: bool
+    totalLots: StrictInt = Field(ge=0)
+    foundLots: StrictInt = Field(ge=0)
+    pendingLots: StrictInt = Field(ge=0)
+    outsideReferenceLots: StrictInt = Field(ge=0)
+    fragmentedLots: StrictInt = Field(ge=0)
+    physicalDistinctLots: StrictInt = Field(ge=0)
+
+
+class ReferenceLotItem(ApiModel):
+    lotNumber: str = Field(min_length=1, max_length=255, pattern=r"^\d+$")
+    foundPhysically: bool
+    physicalQuantity: StrictInt = Field(ge=0)
+    physicalOccurrences: StrictInt = Field(ge=0)
+    fragmented: bool
+
+
+class ReferenceStateResponse(ApiModel):
+    reference: ReferenceMetadata | None
+    summary: ReferenceSummary
+    lots: list[ReferenceLotItem] = Field(max_length=100)
+    page: StrictInt = Field(ge=1)
+    pageSize: StrictInt = Field(ge=1, le=100)
+    totalMatchingLots: StrictInt = Field(ge=0)
+    totalPages: StrictInt = Field(ge=0)
+
+
+class ReferenceImportResponse(ApiModel):
+    reference: ReferenceMetadata
+    importSummary: ReferenceImportSummary
+    lotNumbers: list[str] = Field(min_length=1, max_length=250_000)
+
+
+class ReferenceMatchResponse(ApiModel):
+    referenceAvailable: bool
+    lot: str = Field(min_length=1, max_length=255, pattern=r"^\d+$")
+    inReference: bool | None
+
+
 class AnalysisReport(ApiModel):
     inventoryId: UUID
     revision: StrictInt = Field(ge=1)
     generatedAt: datetime
     lots: list[LotAnalysis]
     summary: AnalysisSummary
+    reference: dict[str, Any] | None = None
 
 
 class SyncInventory(ApiModel):

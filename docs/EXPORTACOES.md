@@ -18,8 +18,11 @@ build_inventory_report_data(...)
 
 O modelo comum preserva inventário, vão, lado DE/EF, camada quando informada,
 lote, quantidade, totais, lotes consolidados e a apresentação operacional
-produzida por `backend/app/presentation.py`. O motor ainda mantém seus códigos
-internos, mas nenhum exportador precisa traduzi-los novamente.
+produzida por `backend/app/presentation.py`. Quando existe uma referência SAP,
+ele também preserva o estado de conciliação e o resumo de lotes previstos,
+encontrados, pendentes, fora da referência e fragmentados. O motor ainda
+mantém seus códigos internos, mas nenhum exportador precisa traduzi-los
+novamente.
 
 ### Endpoints
 
@@ -54,12 +57,16 @@ Inventario_2026-09-12.xlsx
 
 ### Abas e compatibilidade visual
 
-Os dois arquivos têm as abas nesta ordem:
+Sem referência SAP, os dois arquivos têm as abas nesta ordem:
 
 1. `RESUMO`
 2. `INVENTÁRIO`
 3. `LOTES CONSOLIDADOS`
 4. `LOTES PARA CONFERÊNCIA`
+
+Com referência SAP ativa, é acrescentada uma quinta aba:
+
+5. `CONCILIAÇÃO`
 
 `LOTES CONSOLIDADOS` tem somente Lote, Total de peças, Localização e Situação.
 Para lote OK, a localização mostra apenas lado, vão e camada. Para conferência,
@@ -68,6 +75,15 @@ cada local aparece com sua quantidade.
 `LOTES PARA CONFERÊNCIA` possui uma linha por lote e as colunas Lote, Total,
 Situação, Local principal, Outros locais, Peças fora e Ação recomendada. A
 aba não contém lotes OK.
+
+### Conciliação opcional com SAP
+
+Quando há uma referência ativa, `CONCILIAÇÃO` possui uma linha por lote físico
+ou previsto e as colunas Lote, Referência, Físico, Localização, Qtd. física e
+Condição. Ela evidencia previstos não encontrados e lotes físicos fora da
+referência; a quantidade exibida continua sendo exclusivamente a quantidade
+lançada fisicamente. A aba não é criada quando o inventário não possui
+referência.
 
 O relatório usa azul escuro `#1F4E78`, azul claro `#D9EAF7`, branco e cinza
 neutro. OK recebe verde; uma peça fora recebe amarelo; múltiplas peças fora
@@ -109,11 +125,13 @@ oferece uma geração legada segura sem introduzir conversão externa ou alterar
 o fluxo existente.
 
 O PDF e o Word apresentam Resumo, Inventário, Lotes consolidados e Lotes para
-conferência. Ambos usam uma linha lógica por lote na seção de conferência,
-quebra de texto para locais e ações e as quatro situações visíveis: OK, uma
-peça fora do local principal, múltiplas peças fora do local principal e lote
-distribuído em mais de um local. O PDF é A4 horizontal e o Word usa orientação
-horizontal para evitar compressão das colunas operacionais.
+conferência. Quando há referência, acrescentam uma seção `Conciliação com
+referência de lotes` com a mesma linha lógica e as mesmas colunas da aba Excel.
+Ambos usam uma linha lógica por lote na seção de conferência, quebra de texto
+para locais e ações e as quatro situações visíveis: OK, uma peça fora do local
+principal, múltiplas peças fora do local principal e lote distribuído em mais
+de um local. O PDF é A4 horizontal e o Word usa orientação horizontal para
+evitar compressão das colunas operacionais.
 
 O compartilhamento nativo continua oferecendo PDF, `.xlsx` e `.docx` por link
 temporário assinado. O download direto oferece também o `.xls` compatível,

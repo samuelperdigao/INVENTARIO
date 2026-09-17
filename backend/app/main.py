@@ -8,7 +8,7 @@ import smtplib
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Query, Response, status
+from fastapi import Cookie, Depends, FastAPI, File, Form, Header, HTTPException, Query, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import exists, or_, select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -29,13 +29,26 @@ from app.persistence import (
     ParticipationAttemptRow, TeamMemberRow, TeamRow, UserRow,
 )
 from app.presentation import apply_report_presentation
+from app.reference_service import (
+    ReferenceImportError,
+    active_reference,
+    parse_xlsx_reference,
+    reference_lot_numbers,
+    reference_match,
+    reference_metadata,
+    reference_state,
+    remove_reference,
+    replace_reference,
+    safe_original_filename,
+)
 from app.reports import build_consolidated_report, export_docx, export_pdf, export_xls, export_xlsx
 from app.schemas import (
     AddTeamMemberRequest, AnalysisPreviewRequest, AnalysisReport, AuthResponse,
     AuthenticatedUser, ConfigureRecoveryPinRequest, ConfirmPasswordResetRequest, CreateTeamRequest,
     EmailReportRequest, FinalizeInventoryRequest, InventoryHistoryItem, JoinInventoryRequest,
-    JoinInventoryResponse, LoginRequest, MessageResponse, RegisterRequest, SyncEntry, SyncRequest,
-    SyncResponse,
+    JoinInventoryResponse, LoginRequest, MessageResponse, ReferenceImportResponse,
+    ReferenceMatchResponse, ReferencePreviewResponse, ReferenceStateResponse, RegisterRequest,
+    SyncEntry, SyncRequest, SyncResponse,
 )
 from app.share_service import (
     SHAREABLE_FORMATS,
@@ -68,7 +81,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["DELETE", "GET", "POST"],
     allow_headers=["Authorization", "Content-Type", "X-Inventory-Sync-Token"],
 )
 
@@ -376,6 +389,160 @@ def inventory_lot_matches(
     return [_entry_record(session, row) for row in rows]
 
 
+async def _read_reference_upload(file: UploadFile) -> tuple[str, bytes]:
+    filename = safe_original_filename(file.filename)
+    if not filename.casefold().endswith(".xlsx"):
+        raise HTTPException(status_code=422, detail="Envie um arquivo Excel .xlsx exportado do SAP.")
+    max_bytes = settings.reference_max_mb * 1024 * 1024
+    content = await file.read(max_bytes + 1)
+    if not content:
+        raise HTTPException(status_code=422, detail="O arquivo Excel está vazio.")
+    if len(content) > max_bytes:
+        raise HTTPException(status_code=413, detail=f"O arquivo excede o limite de {settings.reference_max_mb} MB.")
+    return filename, content
+
+
+def _parse_reference_upload(content: bytes, filename: str, column_index: int | None):
+    try:
+        return parse_xlsx_reference(
+            content,
+            filename,
+            selected_column=column_index,
+            max_bytes=settings.reference_max_mb * 1024 * 1024,
+            max_rows=settings.reference_max_rows,
+        )
+    except ReferenceImportError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post(
+    "/api/v1/inventories/{inventory_id}/reference/preview",
+    response_model=ReferencePreviewResponse,
+)
+async def preview_inventory_reference(
+    inventory_id: str,
+    file: UploadFile = File(...),
+    column_index: int | None = Form(default=None, alias="columnIndex"),
+    sync_token: str = Header(min_length=32, alias="X-Inventory-Sync-Token"),
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict[str, object]:
+    _inventory_access(session, inventory_id, user, sync_token, require_token=True)
+    filename, content = await _read_reference_upload(file)
+    return _parse_reference_upload(content, filename, column_index).preview_payload()
+
+
+@app.post(
+    "/api/v1/inventories/{inventory_id}/reference",
+    response_model=ReferenceImportResponse,
+)
+async def import_inventory_reference(
+    inventory_id: str,
+    file: UploadFile = File(...),
+    column_index: int = Form(..., alias="columnIndex"),
+    sync_token: str = Header(min_length=32, alias="X-Inventory-Sync-Token"),
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict[str, object]:
+    inventory = _inventory_access(session, inventory_id, user, sync_token, require_token=True)
+    if inventory.status == "FINISHED":
+        raise HTTPException(status_code=409, detail="Inventário finalizado não aceita troca de referência.")
+    filename, content = await _read_reference_upload(file)
+    parsed = _parse_reference_upload(content, filename, column_index)
+    try:
+        reference = replace_reference(
+            session,
+            inventory_id=inventory.id,
+            filename=parsed.original_filename,
+            lots=parsed.lots,
+            user_id=user.id,
+        )
+        session.commit()
+    except IntegrityError as error:
+        session.rollback()
+        raise HTTPException(status_code=409, detail="A referência mudou durante a importação. Tente novamente.") from error
+    except SQLAlchemyError as error:
+        session.rollback()
+        raise HTTPException(status_code=503, detail="Não foi possível persistir a referência de lotes.") from error
+    return {
+        "reference": reference_metadata(session, reference),
+        "importSummary": {
+            "totalRows": parsed.total_rows,
+            "validLotOccurrences": parsed.valid_lot_occurrences,
+            "uniqueLots": parsed.unique_lots,
+            "duplicateRows": parsed.duplicate_rows,
+            "ignoredRows": parsed.ignored_rows,
+            "sample": list(parsed.sample),
+            "warnings": list(parsed.warnings),
+        },
+        # O cache local recebe somente os números, nunca o workbook ou outras colunas.
+        "lotNumbers": list(parsed.lots),
+    }
+
+
+@app.get(
+    "/api/v1/inventories/{inventory_id}/reference",
+    response_model=ReferenceStateResponse,
+)
+def get_inventory_reference(
+    inventory_id: str,
+    query: str = Query(default="", max_length=80),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=100, alias="pageSize"),
+    sync_token: str | None = Header(default=None, min_length=32, alias="X-Inventory-Sync-Token"),
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict[str, object]:
+    _inventory_access(session, inventory_id, user, sync_token)
+    return reference_state(session, inventory_id, page=page, page_size=page_size, query=query)
+
+
+@app.get(
+    "/api/v1/inventories/{inventory_id}/reference/match/{lot}",
+    response_model=ReferenceMatchResponse,
+)
+def match_inventory_reference_lot(
+    inventory_id: str,
+    lot: str,
+    sync_token: str | None = Header(default=None, min_length=32, alias="X-Inventory-Sync-Token"),
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict[str, object]:
+    if not lot.isdigit() or len(lot) > 255:
+        raise HTTPException(status_code=422, detail="O lote deve conter somente números.")
+    _inventory_access(session, inventory_id, user, sync_token)
+    return reference_match(session, inventory_id, lot)
+
+
+@app.delete(
+    "/api/v1/inventories/{inventory_id}/reference",
+    response_model=MessageResponse,
+)
+def delete_inventory_reference(
+    inventory_id: str,
+    sync_token: str = Header(min_length=32, alias="X-Inventory-Sync-Token"),
+    user: UserRow = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict[str, str]:
+    inventory = _inventory_access(session, inventory_id, user, sync_token, require_token=True)
+    if inventory.status == "FINISHED":
+        raise HTTPException(status_code=409, detail="Inventário finalizado não aceita remoção de referência.")
+    try:
+        remove_reference(session, inventory.id)
+        session.commit()
+    except SQLAlchemyError as error:
+        session.rollback()
+        raise HTTPException(status_code=503, detail="Não foi possível remover a referência de lotes.") from error
+    return {"message": "Referência removida. Os lançamentos físicos permanecem preservados."}
+
+
+def _report_reference(session: Session, inventory_id: str) -> tuple[tuple[str, ...] | None, dict[str, object] | None]:
+    reference = active_reference(session, inventory_id)
+    if reference is None:
+        return None, None
+    return reference_lot_numbers(session, reference.id), reference_metadata(session, reference)
+
+
 def _central_report(session: Session, inventory: InventoryRow) -> dict[str, object]:
     if inventory.report_snapshot is not None:
         return apply_report_presentation(inventory.report_snapshot)
@@ -385,6 +552,7 @@ def _central_report(session: Session, inventory: InventoryRow) -> dict[str, obje
             InventoryEntryRow.tombstone.is_(False),
         )
     ).all()
+    reference_lots, reference_info = _report_reference(session, inventory.id)
     return build_consolidated_report(
         inventory.id,
         inventory.date.isoformat(),
@@ -393,6 +561,8 @@ def _central_report(session: Session, inventory: InventoryRow) -> dict[str, obje
             AnalysisEntry(side=row.side, bay=row.bay, layer=row.layer, lot=row.lot, quantity=row.quantity)
             for row in rows
         ),
+        reference_lots=reference_lots,
+        reference_metadata=reference_info,
     )
 
 
@@ -471,6 +641,7 @@ def finalize_inventory(
     if not rows:
         raise HTTPException(status_code=422, detail="Registre ao menos um lançamento antes de finalizar.")
     now = datetime.now(timezone.utc)
+    reference_lots, reference_info = _report_reference(session, inventory.id)
     inventory.report_snapshot = build_consolidated_report(
         inventory.id,
         inventory.date.isoformat(),
@@ -480,6 +651,8 @@ def finalize_inventory(
             for row in rows
         ),
         now,
+        reference_lots=reference_lots,
+        reference_metadata=reference_info,
     )
     inventory.status = "FINISHED"
     inventory.finalized_at = now

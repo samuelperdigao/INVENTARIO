@@ -20,6 +20,15 @@
 - Quantidade é inteiro positivo. EF e DE são os únicos lados válidos.
 - Registros não são mesclados na tela. Inclusão, edição e exclusão atualizam o inventário e o lançamento na mesma transação IndexedDB. Excluir cria um tombstone e oculta o registro.
 
+## Referência opcional de lotes SAP
+
+- A planilha SAP é uma referência de reconciliação, não uma fonte do inventário físico. O operador pode continuar sem ela e pode lançar, editar e excluir registros offline.
+- A importação aceita `.xlsx` e oferece prévia antes da confirmação. Quando os cabeçalhos não identificam uma única coluna de lote, o operador deve escolher a coluna manualmente.
+- O parser normaliza números de lote como texto, preserva zeros à esquerda, remove formatação invisível segura e informa duplicados, vazios e valores inválidos. O backend armazena somente os números normalizados e metadados mínimos do arquivo.
+- Cada inventário possui no máximo uma referência ativa. Substituir ou remover exige autorização e inventário `OPEN`; a finalização impede novas alterações. Remover a referência não remove lançamentos, quantidades, locais ou tombstones.
+- A consulta no formulário é não bloqueante. Lote previsto, fora da referência ou indisponibilidade da consulta servem apenas como feedback operacional; nenhum lançamento físico é recusado por essa comparação.
+- Com referência ativa, o relatório marca lotes previstos encontrados, previstos não encontrados e físicos fora da referência, além de contar lotes fragmentados. Sem referência, a análise e as exportações mantêm o comportamento anterior.
+
 ## Operação
 
 - Um inventário novo começa sem lado selecionado.

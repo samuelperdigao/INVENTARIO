@@ -28,6 +28,8 @@ class Settings:
     recovery_pin_max_attempts: int
     recovery_pin_lock_minutes: int
     email_attachment_max_mb: int
+    reference_max_mb: int
+    reference_max_rows: int
 
     @property
     def is_production(self) -> bool:
@@ -63,6 +65,8 @@ def get_settings() -> Settings:
         recovery_pin_max_attempts=int(os.getenv("INVENTORY_RECOVERY_PIN_MAX_ATTEMPTS", "5")),
         recovery_pin_lock_minutes=int(os.getenv("INVENTORY_RECOVERY_PIN_LOCK_MINUTES", "15")),
         email_attachment_max_mb=int(os.getenv("INVENTORY_EMAIL_ATTACHMENT_MAX_MB", "15")),
+        reference_max_mb=int(os.getenv("INVENTORY_REFERENCE_MAX_MB", "15")),
+        reference_max_rows=int(os.getenv("INVENTORY_REFERENCE_MAX_ROWS", "250000")),
     )
     if settings.is_production:
         if not database_url.startswith("postgresql+"):

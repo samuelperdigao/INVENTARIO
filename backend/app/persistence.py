@@ -128,6 +128,47 @@ class InventoryEntryRow(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class InventoryReferenceRow(Base):
+    """A referência ativa de lotes associada a um inventário.
+
+    O arquivo original nunca é persistido. Esta tabela guarda apenas os
+    metadados operacionais e a tabela filha guarda exclusivamente os números
+    de lote normalizados.
+    """
+
+    __tablename__ = "inventory_references"
+    __table_args__ = (
+        UniqueConstraint("inventory_id", name="uq_inventory_references_inventory"),
+        CheckConstraint("status IN ('ACTIVE', 'REMOVED')", name="ck_inventory_references_status"),
+        CheckConstraint("source_type IN ('SAP_EXCEL')", name="ck_inventory_references_source_type"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    inventory_id: Mapped[str] = mapped_column(ForeignKey("inventories.id", ondelete="RESTRICT"), index=True, nullable=False)
+    source_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE")
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    total_lots: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class ReferenceLotRow(Base):
+    """Um único número de lote da referência, sem dados adicionais da planilha."""
+
+    __tablename__ = "reference_lots"
+    __table_args__ = (
+        UniqueConstraint("reference_id", "lot_number", name="uq_reference_lots_reference_lot"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    reference_id: Mapped[str] = mapped_column(ForeignKey("inventory_references.id", ondelete="CASCADE"), index=True, nullable=False)
+    lot_number: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+
+
 class SyncEventRow(Base):
     __tablename__ = "sync_events"
 

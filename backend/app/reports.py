@@ -9,7 +9,7 @@ from __future__ import annotations
 from copy import copy
 from datetime import datetime
 from io import BytesIO
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 from xml.sax.saxutils import escape
 
 import xlwt
@@ -67,11 +67,48 @@ def build_inventory_report_data(
     revision: int,
     entries: Iterable[AnalysisEntry],
     generated_at: datetime | None = None,
+    *,
+    reference_lots: Iterable[str] | None = None,
+    reference_metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Prepara a fonte única consumida por todos os exportadores."""
 
     raw_entries = list(entries)
-    analysis = apply_report_presentation(analyze_entries(inventory_id, revision, raw_entries))
+    analysis = analyze_entries(inventory_id, revision, raw_entries)
+    if reference_lots is not None:
+        normalized_reference = {str(lot).strip() for lot in reference_lots if str(lot).strip()}
+        physical_lots = {str(lot["lot"]) for lot in analysis["lots"]}
+        for lot in analysis["lots"]:
+            lot["referenceStatus"] = "EXPECTED_FOUND" if lot["lot"] in normalized_reference else "OUTSIDE_REFERENCE"
+            lot["physicalFound"] = True
+        for missing_lot in sorted(normalized_reference - physical_lots, key=_natural_key):
+            analysis["lots"].append(
+                {
+                    "lot": missing_lot,
+                    "totalQuantity": 0,
+                    "locations": [],
+                    "fragmented": False,
+                    "classification": "REVISAR",
+                    "primaryLocation": None,
+                    "displacedQuantity": 0,
+                    "recommendation": "Nenhum lançamento físico foi encontrado para este lote previsto.",
+                    "referenceStatus": "EXPECTED_MISSING",
+                    "physicalFound": False,
+                }
+            )
+        analysis["lots"].sort(key=lambda lot: _natural_key(str(lot["lot"])))
+        physical_fragmented = sum(1 for lot in analysis["lots"] if lot.get("physicalFound") and lot.get("fragmented"))
+        analysis["reference"] = {
+            "available": True,
+            **dict(reference_metadata or {}),
+            "totalLots": len(normalized_reference),
+            "foundLots": len(normalized_reference & physical_lots),
+            "missingLots": len(normalized_reference - physical_lots),
+            "outsideReferenceLots": len(physical_lots - normalized_reference),
+            "fragmentedLots": physical_fragmented,
+            "physicalDistinctLots": len(physical_lots),
+        }
+    analysis = apply_report_presentation(analysis)
     analysis["generatedAt"] = (generated_at or datetime.now().astimezone()).isoformat()
     records = [
         {
@@ -104,10 +141,21 @@ def build_consolidated_report(
     revision: int,
     entries: Iterable[AnalysisEntry],
     generated_at: datetime | None = None,
+    *,
+    reference_lots: Iterable[str] | None = None,
+    reference_metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compatibilidade para consumidores que usam o nome histórico."""
 
-    return build_inventory_report_data(inventory_id, inventory_date, revision, entries, generated_at)
+    return build_inventory_report_data(
+        inventory_id,
+        inventory_date,
+        revision,
+        entries,
+        generated_at,
+        reference_lots=reference_lots,
+        reference_metadata=reference_metadata,
+    )
 
 
 def _side_totals(report: dict[str, Any]) -> tuple[dict[str, int], dict[str, int]]:
@@ -138,7 +186,7 @@ def _summary_rows(report: dict[str, Any]) -> list[tuple[str, object]]:
         )
     else:
         observation = "Nenhum lote precisa de conferência."
-    return [
+    rows: list[tuple[str, object]] = [
         ("Data do inventário", report["inventoryDate"]),
         ("Total de registros", report["totalRecords"]),
         ("Total de peças", report["totalPieces"]),
@@ -155,6 +203,21 @@ def _summary_rows(report: dict[str, Any]) -> list[tuple[str, object]]:
         ("Registros lado EF", side_counts["EF"]),
         ("Observações importantes", observation),
     ]
+
+
+    if _has_reference(report):
+        reference = report["reference"]
+        rows.extend(
+            [
+                ("Referência de lotes", "Planilha Excel exportada do SAP"),
+                ("Lotes previstos", int(reference.get("totalLots", 0))),
+                ("Previstos e encontrados", int(reference.get("foundLots", 0))),
+                ("Previstos e não encontrados", int(reference.get("missingLots", 0))),
+                ("Lotes físicos fora da referência", int(reference.get("outsideReferenceLots", 0))),
+                ("Lotes fragmentados (físico)", int(reference.get("fragmentedLots", 0))),
+            ]
+        )
+    return rows
 
 
 def _consolidated_rows(report: dict[str, Any]) -> list[list[object]]:
@@ -214,6 +277,67 @@ def _conference_row_kinds(report: dict[str, Any]) -> list[str]:
 
 def _report_subtitle(report: dict[str, Any]) -> str:
     return f"Data do inventário: {report['inventoryDate']} · Revisão: {report['revision']}"
+
+
+def _has_reference(report: Mapping[str, Any]) -> bool:
+    reference = report.get("reference")
+    return isinstance(reference, Mapping) and bool(reference.get("available"))
+
+
+def _reference_label(lot: Mapping[str, Any]) -> str:
+    status = lot.get("referenceStatus")
+    if status in {"EXPECTED_FOUND", "EXPECTED_MISSING"}:
+        return "Previsto"
+    if status == "OUTSIDE_REFERENCE":
+        return "Fora da referência"
+    return "Sem referência"
+
+
+def _physical_label(lot: Mapping[str, Any]) -> str:
+    return "Encontrado" if lot.get("physicalFound", int(lot.get("totalQuantity", 0)) > 0) else "Não encontrado"
+
+
+def _reference_conciliation_rows(report: Mapping[str, Any]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for lot in report.get("lots", []):
+        if not isinstance(lot, Mapping):
+            continue
+        presentation = lot.get("presentation") or build_lot_presentation(lot)
+        locations = presentation.get("locations", []) if isinstance(presentation, Mapping) else []
+        location_summary = "\n".join(
+            str(location.get("display") or location.get("label"))
+            for location in locations
+            if isinstance(location, Mapping)
+        ) or "—"
+        condition = str(presentation.get("situation", "LOTE PARA CONFERÊNCIA"))
+        if lot.get("referenceStatus") == "EXPECTED_MISSING":
+            condition = "PREVISTO E NÃO ENCONTRADO"
+        elif lot.get("referenceStatus") == "OUTSIDE_REFERENCE":
+            condition = f"FORA DA REFERÊNCIA · {condition}"
+        rows.append(
+            [
+                str(lot["lot"]),
+                _reference_label(lot),
+                _physical_label(lot),
+                location_summary,
+                int(lot.get("totalQuantity", 0)),
+                condition,
+            ]
+        )
+    return rows
+
+
+def _reference_conciliation_kinds(report: Mapping[str, Any]) -> list[str]:
+    kinds: list[str] = []
+    for lot in report.get("lots", []):
+        if not isinstance(lot, Mapping):
+            continue
+        if lot.get("referenceStatus") in {"EXPECTED_MISSING", "OUTSIDE_REFERENCE"}:
+            kinds.append("review")
+        else:
+            presentation = lot.get("presentation") or {}
+            kinds.append(str(presentation.get("tone", "review")))
+    return kinds
 
 
 def _xlsx_add_sheet(
@@ -372,6 +496,19 @@ def generate_xlsx_report(report: dict[str, Any]) -> bytes:
         number_columns={2, 6},
         row_kinds=conference_kinds,
     )
+    if _has_reference(report):
+        _xlsx_add_sheet(
+            workbook,
+            "CONCILIAÇÃO",
+            ["Lote", "Referência", "Físico", "Localização", "Qtd. física", "Condição"],
+            _reference_conciliation_rows(report),
+            title="CONCILIAÇÃO COM REFERÊNCIA DE LOTES",
+            subtitle=subtitle,
+            widths=[18, 24, 18, 70, 16, 54],
+            text_columns={1},
+            number_columns={5},
+            row_kinds=_reference_conciliation_kinds(report),
+        )
     buffer = BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()
@@ -565,6 +702,20 @@ def generate_xls_report(report: dict[str, Any]) -> bytes:
         row_kinds=conference_kinds,
         print_scaling=60,
     )
+    if _has_reference(report):
+        _xls_add_sheet(
+            workbook,
+            "CONCILIAÇÃO",
+            ["Lote", "Referência", "Físico", "Localização", "Qtd. física", "Condição"],
+            _reference_conciliation_rows(report),
+            title="CONCILIAÇÃO COM REFERÊNCIA DE LOTES",
+            subtitle=subtitle,
+            widths=[18, 24, 18, 70, 16, 54],
+            text_columns={0},
+            number_columns={4},
+            row_kinds=_reference_conciliation_kinds(report),
+            print_scaling=55,
+        )
     buffer = BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()
@@ -686,6 +837,21 @@ def export_pdf(report: dict[str, Any]) -> bytes:
         Paragraph("Lotes para conferência", heading_style),
         _pdf_table(conference_rows, [2.0 * cm, 1.6 * cm, 4.5 * cm, 4.2 * cm, 5.0 * cm, 1.7 * cm, 8.1 * cm], conference_kinds),
     ]
+    if _has_reference(report):
+        reference_rows = [["Lote", "Referência", "Físico", "Localização", "Qtd. física", "Condição"]]
+        reference_rows.extend(_reference_conciliation_rows(report))
+        story.extend(
+            [
+                PageBreak(),
+                Paragraph("Conciliação com referência de lotes", heading_style),
+                Paragraph("A referência usa somente números de lote da planilha Excel exportada do SAP. As quantidades abaixo são exclusivamente físicas.", note_style),
+                _pdf_table(
+                    reference_rows,
+                    [2.0 * cm, 3.0 * cm, 2.6 * cm, 10.2 * cm, 2.5 * cm, 7.0 * cm],
+                    _reference_conciliation_kinds(report),
+                ),
+            ]
+        )
     document.build(story, onFirstPage=_pdf_page_frame, onLaterPages=_pdf_page_frame)
     return buffer.getvalue()
 
@@ -842,6 +1008,17 @@ def export_docx(report: dict[str, Any]) -> bytes:
         [2.2, 1.5, 4.5, 4.2, 5.0, 2.0, 8.0],
         row_kinds=conference_kinds,
     )
+    if _has_reference(report):
+        document.add_page_break()
+        document.add_heading("Conciliação com referência de lotes", level=1)
+        document.add_paragraph("A referência usa somente números de lote da planilha Excel exportada do SAP. As quantidades abaixo são exclusivamente físicas.")
+        _docx_add_table(
+            document,
+            ["Lote", "Referência", "Físico", "Localização", "Qtd. física", "Condição"],
+            _reference_conciliation_rows(report),
+            [2.2, 3.0, 2.4, 10.6, 2.4, 7.0],
+            row_kinds=_reference_conciliation_kinds(report),
+        )
     buffer = BytesIO()
     document.save(buffer)
     return buffer.getvalue()

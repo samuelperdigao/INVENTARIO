@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 
-import type { AnalysisCache, Inventory, InventoryEntry, SyncConflict, SyncMetadata } from "@/lib/models";
+import type { AnalysisCache, Inventory, InventoryEntry, InventoryReference, LocalReferenceLot, SyncConflict, SyncMetadata } from "@/lib/models";
 
 class InventoryDatabase extends Dexie {
   inventories!: EntityTable<Inventory, "id">;
@@ -8,6 +8,8 @@ class InventoryDatabase extends Dexie {
   analysisCache!: EntityTable<AnalysisCache, "id">;
   syncMetadata!: EntityTable<SyncMetadata, "id">;
   syncConflicts!: EntityTable<SyncConflict, "id">;
+  inventoryReferences!: EntityTable<InventoryReference, "id">;
+  referenceLots!: EntityTable<LocalReferenceLot, "id">;
 
   constructor() {
     super("inventario-offline");
@@ -29,6 +31,15 @@ class InventoryDatabase extends Dexie {
       analysisCache: "id, [inventoryId+revision], inventoryId, cachedAt",
       syncMetadata: "id",
       syncConflicts: "id, inventoryId, entityId, createdAt",
+    });
+    this.version(4).stores({
+      inventories: "id, date, updatedAt, tombstone",
+      entries: "id, inventoryId, [inventoryId+tombstone], [inventoryId+lot], side, bay, layer, lot, updatedAt, tombstone",
+      analysisCache: "id, [inventoryId+revision], inventoryId, cachedAt",
+      syncMetadata: "id",
+      syncConflicts: "id, inventoryId, entityId, createdAt",
+      inventoryReferences: "id, inventoryId, updatedAt, status",
+      referenceLots: "id, inventoryId, [inventoryId+lotNumber], lotNumber",
     });
   }
 }

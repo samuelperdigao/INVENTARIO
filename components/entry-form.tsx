@@ -10,9 +10,12 @@ interface EntryFormProps {
   editing?: InventoryEntry;
   onSave: (draft: EntryDraft, entryId?: string, allowDuplicate?: boolean) => Promise<void>;
   onCancelEdit: () => void;
+  referenceChecker?: (lot: string) => Promise<boolean | null>;
 }
 
-export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
+type ReferenceFeedback = "checking" | "found" | "outside";
+
+export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: EntryFormProps) {
   const [side, setSide] = useState<Side | undefined>(editing?.side);
   const [bay, setBay] = useState(editing?.bay ?? "");
   const [layer, setLayer] = useState<InventoryLayer | "">(editing?.layer ?? "");
@@ -21,7 +24,28 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
   const [duplicates, setDuplicates] = useState<InventoryEntry[]>([]);
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const [referenceFeedback, setReferenceFeedback] = useState<ReferenceFeedback>();
   const lotInputRef = useRef<HTMLInputElement>(null);
+  const referenceRequestRef = useRef(0);
+
+  function checkReference(lotValue: string): void {
+    const normalizedLot = lotValue.trim();
+    if (!referenceChecker || !normalizedLot || !/^\d+$/.test(normalizedLot)) {
+      referenceRequestRef.current += 1;
+      setReferenceFeedback(undefined);
+      return;
+    }
+    const requestId = ++referenceRequestRef.current;
+    setReferenceFeedback("checking");
+    void referenceChecker(normalizedLot)
+      .then((result) => {
+        if (requestId !== referenceRequestRef.current) return;
+        setReferenceFeedback(result === true ? "found" : result === false ? "outside" : undefined);
+      })
+      .catch(() => {
+        if (requestId === referenceRequestRef.current) setReferenceFeedback(undefined);
+      });
+  }
 
   function currentDraft(): EntryDraft | undefined {
     if (side !== "EF" && side !== "DE") {
@@ -55,6 +79,8 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
       setDuplicates([]);
       setLot("");
       setQuantity("");
+      referenceRequestRef.current += 1;
+      setReferenceFeedback(undefined);
       lotInputRef.current?.focus();
     } catch (cause) {
       if (cause instanceof DuplicateLotError) {
@@ -71,7 +97,10 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const draft = currentDraft();
-    if (draft) await persist(draft);
+    if (draft) {
+      if (!referenceFeedback) checkReference(draft.lot);
+      await persist(draft);
+    }
   }
 
   async function confirmDuplicate(): Promise<void> {
@@ -133,7 +162,12 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
               inputMode="numeric"
               pattern="[0-9]*"
               value={lot}
-              onChange={(event) => setLot(event.target.value.replace(/\D/g, ""))}
+              onChange={(event) => {
+                setLot(event.target.value.replace(/\D/g, ""));
+                referenceRequestRef.current += 1;
+                setReferenceFeedback(undefined);
+              }}
+              onBlur={() => checkReference(lot)}
               autoComplete="off"
               placeholder="Número do lote"
             />
@@ -142,6 +176,9 @@ export function EntryForm({ editing, onSave, onCancelEdit }: EntryFormProps) {
             <input id="quantity" name="quantity" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(/\D/g, ""))} inputMode="numeric" pattern="[0-9]*" autoComplete="off" placeholder="Ex.: 20" />
           </label>
         </div>
+        {referenceFeedback === "checking" ? <p className="reference-feedback" role="status">Consultando a referência SAP…</p> : null}
+        {referenceFeedback === "found" ? <p className="reference-feedback found" role="status">✓ Lote previsto na referência SAP.</p> : null}
+        {referenceFeedback === "outside" ? <p className="reference-feedback outside" role="status">Este lote não consta na referência SAP. O lançamento continua liberado.</p> : null}
         {error && <p className="error" role="alert">{error}</p>}
         <button className="primary" type="submit" disabled={saving}>{saving ? "Salvando…" : editing ? "Salvar alterações" : "Adicionar"}</button>
       </form>

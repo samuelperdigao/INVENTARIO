@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EntryForm } from "@/components/entry-form";
 import { EntryList } from "@/components/entry-list";
 import { FinalizationPanel } from "@/components/finalization-panel";
+import { ReferencePanel, createReferenceLotChecker } from "@/components/reference-panel";
 import { SyncPanel } from "@/components/sync-panel";
 import { BrandLogo } from "@/components/brand-logo";
 import { Icon } from "@/components/icon";
@@ -141,13 +142,14 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       {error && <p className="error" role="alert">{error}</p>}
       <div className="stack">
         <div className="entry-workspace">
-          {inventory.status === "OPEN" ? <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => setEditing(undefined)} /> : <p className="notice">Inventário finalizado: lançamentos preservados em modo somente leitura.</p>}
+          {inventory.status === "OPEN" ? <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => setEditing(undefined)} referenceChecker={createReferenceLotChecker(inventory)} /> : <p className="notice">Inventário finalizado: lançamentos preservados em modo somente leitura.</p>}
           <EntryList entries={entries} onEdit={setEditing} onDelete={setPendingDeletion} readOnly={inventory.status === "FINISHED"} />
         </div>
         <div className="support-workspace">
           <SyncPanel inventory={inventory} onSynced={refresh} />
           <AnalysisPanel key={`${inventory.id}:${inventory.revision}`} inventory={inventory} entries={entries} />
           <FinalizationPanel inventory={inventory} onFinished={refresh} />
+          <ReferencePanel inventory={inventory} onChanged={refresh} />
         </div>
       </div>
       <ConfirmDialog

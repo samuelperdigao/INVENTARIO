@@ -28,6 +28,27 @@ flowchart TD
 | Relatórios | `reports.py` | Modelo consolidado e exportações | Criar regras paralelas de classificação |
 | Persistência | `database.py`, `persistence.py` | Engine, sessões e modelos SQLAlchemy | Criar schema de produção manualmente |
 
+## Referência opcional de lotes SAP
+
+`components/reference-panel.tsx` e `lib/reference-client.ts` oferecem uma
+superfície separada para importar e consultar a referência. O Dexie mantém em
+cache somente metadados e números de lote normalizados; não replica campos
+adicionais da planilha SAP. A consulta no formulário de lançamento é
+informativa e assíncrona: falha, ausência de rede ou lote fora da referência
+jamais impedem salvar o lançamento local.
+
+No backend, `reference_service.py` valida o `.xlsx` em memória, identifica ou
+recebe a coluna de lote escolhida, normaliza os valores e persiste somente
+`inventory_references` e `reference_lots`. Há no máximo uma referência ativa
+por inventário. Prévia não persiste; confirmação, substituição e remoção exigem
+acesso autorizado e inventário aberto. Inventário `FINISHED` preserva a
+referência já usada no snapshot e não aceita alteração.
+
+Quando a referência está ativa, a fonte única de `reports.py` acrescenta o
+estado de cada lote (`EXPECTED_FOUND`, `EXPECTED_MISSING` ou
+`OUTSIDE_REFERENCE`) e um resumo de conciliação. Os quatro exportadores usam
+essa mesma fonte; sem referência, o contrato histórico permanece inalterado.
+
 ## Fluxo offline e sincronização
 
 1. O operador cria ou abre um inventário local.
@@ -50,13 +71,13 @@ flowchart TD
 
 ## Análise e relatórios
 
-`backend/app/engine.py` recebe lançamentos e produz classificações determinísticas internas. `backend/app/presentation.py` traduz essa saída para a linguagem operacional única, sem recalcular o motor. `backend/app/reports.py` prepara a fonte única em `build_inventory_report_data()` e deriva `.xls` BIFF8, `.xlsx`, PDF e Word desse modelo. A finalização salva o snapshot oficial e bloqueia novas mutações. Os detalhes do contrato de exportação estão em `docs/EXPORTACOES.md`.
+`backend/app/engine.py` recebe lançamentos e produz classificações determinísticas internas. `backend/app/presentation.py` traduz essa saída para a linguagem operacional única, sem recalcular o motor. `backend/app/reports.py` prepara a fonte única em `build_inventory_report_data()` e deriva `.xls` BIFF8, `.xlsx`, PDF e Word desse modelo, incluindo a aba/seção condicional de conciliação quando há referência SAP. A finalização salva o snapshot oficial e bloqueia novas mutações. Os detalhes do contrato de exportação estão em `docs/EXPORTACOES.md`.
 
 ## Banco e migrations
 
 - PostgreSQL é obrigatório em produção.
 - SQLite é usado apenas em desenvolvimento e testes.
-- A cadeia Alembic atual é linear de `0001_central_sync` até `0007_recovery_pin`.
+- A cadeia Alembic atual é linear de `0001_central_sync` até `0008_inventory_lot_references`.
 - Migrations publicadas são imutáveis; correções futuras devem ser novas revisões.
 - Downgrade existe para validação e recuperação controlada, mas não deve ser executado em produção sem plano específico.
 

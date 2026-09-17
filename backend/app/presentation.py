@@ -55,6 +55,17 @@ def build_lot_presentation(lot: Mapping[str, Any]) -> dict[str, Any]:
     """Traduz uma análise de lote para os campos usados pelo operador."""
 
     classification = str(lot.get("classification", "REVISAR"))
+    if lot.get("referenceStatus") == "EXPECTED_MISSING":
+        return {
+            "situation": "PREVISTO E NÃO ENCONTRADO",
+            "tone": "review",
+            "requiresConference": True,
+            "primaryLocation": None,
+            "otherLocations": [],
+            "locations": [],
+            "outOfPrimaryQuantity": None,
+            "action": "Nenhum lançamento físico foi encontrado para este lote previsto.",
+        }
     raw_locations = [location for location in lot.get("locations", []) if isinstance(location, Mapping)]
     internal_primary = lot.get("primaryLocation")
     primary_key = _location_key(internal_primary if isinstance(internal_primary, Mapping) else None)

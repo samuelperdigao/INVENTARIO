@@ -1,6 +1,6 @@
 # Status do projeto
 
-Atualizado em 14/09/2026.
+Atualizado em 16/09/2026.
 
 ## Produção
 
@@ -12,6 +12,38 @@ Atualizado em 14/09/2026.
 - O workflow `Production Smoke` da `main` em `acc1cff` concluiu com sucesso.
 - O commit `3ab62a8` foi integrado à `main`; o check da Vercel concluiu com sucesso.
 - O deploy Render `dep-dajsg3id0e5s73diru40` está `live` para o mesmo commit; `/healthz` respondeu `{"status":"ok"}`.
+
+## Entrega local — referência opcional de lotes SAP
+
+Branch de trabalho: `feat/referencia-lotes-sap`.
+Base confirmada: `master` em `6738794`.
+Esta entrega permanece somente local: não houve commit, push, Pull Request,
+alteração no GitHub, migration no Neon, deploy ou mudança nos provedores.
+
+- A referência aceita uma planilha `.xlsx` do SAP, mostra prévia e seleção manual de coluna quando necessário, normaliza e persiste somente números de lote.
+- A referência é independente dos lançamentos físicos: ausência, divergência, falha de consulta ou operação offline não bloqueiam inclusão, edição ou exclusão local.
+- O painel oferece importação, consulta paginada, cache offline, substituição e remoção; inventários finalizados não aceitam alteração da referência.
+- Relatórios com referência acrescentam conciliação condicional nos formatos `.xls`, `.xlsx`, PDF e DOCX; sem referência, o contrato anterior é preservado.
+- A migration `0008_inventory_lot_references` cria `inventory_references` e `reference_lots` sem alterar os lançamentos existentes.
+
+### Validação local desta entrega
+
+- ESLint: aprovado.
+- TypeScript: aprovado.
+- Vitest: `12 arquivos, 50 testes aprovados`.
+- Pytest: `42 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
+- `compileall` do backend: aprovado.
+- Alembic SQLite temporário: `upgrade head`, `downgrade 0007_recovery_pin`, novo `upgrade head` e `current` em `0008_inventory_lot_references (head)` aprovados.
+- Build de produção local: aprovado.
+- Playwright: `6 cenários aprovados` com `BACKEND_PROXY_URL=http://127.0.0.1:8000`; os cenários cobrem login, análise, dashboard, histórico, offline, sincronização e exportações.
+- Teste backend específico da referência validou parser, normalização, preview, importação, substituição, remoção, IDOR e conciliação nos quatro formatos.
+
+### Limitações e prontidão
+
+- A execução de `pnpm e2e` sem a variável local após um build de produção aponta a rewrite para a API pública e falha no login; a execução reproduzível local está documentada no README e o workflow de CI já define essa variável.
+- A migration e os testes desta entrega foram validados em SQLite temporário; PostgreSQL/Neon real e concorrência de produção não foram exercitados nesta etapa.
+- Nenhuma validação física nova foi feita em Android ou Safari/iPhone. Chromium local não substitui esses gates.
+- A entrega está pronta para revisão e integração posterior, mas não foi integrada à `main` nem publicada.
 
 ## Funcionalidades concluídas
 
@@ -25,8 +57,9 @@ Atualizado em 14/09/2026.
 - Sincronização incremental, idempotência, tombstones e conflitos.
 - Análise determinística de lotes com apresentação operacional para o operador.
 - Finalização central irreversível, histórico e exportações PDF, Excel e Word.
+- Referência opcional de lotes SAP com prévia, cache local, conciliação e lançamento físico sempre liberado.
 - Exportação `.xls` BIFF8 gerada diretamente no backend e apresentada como padrão para os computadores antigos da equipe.
-- Exportação `.xlsx` moderna preservada, com fonte única de dados, quatro abas na ordem oficial e contratos binários de MIME, nome e tamanho.
+- Exportação `.xlsx` moderna preservada, com fonte única de dados, quatro abas oficiais sem referência e quinta aba condicional de conciliação, além dos contratos binários de MIME, nome e tamanho.
 - Exportações Excel, PDF e Word revisadas para usar resumo, inventário, lotes consolidados e lotes para conferência, com uma linha por lote e sem duplicar a lógica de análise.
 - Compartilhamento nativo e links temporários assinados.
 

@@ -2,9 +2,9 @@
 
 Atualizado em 17/09/2026.
 
-## Em validação local — regra oficial de lotes e importação SAP
+## Entrega integrada — regra oficial de lotes e importação SAP
 
-Branch de trabalho: `codex/regras-lote-sap`.
+Commit integrado: `cbc55dd` na `main`.
 
 - A regra vigente é exatamente 10 dígitos ASCII com prefixo `27` ou `28`, centralizada em `backend/app/lot_rules.py` e `lib/lot-rules.ts`.
 - A planilha SAP só alimenta a referência pela coluna com cabeçalho `Lotes`, aceitando apenas trim e diferença de maiúsculas/minúsculas. Cabeçalho ausente, duplicado ou seleção de outra coluna não são aceitos.
@@ -23,7 +23,8 @@ Branch de trabalho: `codex/regras-lote-sap`.
 - Build de produção local: aprovado.
 - Playwright: `6 cenários aprovados` com backend local, incluindo offline, sincronização, histórico móvel e 100 lançamentos/exportações.
 
-Esta alteração ainda aguarda integração na `main`, publicação e confirmação das superfícies públicas. Android/iPhone Safari continuam sendo gates físicos pendentes.
+O commit foi integrado e enviado para `origin/main`. Os gates de CI foram
+aprovados. Android/iPhone Safari continuam sendo gates físicos pendentes.
 
 ## Produção
 
@@ -32,9 +33,11 @@ Esta alteração ainda aguarda integração na `main`, publicação e confirmaç
 - API ativa no Render: `https://inventory-api-6o8h.onrender.com`.
 - PostgreSQL ativo no Neon.
 - Migration `0008_inventory_lot_references` aplicada na inicialização do deploy do ambiente principal.
-- Os workflows `Quality Gates` e `Production Smoke` do commit `9e05c46` concluíram com sucesso.
-- O check da Vercel para o commit `9e05c46` concluiu com sucesso.
-- O deploy Render `dep-dalk01942hec73cojr3g` está `live` para o commit `9e05c46`; `/healthz` respondeu `{"status":"ok"}`.
+- Os workflows `Quality Gates` e `Production Smoke` do commit `cbc55dd` concluíram com sucesso.
+- O frontend publicado na Vercel continua respondendo e a rewrite `/backend-api/healthz` respondeu `{"status":"ok"}`.
+- A confirmação do backend novo no Render está bloqueada: na consulta de 17/09/2026, o deploy `live` ainda correspondia ao commit `9e05c46`, não ao `cbc55dd`.
+- O smoke público funcional confirmou a divergência: tanto `https://inventory-api-6o8h.onrender.com/api/v1/analysis/preview` quanto a rewrite da Vercel aceitaram `lot: "123"` com HTTP 200. No `cbc55dd`, esse lote deve ser recusado com HTTP 422.
+- Nenhuma ação de redeploy ou alteração de configuração foi executada; aguarda-se o deploy automático do Render e nova validação funcional.
 
 ## Histórico — entrega publicada: referência opcional de lotes SAP
 

@@ -12,6 +12,7 @@ import {
   removeReference,
 } from "@/lib/reference-client";
 import { syncInventory } from "@/lib/sync-client";
+import { LOT_LENGTH, sanitizeLotInput } from "@/lib/lot-rules";
 import type { Inventory, ReferencePreview, ReferenceState } from "@/lib/models";
 
 interface ReferencePanelProps {
@@ -32,7 +33,6 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
   const [loading, setLoading] = useState(true);
   const [file, setFile] = useState<File>();
   const [preview, setPreview] = useState<ReferencePreview>();
-  const [selectedColumn, setSelectedColumn] = useState<number>();
   const [showImporter, setShowImporter] = useState(false);
   const [showLots, setShowLots] = useState(false);
   const [queryInput, setQueryInput] = useState("");
@@ -68,7 +68,6 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
   function resetImporter(): void {
     setFile(undefined);
     setPreview(undefined);
-    setSelectedColumn(undefined);
   }
 
   async function ensureCentralInventory(): Promise<Inventory> {
@@ -90,12 +89,9 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
     setMessage(undefined);
     try {
       const current = await ensureCentralInventory();
-      const next = await previewReference(current, file, selectedColumn);
+      const next = await previewReference(current, file);
       setPreview(next);
-      if (next.selectedColumn != null) setSelectedColumn(next.selectedColumn);
-      setMessage(next.requiresColumnSelection
-        ? "Selecione a coluna que contém os números de lote para gerar a prévia."
-        : "Prévia pronta. Confira os números antes de confirmar.");
+      setMessage("Prévia pronta. Confira os lotes identificados na coluna ‘Lotes’ antes de confirmar.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível ler a planilha Excel.");
     } finally {
@@ -104,13 +100,13 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
   }
 
   async function handleImport(): Promise<void> {
-    if (!file || selectedColumn == null || !preview || preview.requiresColumnSelection) return;
+    if (!file || !preview || preview.requiresColumnSelection || preview.uniqueLots === 0) return;
     setBusy(true);
     setError(undefined);
     setMessage(undefined);
     try {
       const current = await ensureCentralInventory();
-      const result = await importReference(current, file, selectedColumn);
+      const result = await importReference(current, file);
       const next = await getReferenceState(current, 1, "");
       setState(next);
       setPage(1);
@@ -150,7 +146,7 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
 
   const reference = state?.reference;
   const canEditReference = inventory.status === "OPEN";
-  const selectedPreviewReady = Boolean(preview && !preview.requiresColumnSelection && selectedColumn != null);
+  const selectedPreviewReady = Boolean(preview && !preview.requiresColumnSelection);
 
   return <>
     <section className="card section-card panel-card stack reference-panel" aria-label="Conciliação SAP">
@@ -210,25 +206,15 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
               onChange={(event) => {
                 setFile(event.target.files?.[0]);
                 setPreview(undefined);
-                setSelectedColumn(undefined);
                 setError(undefined);
                 setMessage(undefined);
               }}
             />
           </label>
           {file ? <p className="notice">Arquivo carregado: {file.name}</p> : null}
-          {preview?.requiresColumnSelection ? <>
-            <label className="field" htmlFor="reference-column">Coluna que contém o número do lote
-              <select id="reference-column" value={selectedColumn ?? ""} onChange={(event) => setSelectedColumn(event.target.value ? Number(event.target.value) : undefined)}>
-                <option value="">Selecione uma coluna</option>
-                {preview.columns.map((column) => <option value={column.index} key={column.index}>{column.label}</option>)}
-              </select>
-            </label>
-            <button className="secondary" type="button" onClick={() => void handlePreview()} disabled={busy || selectedColumn == null}>Gerar prévia com esta coluna</button>
-          </> : null}
           {!preview ? <button className="primary" type="button" onClick={() => void handlePreview()} disabled={busy || !file}>{busy ? "Lendo arquivo…" : "Pré-visualizar importação"}</button> : null}
           {preview && selectedPreviewReady ? <div className="reference-preview" aria-label="Prévia da importação">
-            <div className="reference-preview-heading"><strong>Coluna selecionada: {preview.selectedColumnLabel}</strong><span>{summaryLabel(preview.uniqueLots)} lotes encontrados</span></div>
+            <div className="reference-preview-heading"><strong>Coluna identificada: {preview.selectedColumnLabel ?? "Lotes"}</strong><span>{summaryLabel(preview.uniqueLots)} lotes válidos</span></div>
             <div className="reference-summary">
               <span>{summaryLabel(preview.duplicateRows)} duplicados</span>
               <span>{summaryLabel(preview.ignoredRows)} linhas ignoradas</span>
@@ -236,8 +222,9 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
             </div>
             <p className="muted">Amostra: {preview.sample.join(" · ")}</p>
             {preview.warnings.length ? <ul className="reference-warnings">{preview.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul> : null}
+            {!preview.uniqueLots ? <p className="error" role="alert">Nenhum lote válido foi encontrado na coluna ‘Lotes’. Confira o arquivo antes de tentar confirmar.</p> : null}
             <div className="actions">
-              <button className="primary" type="button" onClick={() => void handleImport()} disabled={busy}>{busy ? "Importando…" : "Confirmar importação"}</button>
+              <button className="primary" type="button" onClick={() => void handleImport()} disabled={busy || preview.uniqueLots === 0}>{busy ? "Importando…" : "Confirmar importação"}</button>
               <button className="secondary" type="button" onClick={resetImporter} disabled={busy}>Cancelar</button>
             </div>
           </div> : null}
@@ -251,7 +238,7 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
           <span className="micro-pill">{summaryLabel(state.totalMatchingLots)} resultado(s)</span>
         </div>
         <label className="field" htmlFor="reference-search">Buscar lote
-          <input id="reference-search" value={queryInput} onChange={(event) => { setLoading(true); setQueryInput(event.target.value.replace(/\D/g, "")); setPage(1); }} inputMode="numeric" placeholder="Número do lote" />
+          <input id="reference-search" value={queryInput} maxLength={LOT_LENGTH} onChange={(event) => { setLoading(true); setQueryInput(sanitizeLotInput(event.target.value)); setPage(1); }} inputMode="numeric" placeholder="Número do lote" />
         </label>
         {state.lots.length ? <>
           <div className="reference-lot-table-wrap">

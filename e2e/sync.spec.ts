@@ -9,7 +9,7 @@ test("participa de um inventário com seis dígitos sem expor UUID ou token", as
   await page.getByRole("button", { name: "EF" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("15");
   await page.getByLabel("Camada").selectOption("A1");
-  await page.getByLabel("Lote").fill("000123");
+  await page.getByLabel("Lote").fill("2712345678");
   await page.getByLabel("Quantidade de peças").fill("19");
   await page.getByRole("button", { name: "Adicionar" }).click();
   await page.getByRole("button", { name: "Sincronizar agora" }).click();
@@ -24,6 +24,6 @@ test("participa de um inventário com seis dígitos sem expor UUID ou token", as
   await expect(secondPage.getByText(/Bem-vindo\(a\)/)).toBeVisible();
   await secondPage.getByLabel("Código de participação").fill(participationCode!);
   await secondPage.getByRole("button", { name: "Participar agora" }).click();
-  await expect(secondPage.getByText("Lote 000123")).toBeVisible();
+  await expect(secondPage.getByText("Lote 2712345678")).toBeVisible();
   await secondContext.close();
 });

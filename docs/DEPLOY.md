@@ -78,7 +78,7 @@ Use a variável apenas no processo confiável. Não registre a linha real no his
 - Login, sincronização, participação, finalização e exportação do fluxo alterado são verificados quando aplicável.
 - Exportação Excel: sem `format`, o endpoint `/backend-api/api/v1/inventories/{id}/export/excel` deve retornar `.xls` com MIME `application/vnd.ms-excel`; `?format=xlsx` deve retornar `.xlsx` com MIME OOXML.
 - Para cada arquivo, conferir `Content-Disposition`, `Content-Length`, tamanho não nulo e extensão coerente com o conteúdo.
-- Com referência SAP ativa, confirmar prévia/importação de `.xlsx`, consulta de pertencimento de lote e a seção/aba `CONCILIAÇÃO`; confirmar também que um lote fora da referência continua sendo lançado.
+- Com referência SAP ativa, confirmar prévia/importação de `.xlsx` somente pela coluna `Lotes`, rejeição clara de cabeçalho ausente/duplicado e linhas inválidas, consulta de pertencimento de lote e a seção/aba `CONCILIAÇÃO`; confirmar também que um lote válido fora da referência continua sendo lançado.
 
 ## Rollback
 

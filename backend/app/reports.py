@@ -32,6 +32,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.engine import AnalysisEntry, analyze_entries
+from app.lot_rules import validate_lot
 from app.presentation import apply_report_presentation, build_lot_presentation
 
 
@@ -76,7 +77,7 @@ def build_inventory_report_data(
     raw_entries = list(entries)
     analysis = analyze_entries(inventory_id, revision, raw_entries)
     if reference_lots is not None:
-        normalized_reference = {str(lot).strip() for lot in reference_lots if str(lot).strip()}
+        normalized_reference = {validate_lot(lot) for lot in reference_lots}
         physical_lots = {str(lot["lot"]) for lot in analysis["lots"]}
         for lot in analysis["lots"]:
             lot["referenceStatus"] = "EXPECTED_FOUND" if lot["lot"] in normalized_reference else "OUTSIDE_REFERENCE"
@@ -115,7 +116,7 @@ def build_inventory_report_data(
             "side": entry.side,
             "bay": entry.bay.strip(),
             "layer": entry.layer.strip() if entry.layer else None,
-            "lot": entry.lot.strip(),
+            "lot": validate_lot(entry.lot),
             "quantity": entry.quantity,
         }
         for entry in raw_entries

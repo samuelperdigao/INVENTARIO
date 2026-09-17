@@ -24,6 +24,7 @@ from app.config import get_settings
 from app.database import Base, database_url, engine, get_session
 from app.engine import AnalysisEntry, analyze_entries
 from app.email_service import EmailAttachment, send_email
+from app.lot_rules import validate_lot
 from app.persistence import (
     InventoryEntryRow, InventoryParticipantRow, InventoryRow,
     ParticipationAttemptRow, TeamMemberRow, TeamRow, UserRow,
@@ -366,6 +367,13 @@ def _inventory_access(
     return inventory
 
 
+def _validated_lot_or_422(value: str) -> str:
+    try:
+        return validate_lot(value)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
 @app.get("/api/v1/inventories/{inventory_id}/lots/{lot}", response_model=list[SyncEntry])
 def inventory_lot_matches(
     inventory_id: str,
@@ -375,8 +383,7 @@ def inventory_lot_matches(
     user: UserRow = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> list[dict[str, object]]:
-    if not lot.isdigit() or len(lot) > 255:
-        raise HTTPException(status_code=422, detail="O lote deve conter somente números.")
+    lot = _validated_lot_or_422(lot)
     inventory = _inventory_access(session, inventory_id, user, sync_token, require_token=True)
     statement = select(InventoryEntryRow).where(
         InventoryEntryRow.inventory_id == inventory.id,
@@ -439,7 +446,7 @@ async def preview_inventory_reference(
 async def import_inventory_reference(
     inventory_id: str,
     file: UploadFile = File(...),
-    column_index: int = Form(..., alias="columnIndex"),
+    column_index: int | None = Form(default=None, alias="columnIndex"),
     sync_token: str = Header(min_length=32, alias="X-Inventory-Sync-Token"),
     user: UserRow = Depends(get_current_user),
     session: Session = Depends(get_session),
@@ -449,6 +456,8 @@ async def import_inventory_reference(
         raise HTTPException(status_code=409, detail="Inventário finalizado não aceita troca de referência.")
     filename, content = await _read_reference_upload(file)
     parsed = _parse_reference_upload(content, filename, column_index)
+    if not parsed.lots:
+        raise HTTPException(status_code=422, detail="Nenhum lote válido foi encontrado na coluna ‘Lotes’.")
     try:
         reference = replace_reference(
             session,
@@ -508,8 +517,7 @@ def match_inventory_reference_lot(
     user: UserRow = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> dict[str, object]:
-    if not lot.isdigit() or len(lot) > 255:
-        raise HTTPException(status_code=422, detail="O lote deve conter somente números.")
+    lot = _validated_lot_or_422(lot)
     _inventory_access(session, inventory_id, user, sync_token)
     return reference_match(session, inventory_id, lot)
 

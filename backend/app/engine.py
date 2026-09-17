@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 import re
 from typing import Iterable, Literal
 
+from app.lot_rules import validate_lot
+
 Side = Literal["EF", "DE"]
 Classification = Literal[
     "OK",
@@ -27,6 +29,9 @@ class AnalysisEntry:
     lot: str
     quantity: int
     layer: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "lot", validate_lot(self.lot))
 
 
 def _natural_key(value: str) -> list[object]:
@@ -56,7 +61,7 @@ def analyze_entries(inventory_id: str, revision: int, entries: Iterable[Analysis
 
     quantities: dict[str, dict[tuple[str, str, str], int]] = defaultdict(lambda: defaultdict(int))
     for entry in entries:
-        lot = entry.lot.strip()
+        lot = validate_lot(entry.lot)
         location = (entry.side, entry.bay.strip(), (entry.layer or "").strip())
         quantities[lot][location] += entry.quantity
 

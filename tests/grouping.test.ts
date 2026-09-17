@@ -22,14 +22,14 @@ function entry(side: "EF" | "DE", bay: string, lot: string, id: string): Invento
 
 it("mantém lançamentos individuais e ordena EF, DE, vãos e lotes naturalmente", () => {
   const groups = groupEntries([
-    entry("DE", "10", "20", "4"),
-    entry("EF", "11", "10", "3"),
-    entry("EF", "2", "10", "2"),
-    entry("EF", "2", "2", "1"),
+    entry("DE", "10", "2712345602", "4"),
+    entry("EF", "11", "2712345601", "3"),
+    entry("EF", "2", "2712345601", "2"),
+    entry("EF", "2", "2712345600", "1"),
   ]);
 
   expect(groups.map((group) => group.side)).toEqual(["EF", "DE"]);
   expect(groups[0].bays.map((bay) => bay.bay)).toEqual(["2", "11"]);
-  expect(groups[0].bays[0].entries.map((item) => item.lot)).toEqual(["2", "10"]);
+  expect(groups[0].bays[0].entries.map((item) => item.lot)).toEqual(["2712345600", "2712345601"]);
   expect(groups[0].bays[0].entries).toHaveLength(2);
 });

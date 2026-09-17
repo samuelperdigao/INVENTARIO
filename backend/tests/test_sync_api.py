@@ -115,7 +115,7 @@ def test_sync_is_idempotent_and_returns_layer_and_author_for_authorized_team() -
     account, auth = register("owner@gerdau.com.br", "Equipe principal")
     team_id = account["user"]["teams"][0]["id"]
     inventory_id, entry_id, token = str(uuid4()), str(uuid4()), str(uuid4())
-    payload = sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, entry_id, "000123", layer="A3")])
+    payload = sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, entry_id, "2712345678", layer="A3")])
 
     first = client.post("/api/v1/sync", json=payload, headers=sync_headers(auth, token))
     assert first.status_code == 200
@@ -127,13 +127,13 @@ def test_sync_is_idempotent_and_returns_layer_and_author_for_authorized_team() -
     assert body["entries"][0]["createdByName"] == account["user"]["displayName"]
     cursor = body["cursor"]
 
-    replay = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, entry_id, "000123", layer="A3")], cursor=cursor), headers=sync_headers(auth, token))
+    replay = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, entry_id, "2712345678", layer="A3")], cursor=cursor), headers=sync_headers(auth, token))
     assert replay.status_code == 200
     assert replay.json()["entries"] == []
 
     pull = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[], cursor=0), headers=sync_headers(auth, token))
     assert pull.status_code == 200
-    assert pull.json()["entries"][0]["lot"] == "000123"
+    assert pull.json()["entries"][0]["lot"] == "2712345678"
 
 
 def test_sync_accepts_null_layer_and_allows_adding_it_later() -> None:
@@ -143,7 +143,7 @@ def test_sync_accepts_null_layer_and_allows_adding_it_later() -> None:
 
     created = client.post(
         "/api/v1/sync",
-        json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, entry_id, "000789", layer=None)]),
+        json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, entry_id, "2712345679", layer=None)]),
         headers=sync_headers(auth, token),
     )
     assert created.status_code == 200
@@ -151,7 +151,7 @@ def test_sync_accepts_null_layer_and_allows_adding_it_later() -> None:
 
     added = client.post(
         "/api/v1/sync",
-        json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "000789", revision=2, base_revision=1, layer="A4")]),
+        json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "2712345679", revision=2, base_revision=1, layer="A4")]),
         headers=sync_headers(auth, token),
     )
     assert added.status_code == 200
@@ -159,14 +159,14 @@ def test_sync_accepts_null_layer_and_allows_adding_it_later() -> None:
 
     removed = client.post(
         "/api/v1/sync",
-        json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "000789", revision=3, base_revision=2, layer=None)]),
+        json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "2712345679", revision=3, base_revision=2, layer=None)]),
         headers=sync_headers(auth, token),
     )
     assert removed.status_code == 200
     assert removed.json()["entries"][0]["layer"] is None
 
 
-def test_sync_rejects_non_numeric_lot_and_invalid_layer() -> None:
+def test_sync_rejects_invalid_lot_and_invalid_layer() -> None:
     account, auth = register("validation@gerdau.com.br", "Equipe validação")
     team_id = account["user"]["teams"][0]["id"]
     inventory_id, token = str(uuid4()), str(uuid4())
@@ -178,7 +178,7 @@ def test_sync_rejects_non_numeric_lot_and_invalid_layer() -> None:
     )
     assert invalid_lot.status_code == 422
 
-    invalid_layer_entry = entry(inventory_id, str(uuid4()), "123")
+    invalid_layer_entry = entry(inventory_id, str(uuid4()), "2712345678")
     invalid_layer_entry["layer"] = "A11"
     invalid_layer = client.post(
         "/api/v1/sync",
@@ -219,17 +219,17 @@ def test_sync_preserves_conflicts_and_tombstones() -> None:
     account, auth = register("owner-conflict@gerdau.com.br", "Equipe principal")
     team_id = account["user"]["teams"][0]["id"]
     inventory_id, entry_id, token = str(uuid4()), str(uuid4()), str(uuid4())
-    initial = entry(inventory_id, entry_id, "100")
+    initial = entry(inventory_id, entry_id, "2712345700")
     client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[initial]), headers=sync_headers(auth, token))
 
-    accepted = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "101", revision=2, base_revision=1)]), headers=sync_headers(auth, token))
+    accepted = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "2712345701", revision=2, base_revision=1)]), headers=sync_headers(auth, token))
     assert accepted.status_code == 200
 
-    conflict = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "102", revision=2, base_revision=1)]), headers=sync_headers(auth, token))
+    conflict = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "2712345702", revision=2, base_revision=1)]), headers=sync_headers(auth, token))
     assert conflict.status_code == 200
-    assert conflict.json()["conflicts"][0]["serverRecord"]["lot"] == "101"
+    assert conflict.json()["conflicts"][0]["serverRecord"]["lot"] == "2712345701"
 
-    deleted = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "101", revision=3, base_revision=2, tombstone=True)]), headers=sync_headers(auth, token))
+    deleted = client.post("/api/v1/sync", json=sync_payload(inventory_id, team_id, inventory_record=None, entries=[entry(inventory_id, entry_id, "2712345701", revision=3, base_revision=2, tombstone=True)]), headers=sync_headers(auth, token))
     assert deleted.status_code == 200
     assert deleted.json()["acknowledged"]["entryIds"] == [entry_id]
 

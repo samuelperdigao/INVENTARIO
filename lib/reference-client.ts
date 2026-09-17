@@ -2,6 +2,7 @@ import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedSession } from "@/lib/auth-client";
 import { db } from "@/lib/db";
 import { listActiveEntries } from "@/lib/inventory-repository";
+import { isValidLot, LOT_VALIDATION_MESSAGE, normalizeLot } from "@/lib/lot-rules";
 import type {
   Inventory,
   InventoryReference,
@@ -118,10 +119,15 @@ async function persistReferenceMetadata(inventoryId: string, metadata: ApiRefere
 }
 
 async function persistImportedReference(inventoryId: string, metadata: ApiReferenceMetadata, lotNumbers: string[]): Promise<void> {
+  const normalizedLots = lotNumbers.map((lotNumber) => {
+    const normalized = typeof lotNumber === "string" ? normalizeLot(lotNumber) : "";
+    if (!isValidLot(normalized)) throw new Error(LOT_VALIDATION_MESSAGE);
+    return normalized;
+  });
   await db.transaction("rw", db.inventoryReferences, db.referenceLots, async () => {
     await db.referenceLots.where("inventoryId").equals(inventoryId).delete();
     await db.inventoryReferences.put(localReference(inventoryId, metadata, true));
-    const records: LocalReferenceLot[] = lotNumbers.map((lotNumber) => ({
+    const records: LocalReferenceLot[] = normalizedLots.map((lotNumber) => ({
       id: `${inventoryId}:${lotNumber}`,
       inventoryId,
       lotNumber,
@@ -142,7 +148,7 @@ async function clearLocalReference(inventoryId: string): Promise<void> {
 export async function importReference(
   inventory: Inventory,
   file: File,
-  columnIndex: number,
+  columnIndex?: number,
 ): Promise<{ importSummary: ReferenceImportSummary; reference: InventoryReference }> {
   const response = await requestReferenceFile(
     inventory,
@@ -259,14 +265,16 @@ export async function removeReference(inventory: Inventory): Promise<void> {
 }
 
 export async function checkReferenceLot(inventory: Inventory, lot: string): Promise<boolean | null> {
+  const normalizedLot = normalizeLot(lot);
+  if (!isValidLot(normalizedLot)) return null;
   const local = await db.inventoryReferences.get(inventory.id);
   if (local?.status === "ACTIVE") {
-    const exists = await db.referenceLots.where("[inventoryId+lotNumber]").equals([inventory.id, lot]).count();
+    const exists = await db.referenceLots.where("[inventoryId+lotNumber]").equals([inventory.id, normalizedLot]).count();
     if (exists > 0 || local.lotsComplete) return exists > 0;
   }
   if (typeof navigator !== "undefined" && !navigator.onLine) return null;
   try {
-    const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventory.id}/reference/match/${encodeURIComponent(lot)}`, {
+    const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventory.id}/reference/match/${encodeURIComponent(normalizedLot)}`, {
       method: "GET",
       credentials: "include",
       headers: await authorizedHeaders(inventory),

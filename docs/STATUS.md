@@ -1,6 +1,29 @@
 # Status do projeto
 
-Atualizado em 16/09/2026.
+Atualizado em 17/09/2026.
+
+## Em validação local — regra oficial de lotes e importação SAP
+
+Branch de trabalho: `codex/regras-lote-sap`.
+
+- A regra vigente é exatamente 10 dígitos ASCII com prefixo `27` ou `28`, centralizada em `backend/app/lot_rules.py` e `lib/lot-rules.ts`.
+- A planilha SAP só alimenta a referência pela coluna com cabeçalho `Lotes`, aceitando apenas trim e diferença de maiúsculas/minúsculas. Cabeçalho ausente, duplicado ou seleção de outra coluna não são aceitos.
+- O parser trabalha em memória, limita tamanho/linhas, trata texto, número, formato, notação científica, vazios, inválidos e duplicidades, e persiste somente lotes deduplicados e metadados mínimos.
+- A referência continua opcional e informativa: lote físico válido fora do SAP permanece permitido, e falha de importação não altera os lançamentos físicos.
+- O campo manual filtra entrada não numérica, limita 10 posições e apresenta a regra imediatamente; a API valida novamente.
+
+### Gates locais desta alteração
+
+- ESLint: aprovado.
+- TypeScript: aprovado.
+- Vitest: `13 arquivos, 61 testes aprovados`.
+- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
+- `compileall` do backend: aprovado.
+- Alembic SQLite temporário: `upgrade head`, `downgrade 0007_recovery_pin`, novo `upgrade head` e `current` em `0008_inventory_lot_references (head)` aprovados; nenhuma migration nova foi necessária.
+- Build de produção local: aprovado.
+- Playwright: `6 cenários aprovados` com backend local, incluindo offline, sincronização, histórico móvel e 100 lançamentos/exportações.
+
+Esta alteração ainda aguarda integração na `main`, publicação e confirmação das superfícies públicas. Android/iPhone Safari continuam sendo gates físicos pendentes.
 
 ## Produção
 
@@ -13,13 +36,13 @@ Atualizado em 16/09/2026.
 - O check da Vercel para o commit `9e05c46` concluiu com sucesso.
 - O deploy Render `dep-dalk01942hec73cojr3g` está `live` para o commit `9e05c46`; `/healthz` respondeu `{"status":"ok"}`.
 
-## Entrega publicada — referência opcional de lotes SAP
+## Histórico — entrega publicada: referência opcional de lotes SAP
 
 Commit: `9e05c46` na `main` e na branch `feat/referencia-lotes-sap`.
 O commit foi publicado no GitHub, validado pelos workflows `Quality Gates` e
 `Production Smoke`, e disponibilizado na Vercel e no Render.
 
-- A referência aceita uma planilha `.xlsx` do SAP, mostra prévia e seleção manual de coluna quando necessário, normaliza e persiste somente números de lote.
+- A entrega publicada naquele commit aceitava uma planilha `.xlsx` do SAP, mostrava prévia e seleção manual de coluna quando necessário, normalizava e persistia somente números de lote; a regra atual está registrada na seção de validação local acima.
 - A referência é independente dos lançamentos físicos: ausência, divergência, falha de consulta ou operação offline não bloqueiam inclusão, edição ou exclusão local.
 - O painel oferece importação, consulta paginada, cache offline, substituição e remoção; inventários finalizados não aceitam alteração da referência.
 - Relatórios com referência acrescentam conciliação condicional nos formatos `.xls`, `.xlsx`, PDF e DOCX; sem referência, o contrato anterior é preservado.
@@ -52,7 +75,7 @@ O commit foi publicado no GitHub, validado pelos workflows `Quality Gates` e
 - Equipes com papéis `ADMIN` e `OPERATOR`.
 - Participação em inventário aberto por código de seis dígitos.
 - Camada opcional nos lançamentos; quando informada, aceita A1 a A10.
-- Lote numérico, autoria e confirmação de duplicidade.
+- Lote oficial de 10 dígitos com prefixo `27`/`28`, autoria e confirmação de duplicidade.
 - Sincronização incremental, idempotência, tombstones e conflitos.
 - Análise determinística de lotes com apresentação operacional para o operador.
 - Finalização central irreversível, histórico e exportações PDF, Excel e Word.

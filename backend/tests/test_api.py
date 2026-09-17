@@ -21,8 +21,8 @@ def test_preview_contract_and_server_validation() -> None:
         json={
             "inventory": {"id": str(uuid4()), "date": "2026-09-11", "revision": 2},
             "entries": [
-                {"id": str(uuid4()), "side": "DE", "bay": "15", "layer": "A1", "lot": "000123", "quantity": 19},
-                {"id": str(uuid4()), "side": "EF", "bay": "21", "layer": "A10", "lot": "000123", "quantity": 1},
+                {"id": str(uuid4()), "side": "DE", "bay": "15", "layer": "A1", "lot": "2712345678", "quantity": 19},
+                {"id": str(uuid4()), "side": "EF", "bay": "21", "layer": "A10", "lot": "2712345678", "quantity": 1},
             ],
         },
     )
@@ -46,7 +46,7 @@ def test_preview_contract_and_server_validation() -> None:
     invalid_layer = client.post(
         "/api/v1/analysis/preview",
         json={"inventory": {"id": str(uuid4()), "date": "2026-09-11", "revision": 1}, "entries": [
-            {"id": str(uuid4()), "side": "EF", "bay": "1", "layer": "A11", "lot": "123", "quantity": 1}
+            {"id": str(uuid4()), "side": "EF", "bay": "1", "layer": "A11", "lot": "2712345678", "quantity": 1}
         ]},
     )
     assert invalid_layer.status_code == 422

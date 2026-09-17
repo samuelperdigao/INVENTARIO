@@ -365,10 +365,11 @@ Exemplo:
 
 ## Requisitos
 
-- aceitar o formato real utilizado na operação;
+- aceitar exatamente dez dígitos ASCII, iniciados por `27` ou `28`;
 - não converter automaticamente para notação científica;
 - preservar zeros à esquerda caso existam;
 - ser tratado preferencialmente como string;
+- validar no frontend e no backend com a mesma regra central;
 - permitir pesquisa;
 - permitir consolidação;
 - permitir identificação do mesmo lote em diferentes locais.

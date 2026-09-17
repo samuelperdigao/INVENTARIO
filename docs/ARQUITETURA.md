@@ -37,12 +37,23 @@ adicionais da planilha SAP. A consulta no formulário de lançamento é
 informativa e assíncrona: falha, ausência de rede ou lote fora da referência
 jamais impedem salvar o lançamento local.
 
-No backend, `reference_service.py` valida o `.xlsx` em memória, identifica ou
-recebe a coluna de lote escolhida, normaliza os valores e persiste somente
-`inventory_references` e `reference_lots`. Há no máximo uma referência ativa
-por inventário. Prévia não persiste; confirmação, substituição e remoção exigem
-acesso autorizado e inventário aberto. Inventário `FINISHED` preserva a
-referência já usada no snapshot e não aceita alteração.
+No backend, `reference_service.py` valida o `.xlsx` em memória, identifica exclusivamente a
+coluna cujo cabeçalho é `Lotes` (comparação somente com trim e casefold) e
+normaliza os valores. Cabeçalho ausente, duplicado em mais de uma coluna ou
+tentativa de selecionar outra coluna encerram apenas aquela importação com
+mensagem orientativa. Persistem somente `inventory_references` e
+`reference_lots`. Há no máximo uma referência ativa por inventário. Prévia não
+persiste; confirmação, substituição e remoção exigem acesso autorizado e
+inventário aberto. Inventário `FINISHED` preserva a referência já usada no
+snapshot e não aceita alteração.
+
+`backend/app/lot_rules.py` é a fronteira única da regra de domínio: lote é
+texto com exatamente 10 dígitos ASCII e prefixo `27` ou `28`. A validação é
+reutilizada pelos schemas HTTP, motor, rotas de consulta, parser SAP e
+exportadores. No frontend, `lib/lot-rules.ts` aplica a mesma regra no campo
+manual, no repositório IndexedDB, no cache da referência e nas buscas. Valores
+numéricos do Excel são convertidos com `Decimal`, respeitando formato de zeros,
+sem transformar o lote em número persistido.
 
 Quando a referência está ativa, a fonte única de `reports.py` acrescenta o
 estado de cada lote (`EXPECTED_FOUND`, `EXPECTED_MISSING` ou

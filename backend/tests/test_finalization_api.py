@@ -24,7 +24,7 @@ def test_finalization_history_and_exports_are_authorized_and_immutable() -> None
     team_id = account["user"]["teams"][0]["id"]
     inventory_id, entry_id, token = str(uuid4()), str(uuid4()), str(uuid4())
     inventory = {"id": inventory_id, "date": "2026-09-11", "status": "OPEN", "revision": 1, "syncBaseRevision": 0, "tombstone": False, "deletedAt": None, **_times()}
-    entry = {"id": entry_id, "inventoryId": inventory_id, "side": "DE", "bay": "15", "lot": "000123", "quantity": 19, "revision": 1, "syncBaseRevision": 0, "tombstone": False, "deletedAt": None, **_times()}
+    entry = {"id": entry_id, "inventoryId": inventory_id, "side": "DE", "bay": "15", "lot": "2712345678", "quantity": 19, "revision": 1, "syncBaseRevision": 0, "tombstone": False, "deletedAt": None, **_times()}
     headers = {**auth, "X-Inventory-Sync-Token": token}
     synced = client.post("/api/v1/sync", json={"deviceId": str(uuid4()), "inventoryId": inventory_id, "teamId": team_id, "cursor": 0, "inventory": inventory, "entries": [entry]}, headers=headers)
     assert synced.status_code == 200

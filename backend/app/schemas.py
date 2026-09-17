@@ -8,6 +8,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
+from app.lot_rules import LotNumber
+
 
 Layer = Literal["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"]
 
@@ -27,7 +29,7 @@ class PreviewEntry(ApiModel):
     side: Literal["EF", "DE"]
     bay: str = Field(min_length=1, max_length=100)
     layer: Layer | None = None
-    lot: str = Field(min_length=1, max_length=255, pattern=r"^\d+$")
+    lot: LotNumber
     quantity: StrictInt = Field(gt=0)
 
 
@@ -62,7 +64,7 @@ class LotPresentation(ApiModel):
 
 
 class LotAnalysis(ApiModel):
-    lot: str
+    lot: LotNumber
     totalQuantity: StrictInt = Field(ge=0)
     locations: list[AnalysisLocation]
     fragmented: bool
@@ -115,7 +117,7 @@ class ReferencePreviewResponse(ApiModel):
     uniqueLots: StrictInt = Field(ge=0)
     duplicateRows: StrictInt = Field(ge=0)
     ignoredRows: StrictInt = Field(ge=0)
-    sample: list[str] = Field(max_length=5)
+    sample: list[LotNumber] = Field(max_length=5)
     warnings: list[str] = Field(max_length=20)
 
 
@@ -125,7 +127,7 @@ class ReferenceImportSummary(ApiModel):
     uniqueLots: StrictInt = Field(ge=1)
     duplicateRows: StrictInt = Field(ge=0)
     ignoredRows: StrictInt = Field(ge=0)
-    sample: list[str] = Field(max_length=5)
+    sample: list[LotNumber] = Field(max_length=5)
     warnings: list[str] = Field(max_length=20)
 
 
@@ -150,7 +152,7 @@ class ReferenceSummary(ApiModel):
 
 
 class ReferenceLotItem(ApiModel):
-    lotNumber: str = Field(min_length=1, max_length=255, pattern=r"^\d+$")
+    lotNumber: LotNumber
     foundPhysically: bool
     physicalQuantity: StrictInt = Field(ge=0)
     physicalOccurrences: StrictInt = Field(ge=0)
@@ -170,12 +172,12 @@ class ReferenceStateResponse(ApiModel):
 class ReferenceImportResponse(ApiModel):
     reference: ReferenceMetadata
     importSummary: ReferenceImportSummary
-    lotNumbers: list[str] = Field(min_length=1, max_length=250_000)
+    lotNumbers: list[LotNumber] = Field(min_length=1, max_length=250_000)
 
 
 class ReferenceMatchResponse(ApiModel):
     referenceAvailable: bool
-    lot: str = Field(min_length=1, max_length=255, pattern=r"^\d+$")
+    lot: LotNumber
     inReference: bool | None
 
 
@@ -206,7 +208,7 @@ class SyncEntry(ApiModel):
     side: Literal["EF", "DE"]
     bay: str = Field(min_length=1, max_length=100)
     layer: Layer | None = None
-    lot: str = Field(min_length=1, max_length=255, pattern=r"^\d+$")
+    lot: LotNumber
     quantity: StrictInt = Field(gt=0)
     createdByUserId: UUID | None = None
     createdByName: str | None = Field(default=None, max_length=120)

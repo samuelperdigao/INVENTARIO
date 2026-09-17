@@ -14,12 +14,12 @@ Branch de implementação: `feat/camadas-duplicidade-lote-v2`
 - A camada é persistida no IndexedDB, sincronizada com o backend e incluída nos relatórios PDF, XLSX e DOCX quando informada.
 - O motor de análise considera `lado + vão + camada` como posição física. Quando a camada não é informada, o local é identificado por lado e vão com camada nula. Assim, o mesmo lote em A1 e A2 é tratado como distribuição em locais físicos distintos, sem perder a consolidação total por lote.
 
-### Lote numérico
+### Lote
 
 - O lote permanece armazenado como texto para preservar zeros à esquerda e evitar semântica matemática.
-- O campo utiliza `type="text"`, `inputMode="numeric"` e `pattern="[0-9]*"`.
-- A interface remove caracteres não numéricos durante a digitação.
-- Frontend e backend validam que o lote contenha somente dígitos.
+- O campo utiliza `type="text"`, `inputMode="numeric"`, limite de 10 posições e remove caracteres não numéricos durante a digitação.
+- A regra oficial é exatamente `10` dígitos ASCII com prefixo `27` ou `28`; o feedback aparece enquanto o valor é preenchido.
+- Frontend e backend reutilizam a mesma regra central, inclusive para sincronização, análise, referência SAP e exportações.
 
 ### Lote repetido
 

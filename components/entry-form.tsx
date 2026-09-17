@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 
 import styles from "@/components/entry-form.module.css";
 import { DuplicateLotError } from "@/lib/inventory-repository";
+import { isValidLot, LOT_LENGTH, normalizeLot, sanitizeLotInput, validateLot } from "@/lib/lot-rules";
 import { INVENTORY_LAYERS, type EntryDraft, type InventoryEntry, type InventoryLayer, type Side } from "@/lib/models";
 
 interface EntryFormProps {
@@ -29,8 +30,8 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
   const referenceRequestRef = useRef(0);
 
   function checkReference(lotValue: string): void {
-    const normalizedLot = lotValue.trim();
-    if (!referenceChecker || !normalizedLot || !/^\d+$/.test(normalizedLot)) {
+    const normalizedLot = normalizeLot(lotValue);
+    if (!referenceChecker || !isValidLot(normalizedLot)) {
       referenceRequestRef.current += 1;
       setReferenceFeedback(undefined);
       return;
@@ -56,12 +57,9 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
       setError("Informe o vão.");
       return undefined;
     }
-    if (!lot.trim()) {
-      setError("Informe o lote.");
-      return undefined;
-    }
-    if (!/^\d+$/.test(lot)) {
-      setError("O lote deve conter somente números.");
+    const lotError = validateLot(lot);
+    if (lotError) {
+      setError(lotError);
       return undefined;
     }
     if (!/^\d+$/.test(quantity) || Number(quantity) <= 0 || !Number.isSafeInteger(Number(quantity))) {
@@ -70,6 +68,8 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
     }
     return { side, bay, layer: layer || undefined, lot, quantity: Number(quantity) };
   }
+
+  const lotValidationError = lot ? validateLot(lot) : undefined;
 
   async function persist(draft: EntryDraft, allowDuplicate = false): Promise<void> {
     setSaving(true);
@@ -160,22 +160,25 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
               name="lot"
               type="text"
               inputMode="numeric"
-              pattern="[0-9]*"
+              maxLength={LOT_LENGTH}
               value={lot}
               onChange={(event) => {
-                setLot(event.target.value.replace(/\D/g, ""));
+                setLot(sanitizeLotInput(event.target.value));
+                setError(undefined);
                 referenceRequestRef.current += 1;
                 setReferenceFeedback(undefined);
               }}
               onBlur={() => checkReference(lot)}
               autoComplete="off"
               placeholder="Número do lote"
+              aria-invalid={Boolean(lotValidationError)}
             />
           </label>
           <label className="field" htmlFor="quantity">Quantidade de peças
             <input id="quantity" name="quantity" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(/\D/g, ""))} inputMode="numeric" pattern="[0-9]*" autoComplete="off" placeholder="Ex.: 20" />
           </label>
         </div>
+        {lotValidationError ? <p className="error" role="alert">{lotValidationError}</p> : null}
         {referenceFeedback === "checking" ? <p className="reference-feedback" role="status">Consultando a referência SAP…</p> : null}
         {referenceFeedback === "found" ? <p className="reference-feedback found" role="status">✓ Lote previsto na referência SAP.</p> : null}
         {referenceFeedback === "outside" ? <p className="reference-feedback outside" role="status">Este lote não consta na referência SAP. O lançamento continua liberado.</p> : null}

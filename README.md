@@ -18,13 +18,13 @@ O estado operacional mais recente fica em [`docs/STATUS.md`](docs/STATUS.md).
 
 - Cadastro, login, renovação de sessão e recuperação por NP pessoal de oito dígitos.
 - Inventário individual sem equipe obrigatória e colaboração opcional por código de seis dígitos.
-- Registro local de lado, vão, camada, lote numérico e quantidade.
+- Registro local de lado, vão, camada, lote oficial de 10 dígitos (`27`/`28`) e quantidade.
 - IndexedDB como fonte primária da operação offline.
 - Detecção de lotes repetidos com confirmação explícita e identificação do autor.
 - Sincronização incremental com cursor, revisões, idempotência, tombstones e resolução de conflitos.
 - Análise determinística de lotes, com apresentação operacional de lotes OK e lotes para conferência.
 - Finalização irreversível na V1, histórico e exportações Excel, PDF e Word.
-- Referência opcional de lotes SAP por planilha `.xlsx`, com prévia, substituição, remoção e conciliação sem bloquear lançamentos físicos.
+- Referência opcional de lotes SAP por planilha `.xlsx`, usando exclusivamente o cabeçalho `Lotes`, com prévia, substituição, remoção e conciliação sem bloquear lançamentos físicos.
 - Exportação Excel compatível `.xls` BIFF8 como opção padrão da equipe, com `.xlsx` moderno preservado.
 - Compartilhamento nativo no celular e links temporários assinados para arquivos de escritório.
 
@@ -53,6 +53,7 @@ lib/                    clientes HTTP, IndexedDB, modelos e regras locais
 tests/                  testes Vitest
 e2e/                    cenários Playwright
 backend/app/            API, serviços, persistência e motor de análise
+backend/app/lot_rules.py regra central de identificação e validação de lotes
 backend/alembic/        configuração e migrations
 backend/tests/          testes Pytest
 docs/                   arquitetura, negócio, deploy e status

@@ -10,15 +10,15 @@ test("apresenta locais consolidados sem overflow nos viewports móveis", async (
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
 
   const entries: Array<{ side: "EF" | "DE"; bay: string; lot: string; quantity: number }> = [
-    { side: "DE", bay: "15", lot: "800001", quantity: 20 },
-    { side: "EF", bay: "3", lot: "800002", quantity: 3 },
-    { side: "EF", bay: "15", lot: "800003", quantity: 19 },
-    { side: "DE", bay: "21", lot: "800003", quantity: 1 },
-    { side: "EF", bay: "10", lot: "800004", quantity: 10 },
-    { side: "DE", bay: "10", lot: "800004", quantity: 10 },
-    { side: "EF", bay: "12", lot: "800005", quantity: 2 },
-    { side: "DE", bay: "08", lot: "800005", quantity: 15 },
-    { side: "DE", bay: "20", lot: "800005", quantity: 3 },
+    { side: "DE", bay: "15", lot: "2810000001", quantity: 20 },
+    { side: "EF", bay: "3", lot: "2810000002", quantity: 3 },
+    { side: "EF", bay: "15", lot: "2810000003", quantity: 19 },
+    { side: "DE", bay: "21", lot: "2810000003", quantity: 1 },
+    { side: "EF", bay: "10", lot: "2810000004", quantity: 10 },
+    { side: "DE", bay: "10", lot: "2810000004", quantity: 10 },
+    { side: "EF", bay: "12", lot: "2810000005", quantity: 2 },
+    { side: "DE", bay: "08", lot: "2810000005", quantity: 15 },
+    { side: "DE", bay: "20", lot: "2810000005", quantity: 3 },
   ];
   const duplicateIndexes = new Set([3, 5, 7, 8]);
 
@@ -55,11 +55,11 @@ test("apresenta locais consolidados sem overflow nos viewports móveis", async (
     await page.goto(reportPath!);
     await expect(page.getByText("Lotes consolidados", { exact: true })).toBeVisible({ timeout: 30_000 });
 
-    const pieceLot = page.locator(".report-table tbody tr").filter({ hasText: "800003" });
+    const pieceLot = page.locator(".report-table tbody tr").filter({ hasText: "2810000003" });
     await expect(pieceLot.locator(".lot-location").nth(0)).toHaveAttribute("aria-label", "EF 15 · 19 pç");
     await expect(pieceLot.locator(".lot-location").nth(1)).toHaveAttribute("aria-label", "DE 21 · 1 pç");
 
-    const okLot = page.locator(".report-table tbody tr").filter({ hasText: "800001" });
+    const okLot = page.locator(".report-table tbody tr").filter({ hasText: "2810000001" });
     await expect(okLot.locator(".lot-location")).toHaveAttribute("aria-label", "DE 15");
     await expect(okLot.locator(".lot-location")).not.toContainText("pç");
     await expect(okLot.locator(".lot-location")).not.toContainText("20");

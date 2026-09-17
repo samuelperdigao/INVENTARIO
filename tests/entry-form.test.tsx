@@ -11,7 +11,7 @@ async function fillValidForm(): Promise<void> {
   await user.click(screen.getByRole("button", { name: "EF" }));
   await user.type(screen.getByLabelText("Vão"), "12");
   await user.selectOptions(screen.getByLabelText("Camada (opcional)"), "A2");
-  await user.type(screen.getByLabelText("Lote"), "0009");
+  await user.type(screen.getByLabelText("Lote"), "2712345678");
   await user.type(screen.getByLabelText("Quantidade de peças"), "3");
 }
 
@@ -29,7 +29,7 @@ it("valida lado, vão, lote e quantidade sem exigir camada", async () => {
   fireEvent.submit(screen.getByRole("button", { name: "Adicionar" }).closest("form")!);
   expect(await screen.findByRole("alert")).toHaveTextContent("Informe o lote");
 
-  await user.type(screen.getByLabelText("Lote"), "1");
+  await user.type(screen.getByLabelText("Lote"), "2712345678");
   await user.type(screen.getByLabelText("Quantidade de peças"), "0");
   fireEvent.submit(screen.getByRole("button", { name: "Adicionar" }).closest("form")!);
   expect(await screen.findByRole("alert")).toHaveTextContent("inteiro positivo");
@@ -41,11 +41,11 @@ it("salva lançamento sem camada quando os demais campos são válidos", async (
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: "DE" }));
   await user.type(screen.getByLabelText("Vão"), "21");
-  await user.type(screen.getByLabelText("Lote"), "123456");
+  await user.type(screen.getByLabelText("Lote"), "2812345678");
   await user.type(screen.getByLabelText("Quantidade de peças"), "7");
   await user.click(screen.getByRole("button", { name: "Adicionar" }));
 
-  await waitFor(() => expect(onSave).toHaveBeenCalledWith({ side: "DE", bay: "21", layer: undefined, lot: "123456", quantity: 7 }, undefined, false));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith({ side: "DE", bay: "21", layer: undefined, lot: "2812345678", quantity: 7 }, undefined, false));
   expect(screen.getByLabelText("Camada (opcional)")).toHaveValue("");
 });
 
@@ -55,7 +55,7 @@ it("retém lado, vão e camada, limpa lote/quantidade e focaliza lote depois de 
   await fillValidForm();
   await userEvent.setup().click(screen.getByRole("button", { name: "Adicionar" }));
 
-  await waitFor(() => expect(onSave).toHaveBeenCalledWith({ side: "EF", bay: "12", layer: "A2", lot: "0009", quantity: 3 }, undefined, false));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith({ side: "EF", bay: "12", layer: "A2", lot: "2712345678", quantity: 3 }, undefined, false));
   expect(screen.getByRole("button", { name: "EF" })).toHaveAttribute("aria-pressed", "true");
   expect(screen.getByLabelText("Vão")).toHaveValue("12");
   expect(screen.getByLabelText("Camada (opcional)")).toHaveValue("A2");
@@ -69,8 +69,23 @@ it("mantém lote como texto e remove caracteres não numéricos", async () => {
   const lot = screen.getByLabelText("Lote");
   expect(lot).toHaveAttribute("inputmode", "numeric");
   expect(lot).toHaveAttribute("type", "text");
-  await userEvent.setup().type(lot, "00A12-3");
-  expect(lot).toHaveValue("00123");
+  expect(lot).toHaveAttribute("maxlength", "10");
+  await userEvent.setup().type(lot, "27A1234567890-3");
+  expect(lot).toHaveValue("2712345678");
+});
+
+it("mostra a regra do lote imediatamente e libera o campo ao completar dez dígitos", async () => {
+  render(<EntryForm onSave={vi.fn()} onCancelEdit={vi.fn()} />);
+  const lot = screen.getByLabelText("Lote");
+  const user = userEvent.setup();
+
+  await user.type(lot, "271234567");
+  expect(screen.getByRole("alert")).toHaveTextContent("10 números");
+  expect(lot).toHaveAttribute("aria-invalid", "true");
+
+  await user.type(lot, "8");
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(lot).toHaveAttribute("aria-invalid", "false");
 });
 
 it("exibe confirmação quando o lote já existe e salva somente após confirmação", async () => {
@@ -80,7 +95,7 @@ it("exibe confirmação quando o lote já existe e salva somente após confirma�
     side: "DE",
     bay: "15",
     layer: "A1",
-    lot: "0009",
+    lot: "2712345678",
     quantity: 19,
     createdByName: "João Silva",
     createdAt: "2026-09-12T08:00:00Z",
@@ -103,7 +118,7 @@ it("exibe confirmação quando o lote já existe e salva somente após confirma�
   expect(screen.getByText("Camada: A1")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Adicionar mesmo assim" }));
 
-  await waitFor(() => expect(onSave).toHaveBeenLastCalledWith({ side: "EF", bay: "12", layer: "A2", lot: "0009", quantity: 3 }, undefined, true));
+  await waitFor(() => expect(onSave).toHaveBeenLastCalledWith({ side: "EF", bay: "12", layer: "A2", lot: "2712345678", quantity: 3 }, undefined, true));
 });
 
 it("preserva o formulário quando o armazenamento falha", async () => {
@@ -113,7 +128,7 @@ it("preserva o formulário quando o armazenamento falha", async () => {
   await userEvent.setup().click(screen.getByRole("button", { name: "Adicionar" }));
 
   expect(await screen.findByRole("alert")).toHaveTextContent("Registro não salvo");
-  expect(screen.getByLabelText("Lote")).toHaveValue("0009");
+  expect(screen.getByLabelText("Lote")).toHaveValue("2712345678");
   expect(screen.getByLabelText("Quantidade de peças")).toHaveValue("3");
 });
 
@@ -125,8 +140,8 @@ it("consulta a referência sem bloquear o salvamento local", async () => {
   await fillValidForm();
 
   fireEvent.submit(screen.getByRole("button", { name: "Adicionar" }).closest("form")!);
-  await waitFor(() => expect(onSave).toHaveBeenCalledWith({ side: "EF", bay: "12", layer: "A2", lot: "0009", quantity: 3 }, undefined, false));
-  expect(referenceChecker).toHaveBeenCalledWith("0009");
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith({ side: "EF", bay: "12", layer: "A2", lot: "2712345678", quantity: 3 }, undefined, false));
+  expect(referenceChecker).toHaveBeenCalledWith("2712345678");
   expect(screen.getByLabelText("Lote")).toHaveValue("");
 
   resolveReference?.(true);

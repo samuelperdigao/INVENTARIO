@@ -74,15 +74,15 @@ it("consulta o cache offline, calcula a situação física e responde ao pertenc
   setOnline(false);
   await db.inventoryReferences.put(metadata);
   await db.referenceLots.bulkPut([
-    { id: "inventory:000123", inventoryId: inventory.id, lotNumber: "000123" },
-    { id: "inventory:000456", inventoryId: inventory.id, lotNumber: "000456" },
+    { id: "inventory:2712345678", inventoryId: inventory.id, lotNumber: "2712345678" },
+    { id: "inventory:2812345678", inventoryId: inventory.id, lotNumber: "2812345678" },
   ]);
   await db.entries.put({
     id: "entry",
     inventoryId: inventory.id,
     side: "DE",
     bay: "15",
-    lot: "000123",
+    lot: "2712345678",
     quantity: 19,
     createdAt: "2026-09-16T10:00:00.000Z",
     updatedAt: "2026-09-16T10:00:00.000Z",
@@ -94,23 +94,23 @@ it("consulta o cache offline, calcula a situação física e responde ao pertenc
   const fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
 
-  const state = await getReferenceState(inventory, 1, "000");
+  const state = await getReferenceState(inventory, 1, "281");
 
   expect(state.summary).toMatchObject({ totalLots: 2, foundLots: 1, pendingLots: 1, outsideReferenceLots: 0 });
-  expect(state.lots[0]).toMatchObject({ lotNumber: "000123", foundPhysically: true, physicalQuantity: 19 });
-  expect(await checkReferenceLot(inventory, "000123")).toBe(true);
-  expect(await checkReferenceLot(inventory, "000999")).toBe(false);
+  expect(state.lots[0]).toMatchObject({ lotNumber: "2812345678", foundPhysically: false, physicalQuantity: 0 });
+  expect(await checkReferenceLot(inventory, "2712345678")).toBe(true);
+  expect(await checkReferenceLot(inventory, "2898765432")).toBe(false);
   expect(fetchMock).not.toHaveBeenCalled();
 });
 
 it("descarta lotes cacheados quando a referência central muda de revisão", async () => {
   setOnline(true);
   await db.inventoryReferences.put(metadata);
-  await db.referenceLots.put({ id: "inventory:000123", inventoryId: inventory.id, lotNumber: "000123" });
+  await db.referenceLots.put({ id: "inventory:2712345678", inventoryId: inventory.id, lotNumber: "2712345678" });
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
     reference: { ...metadata, updatedAt: "2026-09-16T12:00:00.000Z", totalLots: 1, revision: 2 },
     summary: { available: true, totalLots: 1, foundLots: 0, pendingLots: 1, outsideReferenceLots: 0, fragmentedLots: 0, physicalDistinctLots: 0 },
-    lots: [{ lotNumber: "000456", foundPhysically: false, physicalQuantity: 0, physicalOccurrences: 0, fragmented: false }],
+    lots: [{ lotNumber: "2812345678", foundPhysically: false, physicalQuantity: 0, physicalOccurrences: 0, fragmented: false }],
     page: 1,
     pageSize: 50,
     totalMatchingLots: 1,
@@ -134,8 +134,8 @@ it("persiste os números da importação e limpa o cache ao remover", async () =
       totalLots: 2,
       revision: 3,
     },
-    importSummary: { totalRows: 2, validLotOccurrences: 2, uniqueLots: 2, duplicateRows: 0, ignoredRows: 0, sample: ["000123", "000456"], warnings: [] },
-    lotNumbers: ["000123", "000456"],
+    importSummary: { totalRows: 2, validLotOccurrences: 2, uniqueLots: 2, duplicateRows: 0, ignoredRows: 0, sample: ["2712345678", "2812345678"], warnings: [] },
+    lotNumbers: ["2712345678", "2812345678"],
   };
   const fetchMock = vi.fn()
     .mockResolvedValueOnce(new Response(JSON.stringify(response), { status: 200 }))
@@ -143,10 +143,10 @@ it("persiste os números da importação e limpa o cache ao remover", async () =
   vi.stubGlobal("fetch", fetchMock);
 
   const file = new File(["xlsx"], "nova.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-  const imported = await importReference(inventory, file, 1);
+  const imported = await importReference(inventory, file);
 
   expect(imported.reference).toMatchObject({ originalFilename: "nova.xlsx", totalLots: 2, revision: 3, lotsComplete: true });
-  expect((await db.referenceLots.where("inventoryId").equals(inventory.id).toArray()).map((lot) => lot.lotNumber)).toEqual(["000123", "000456"]);
+  expect((await db.referenceLots.where("inventoryId").equals(inventory.id).toArray()).map((lot) => lot.lotNumber)).toEqual(["2712345678", "2812345678"]);
 
   await removeReference(inventory);
   expect(await db.inventoryReferences.get(inventory.id)).toBeUndefined();

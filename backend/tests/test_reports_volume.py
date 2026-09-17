@@ -13,15 +13,15 @@ from app.reports import build_inventory_report_data, export_docx, export_pdf, ex
 
 def volume_entries() -> list[AnalysisEntry]:
     entries = [
-        AnalysisEntry(side="EF", bay="15", layer="A1", lot="900001", quantity=19),
-        AnalysisEntry(side="DE", bay="21", layer=None, lot="900001", quantity=1),
-        AnalysisEntry(side="EF", bay="10", layer="A2", lot="900002", quantity=10),
-        AnalysisEntry(side="DE", bay="10", layer=None, lot="900002", quantity=10),
-        AnalysisEntry(side="EF", bay="11", layer=None, lot="900003", quantity=11),
-        AnalysisEntry(side="DE", bay="11", layer="A3", lot="900003", quantity=9),
-        AnalysisEntry(side="DE", bay="08", layer="A4", lot="900004", quantity=15),
-        AnalysisEntry(side="EF", bay="12", layer=None, lot="900004", quantity=2),
-        AnalysisEntry(side="DE", bay="20", layer="A5", lot="900004", quantity=3),
+        AnalysisEntry(side="EF", bay="15", layer="A1", lot="2710000001", quantity=19),
+        AnalysisEntry(side="DE", bay="21", layer=None, lot="2710000001", quantity=1),
+        AnalysisEntry(side="EF", bay="10", layer="A2", lot="2710000002", quantity=10),
+        AnalysisEntry(side="DE", bay="10", layer=None, lot="2710000002", quantity=10),
+        AnalysisEntry(side="EF", bay="11", layer=None, lot="2710000003", quantity=11),
+        AnalysisEntry(side="DE", bay="11", layer="A3", lot="2710000003", quantity=9),
+        AnalysisEntry(side="DE", bay="08", layer="A4", lot="2710000004", quantity=15),
+        AnalysisEntry(side="EF", bay="12", layer=None, lot="2710000004", quantity=2),
+        AnalysisEntry(side="DE", bay="20", layer="A5", lot="2710000004", quantity=3),
     ]
     for index in range(91):
         entries.append(
@@ -29,7 +29,7 @@ def volume_entries() -> list[AnalysisEntry]:
                 side="EF" if index % 2 == 0 else "DE",
                 bay=str((index % 30) + 1),
                 layer=None if index % 3 == 0 else f"A{(index % 10) + 1}",
-                lot=f"{910000 + index:06d}",
+                lot=f"272{index:07d}",
                 quantity=(index % 27) + 1,
             )
         )
@@ -118,15 +118,15 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
 
     legacy_lots = legacy.sheet_by_name("LOTES CONSOLIDADOS")
     modern_lots = modern["LOTES CONSOLIDADOS"]
-    legacy_lot_row = next(row for row in range(4, legacy_lots.nrows) if legacy_lots.cell_value(row, 0) == "900001")
-    modern_lot_row = next(row for row in range(5, modern_lots.max_row + 1) if modern_lots.cell(row, 1).value == "900001")
+    legacy_lot_row = next(row for row in range(4, legacy_lots.nrows) if legacy_lots.cell_value(row, 0) == "2710000001")
+    modern_lot_row = next(row for row in range(5, modern_lots.max_row + 1) if modern_lots.cell(row, 1).value == "2710000001")
     assert legacy_lots.cell_value(legacy_lot_row, 3) == "1 PEÇA FORA DO LOCAL PRINCIPAL"
     assert modern_lots.cell(modern_lot_row, 4).value == "1 PEÇA FORA DO LOCAL PRINCIPAL"
     expected_situations = {
-        "900001": "1 PEÇA FORA DO LOCAL PRINCIPAL",
-        "900002": "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL",
-        "900003": "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL",
-        "900004": "5 PEÇAS FORA DO LOCAL PRINCIPAL",
+        "2710000001": "1 PEÇA FORA DO LOCAL PRINCIPAL",
+        "2710000002": "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL",
+        "2710000003": "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL",
+        "2710000004": "5 PEÇAS FORA DO LOCAL PRINCIPAL",
     }
     assert {
         str(legacy_lots.cell_value(row, 0)): legacy_lots.cell_value(row, 3)
@@ -138,21 +138,21 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
         for row in range(5, modern_lots.max_row + 1)
         if modern_lots.cell(row, 1).value in expected_situations
     } == expected_situations
-    assert any(legacy_lots.cell_value(row, 0) == "910090" for row in range(4, legacy_lots.nrows))
-    assert any(modern_lots.cell(row, 1).value == "910090" for row in range(5, modern_lots.max_row + 1))
+    assert any(legacy_lots.cell_value(row, 0) == "2720000090" for row in range(4, legacy_lots.nrows))
+    assert any(modern_lots.cell(row, 1).value == "2720000090" for row in range(5, modern_lots.max_row + 1))
 
     legacy_conference = legacy.sheet_by_name("LOTES PARA CONFERÊNCIA")
     modern_conference = modern["LOTES PARA CONFERÊNCIA"]
-    assert any(legacy_conference.cell_value(row, 0) == "900001" for row in range(4, legacy_conference.nrows))
-    assert any(modern_conference.cell(row, 1).value == "900001" for row in range(5, modern_conference.max_row + 1))
-    assert all(legacy_conference.cell_value(row, 0) != "910090" for row in range(4, legacy_conference.nrows))
-    assert all(modern_conference.cell(row, 1).value != "910090" for row in range(5, modern_conference.max_row + 1))
+    assert any(legacy_conference.cell_value(row, 0) == "2710000001" for row in range(4, legacy_conference.nrows))
+    assert any(modern_conference.cell(row, 1).value == "2710000001" for row in range(5, modern_conference.max_row + 1))
+    assert all(legacy_conference.cell_value(row, 0) != "2720000090" for row in range(4, legacy_conference.nrows))
+    assert all(modern_conference.cell(row, 1).value != "2720000090" for row in range(5, modern_conference.max_row + 1))
 
     pdf_reader = PdfReader(BytesIO(pdf))
     pdf_text = "".join(page.extract_text() or "" for page in pdf_reader.pages)
     assert pdf_reader.pages[0].mediabox.width > pdf_reader.pages[0].mediabox.height
-    assert "900001" in pdf_text
-    assert "910090" in pdf_text
+    assert "2710000001" in pdf_text
+    assert "2720000090" in pdf_text
     assert "1 PEÇA FORA DO LOCAL PRINCIPAL" in pdf_text
     assert "5 PEÇAS FORA DO LOCAL PRINCIPAL" in pdf_text
     assert "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL" in pdf_text
@@ -161,8 +161,8 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
         assert f"{label}\n{value}" in pdf_text
     document = Document(BytesIO(docx))
     docx_text = "\n".join(cell.text for table in document.tables for row in table.rows for cell in row.cells)
-    assert "900001" in docx_text
-    assert "910090" in docx_text
+    assert "2710000001" in docx_text
+    assert "2720000090" in docx_text
     assert "1 PEÇA FORA DO LOCAL PRINCIPAL" in docx_text
     assert "5 PEÇAS FORA DO LOCAL PRINCIPAL" in docx_text
     assert "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL" in docx_text

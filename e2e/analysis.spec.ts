@@ -10,20 +10,20 @@ test("envia lançamentos ao motor online e identifica o cache quando fica offlin
   await page.getByRole("button", { name: "DE" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("15");
   await page.getByLabel("Camada").selectOption("A1");
-  await page.getByLabel("Lote").fill("000123");
+  await page.getByLabel("Lote").fill("2712345678");
   await page.getByLabel("Quantidade de peças").fill("19");
   await page.getByRole("button", { name: "Adicionar" }).click();
-  await expect(page.getByText("Lote 000123")).toHaveCount(1, { timeout: 30_000 });
+  await expect(page.getByText("Lote 2712345678")).toHaveCount(1, { timeout: 30_000 });
 
   await page.getByRole("button", { name: "EF" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("21");
   await page.getByLabel("Camada").selectOption("A1");
-  await page.getByLabel("Lote").fill("000123");
+  await page.getByLabel("Lote").fill("2712345678");
   await page.getByLabel("Quantidade de peças").fill("1");
   await page.getByRole("button", { name: "Adicionar" }).click();
   await expect(page.getByRole("dialog", { name: "Lote já registrado" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Adicionar mesmo assim" }).click();
-  await expect(page.getByText("Lote 000123")).toHaveCount(2);
+  await expect(page.getByText("Lote 2712345678")).toHaveCount(2);
 
   await page.getByRole("button", { name: "Atualizar análise" }).click();
   await expect(page.getByText("1 PEÇA FORA DO LOCAL PRINCIPAL", { exact: true })).toBeVisible();

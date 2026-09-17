@@ -10,22 +10,22 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
 
   const entries: Array<{ side: "EF" | "DE"; bay: string; layer?: string; lot: string; quantity: number }> = [
-    { side: "EF", bay: "15", layer: "A1", lot: "900001", quantity: 19 },
-    { side: "DE", bay: "21", lot: "900001", quantity: 1 },
-    { side: "EF", bay: "10", layer: "A2", lot: "900002", quantity: 10 },
-    { side: "DE", bay: "10", lot: "900002", quantity: 10 },
-    { side: "EF", bay: "11", lot: "900003", quantity: 11 },
-    { side: "DE", bay: "11", layer: "A3", lot: "900003", quantity: 9 },
-    { side: "DE", bay: "08", layer: "A4", lot: "900004", quantity: 15 },
-    { side: "EF", bay: "12", lot: "900004", quantity: 2 },
-    { side: "DE", bay: "20", layer: "A5", lot: "900004", quantity: 3 },
+    { side: "EF", bay: "15", layer: "A1", lot: "2710000001", quantity: 19 },
+    { side: "DE", bay: "21", lot: "2710000001", quantity: 1 },
+    { side: "EF", bay: "10", layer: "A2", lot: "2710000002", quantity: 10 },
+    { side: "DE", bay: "10", lot: "2710000002", quantity: 10 },
+    { side: "EF", bay: "11", lot: "2710000003", quantity: 11 },
+    { side: "DE", bay: "11", layer: "A3", lot: "2710000003", quantity: 9 },
+    { side: "DE", bay: "08", layer: "A4", lot: "2710000004", quantity: 15 },
+    { side: "EF", bay: "12", lot: "2710000004", quantity: 2 },
+    { side: "DE", bay: "20", layer: "A5", lot: "2710000004", quantity: 3 },
   ];
   for (let index = 0; index < 91; index += 1) {
     entries.push({
       side: index % 2 === 0 ? "EF" : "DE",
       bay: String((index % 30) + 1),
       layer: index % 3 === 0 ? undefined : `A${(index % 10) + 1}`,
-      lot: String(910000 + index).padStart(6, "0"),
+      lot: `272${String(index).padStart(7, "0")}`,
       quantity: (index % 27) + 1,
     });
   }

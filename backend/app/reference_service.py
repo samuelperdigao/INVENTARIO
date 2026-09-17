@@ -14,7 +14,6 @@ from io import BytesIO
 import math
 from pathlib import PurePath
 import re
-import unicodedata
 import zipfile
 from typing import Any, Iterable
 from uuid import uuid4
@@ -24,6 +23,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from app.lot_rules import LOT_VALIDATION_MESSAGE, is_valid_lot, validate_lot
 from app.persistence import InventoryEntryRow, InventoryReferenceRow, ReferenceLotRow, UserRow
 
 
@@ -33,6 +33,8 @@ REMOVED_STATUS = "REMOVED"
 MAX_COLUMNS = 256
 HEADER_SCAN_ROWS = 25
 WARNING_LIMIT = 20
+LOT_HEADER = "lotes"
+MISSING_LOT_HEADER_MESSAGE = "Não foi possível localizar a coluna ‘Lotes’ na planilha do SAP. Confira o arquivo selecionado."
 
 
 class ReferenceImportError(ValueError):
@@ -94,33 +96,7 @@ def safe_original_filename(filename: str | None) -> str:
 
 
 def _normalized_header(value: object) -> str:
-    text = unicodedata.normalize("NFKD", str(value or ""))
-    text = "".join(character for character in text if not unicodedata.combining(character))
-    return re.sub(r"[^a-z0-9]+", " ", text.casefold()).strip()
-
-
-def _header_score(value: object) -> int:
-    normalized = _normalized_header(value)
-    if not normalized:
-        return 0
-    if normalized in {
-        "lote",
-        "numero do lote",
-        "numero lote",
-        "lote sap",
-        "batch",
-        "batch number",
-        "lot number",
-    }:
-        return 100
-    tokens = set(normalized.split())
-    if "lote" in tokens and ({"numero", "n"} & tokens or "sap" in tokens):
-        return 90
-    if "batch" in tokens or "lot" in tokens:
-        return 85
-    if "lote" in tokens:
-        return 80
-    return 0
+    return str(value or "").strip().casefold()
 
 
 def _column_label(value: object, index: int) -> str:
@@ -203,24 +179,18 @@ def _detect_columns(preview_rows: list[list[Any]]) -> tuple[tuple[ReferenceColum
     if not nonempty_columns:
         raise ReferenceImportError("A planilha Excel está vazia.")
 
-    header_candidates: list[tuple[int, int, int]] = []
+    header_candidates: list[tuple[int, int]] = []
     for row_index, row in enumerate(preview_rows, start=1):
         for column_index, value in enumerate(row, start=1):
-            score = _header_score(value)
-            if score:
-                header_candidates.append((score, row_index, column_index))
+            if _normalized_header(value) == LOT_HEADER:
+                header_candidates.append((row_index, column_index))
 
-    automatic_column: int | None = None
-    header_row: int | None = None
-    candidate_columns = {candidate[2] for candidate in header_candidates}
-    if len(candidate_columns) == 1 and header_candidates:
-        automatic_column = next(iter(candidate_columns))
-        best = max(candidate for candidate in header_candidates if candidate[2] == automatic_column)
-        header_row = best[1]
-    elif header_candidates:
-        # Mais de uma coluna recebeu um nome plausível: o operador precisa
-        # escolher, mesmo que uma delas tenha um score um pouco maior.
-        header_row = max(header_candidates)[1]
+    if not header_candidates:
+        raise ReferenceImportError(MISSING_LOT_HEADER_MESSAGE)
+    candidate_columns = {candidate[1] for candidate in header_candidates}
+    if len(candidate_columns) != 1:
+        raise ReferenceImportError("A planilha deve conter uma única coluna com cabeçalho ‘Lotes’.")
+    header_row, automatic_column = min(header_candidates)
 
     columns = tuple(
         ReferenceColumn(
@@ -316,24 +286,9 @@ def parse_xlsx_reference(
         available_columns = {column.index: column.label for column in columns}
         if selected is not None and (selected < 1 or selected > MAX_COLUMNS or selected not in available_columns):
             raise ReferenceImportError("Selecione uma coluna disponível na prévia da planilha.")
+        if selected != automatic_column:
+            raise ReferenceImportError("A importação da referência SAP utiliza exclusivamente a coluna com cabeçalho ‘Lotes’.")
         selected_label = available_columns.get(selected) if selected is not None else None
-        if selected is None:
-            return ParsedReference(
-                original_filename=safe_filename,
-                header_row=header_row,
-                columns=columns,
-                selected_column=None,
-                selected_column_label=None,
-                total_rows=0,
-                valid_lot_occurrences=0,
-                unique_lots=0,
-                duplicate_rows=0,
-                ignored_rows=0,
-                lots=(),
-                sample=(),
-                warnings=("Não foi possível identificar uma única coluna de lote. Selecione a coluna manualmente.",),
-            )
-
         first_data_row = header_row + 1 if header_row else 1
         total_rows = 0
         valid_occurrences = 0
@@ -352,6 +307,12 @@ def parse_xlsx_reference(
             if lot is None:
                 ignored_rows += 1
                 continue
+            if not is_valid_lot(lot):
+                ignored_rows += 1
+                if len(warnings) < WARNING_LIMIT:
+                    warnings.append(f"Linha {first_data_row + total_rows - 1}: {LOT_VALIDATION_MESSAGE}")
+                continue
+            lot = validate_lot(lot)
             valid_occurrences += 1
             if lot in seen:
                 duplicate_rows += 1
@@ -359,7 +320,7 @@ def parse_xlsx_reference(
             seen.add(lot)
             unique_lots.append(lot)
         if not unique_lots:
-            raise ReferenceImportError("Nenhum número de lote válido foi encontrado na coluna selecionada.")
+            warnings.append("Nenhum lote válido foi encontrado na coluna ‘Lotes’. A referência não pode ser confirmada.")
         if duplicate_rows and len(warnings) < WARNING_LIMIT:
             warnings.append(f"{duplicate_rows} ocorrência(s) repetida(s) foram mantidas apenas uma vez.")
         return ParsedReference(
@@ -427,7 +388,10 @@ def replace_reference(
     lots: Iterable[str],
     user_id: str,
 ) -> InventoryReferenceRow:
-    normalized_lots = tuple(dict.fromkeys(lot.strip() for lot in lots if lot.strip()))
+    try:
+        normalized_lots = tuple(dict.fromkeys(validate_lot(lot) for lot in lots))
+    except ValueError as error:
+        raise ReferenceImportError(str(error)) from error
     if not normalized_lots:
         raise ReferenceImportError("Nenhum número de lote válido foi encontrado.")
     now = datetime.now(timezone.utc)
@@ -601,6 +565,7 @@ def reference_state(
 
 
 def reference_match(session: Session, inventory_id: str, lot: str) -> dict[str, Any]:
+    lot = validate_lot(lot)
     reference = active_reference(session, inventory_id)
     if reference is None:
         return {"referenceAvailable": False, "lot": lot, "inReference": None}

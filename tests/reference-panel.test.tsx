@@ -39,8 +39,8 @@ async function seedReference(): Promise<void> {
   };
   await db.inventoryReferences.put(reference);
   await db.referenceLots.bulkPut([
-    { id: "inventory:000123", inventoryId: inventory.id, lotNumber: "000123" },
-    { id: "inventory:000456", inventoryId: inventory.id, lotNumber: "000456" },
+    { id: "inventory:2712345678", inventoryId: inventory.id, lotNumber: "2712345678" },
+    { id: "inventory:2812345678", inventoryId: inventory.id, lotNumber: "2812345678" },
   ]);
 }
 
@@ -67,11 +67,11 @@ it("exibe a referência cacheada, tabela desktop e busca paginada", async () => 
   await screen.findByText("Planilha importada");
   await userEvent.setup().click(screen.getByRole("button", { name: "Visualizar lotes" }));
   const table = screen.getByRole("table");
-  expect(within(table).getByText("000123")).toBeInTheDocument();
-  expect(within(table).getByText("000456")).toBeInTheDocument();
+  expect(within(table).getByText("2712345678")).toBeInTheDocument();
+  expect(within(table).getByText("2812345678")).toBeInTheDocument();
   expect(within(table).getAllByText("Ainda não encontrado")).toHaveLength(2);
 
-  await userEvent.setup().type(screen.getByLabelText("Buscar lote"), "456");
-  await waitFor(() => expect(within(table).queryByText("000123")).not.toBeInTheDocument());
-  expect(within(table).getByText("000456")).toBeInTheDocument();
+  await userEvent.setup().type(screen.getByLabelText("Buscar lote"), "281");
+  await waitFor(() => expect(within(table).queryByText("2712345678")).not.toBeInTheDocument());
+  expect(within(table).getByText("2812345678")).toBeInTheDocument();
 });

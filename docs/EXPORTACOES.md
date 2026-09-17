@@ -69,6 +69,8 @@ Com referência SAP ativa, é acrescentada uma quinta aba:
 5. `CONCILIAÇÃO`
 
 `LOTES CONSOLIDADOS` tem somente Lote, Total de peças, Localização e Situação.
+Todo lote exportado é texto com exatamente 10 dígitos ASCII e prefixo `27` ou
+`28`, conforme a regra única do domínio.
 Para lote OK, a localização mostra apenas lado, vão e camada. Para conferência,
 cada local aparece com sua quantidade.
 

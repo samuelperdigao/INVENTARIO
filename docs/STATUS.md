@@ -8,17 +8,16 @@ Atualizado em 16/09/2026.
 - Frontend ativo na Vercel: `https://inventario-lpe.vercel.app`.
 - API ativa no Render: `https://inventory-api-6o8h.onrender.com`.
 - PostgreSQL ativo no Neon.
-- Migration `0007_recovery_pin` registrada como aplicada no ambiente principal.
-- O workflow `Production Smoke` da `main` em `acc1cff` concluiu com sucesso.
-- O commit `3ab62a8` foi integrado à `main`; o check da Vercel concluiu com sucesso.
-- O deploy Render `dep-dajsg3id0e5s73diru40` está `live` para o mesmo commit; `/healthz` respondeu `{"status":"ok"}`.
+- Migration `0008_inventory_lot_references` aplicada na inicialização do deploy do ambiente principal.
+- Os workflows `Quality Gates` e `Production Smoke` do commit `9e05c46` concluíram com sucesso.
+- O check da Vercel para o commit `9e05c46` concluiu com sucesso.
+- O deploy Render `dep-dalk01942hec73cojr3g` está `live` para o commit `9e05c46`; `/healthz` respondeu `{"status":"ok"}`.
 
-## Entrega local — referência opcional de lotes SAP
+## Entrega publicada — referência opcional de lotes SAP
 
-Branch de trabalho: `feat/referencia-lotes-sap`.
-Base confirmada: `master` em `6738794`.
-Esta entrega permanece somente local: não houve commit, push, Pull Request,
-alteração no GitHub, migration no Neon, deploy ou mudança nos provedores.
+Commit: `9e05c46` na `main` e na branch `feat/referencia-lotes-sap`.
+O commit foi publicado no GitHub, validado pelos workflows `Quality Gates` e
+`Production Smoke`, e disponibilizado na Vercel e no Render.
 
 - A referência aceita uma planilha `.xlsx` do SAP, mostra prévia e seleção manual de coluna quando necessário, normaliza e persiste somente números de lote.
 - A referência é independente dos lançamentos físicos: ausência, divergência, falha de consulta ou operação offline não bloqueiam inclusão, edição ou exclusão local.
@@ -40,10 +39,10 @@ alteração no GitHub, migration no Neon, deploy ou mudança nos provedores.
 
 ### Limitações e prontidão
 
-- A execução de `pnpm e2e` sem a variável local após um build de produção aponta a rewrite para a API pública e falha no login; a execução reproduzível local está documentada no README e o workflow de CI já define essa variável.
-- A migration e os testes desta entrega foram validados em SQLite temporário; PostgreSQL/Neon real e concorrência de produção não foram exercitados nesta etapa.
+- A execução local de `pnpm e2e` deve definir `BACKEND_PROXY_URL` antes do build; o workflow de CI já fornece essa variável.
+- A migration foi aplicada no PostgreSQL/Neon durante o deploy; concorrência de produção ainda não foi exercitada nesta etapa.
 - Nenhuma validação física nova foi feita em Android ou Safari/iPhone. Chromium local não substitui esses gates.
-- A entrega está pronta para revisão e integração posterior, mas não foi integrada à `main` nem publicada.
+- A entrega está publicada; as regras específicas de classificação dos lotes continuam pendentes para a próxima etapa.
 
 ## Funcionalidades concluídas
 

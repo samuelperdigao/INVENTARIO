@@ -380,7 +380,20 @@ code { padding: 2px 5px; border-radius: 6px; background: #edf3fa; color: #304866
 .history-date span, .history-date small { display: block; }
 .history-date span { color: var(--blue-950); font-weight: 850; }
 .history-date small { margin-top: 4px; color: var(--muted); }
-.export-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 9px; }
+.export-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 10px; }
+.export-grid > button {
+  width: 100%;
+  min-width: 0;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .email-box { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 16px; padding: 16px; border: 1px solid #dae6f3; border-radius: 14px; background: var(--surface-soft); }
 .email-box strong, .email-box small { display: block; }
 .email-box small { margin-top: 4px; color: var(--muted); }
@@ -570,7 +583,7 @@ code { padding: 2px 5px; border-radius: 6px; background: #edf3fa; color: #304866
   .landing-flow, .action-grid { grid-template-columns: repeat(2, 1fr); }
   .auth-shell { grid-template-columns: minmax(300px, .7fr) minmax(440px, 1.3fr); }
   .dashboard-grid { grid-template-columns: 1fr; }
-  .export-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .export-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
   .email-box { grid-template-columns: 1fr; }
 }
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { addTeamMember, restoreSession, type AuthUser } from "@/lib/auth-client";
+import { AppRail } from "@/components/app-rail";
 
 export function TeamPanel() {
   const router = useRouter();
@@ -52,10 +53,11 @@ export function TeamPanel() {
   if (loading || !user) return <main className="shell"><p className="muted">Carregando gestão de equipe…</p></main>;
 
   return (
-    <main className="shell dashboard-shell">
+    <main className="shell app-page-shell">
+      <AppRail active="team" showTeam />
+      <div className="app-page-content">
       <header className="dashboard-topbar">
-        <Link className="app-brand brand-link" href="/dashboard"><span className="brand-mark beam-mark" aria-hidden="true"><span /></span><span><strong>INVENTARIO</strong><small>Beam Blanks e Blocos</small></span></Link>
-        <Link className="text-button" href="/dashboard">Voltar ao painel</Link>
+        <Link className="text-button" href="/dashboard">‹ Voltar ao painel</Link>
       </header>
 
       <section className="dashboard-hero">
@@ -85,6 +87,7 @@ export function TeamPanel() {
         </form>
         <p className="security-note">Administradores podem associar usuários à equipe. Operadores não recebem acesso a esta tela nem ao endpoint administrativo.</p>
       </section>
+      </div>
     </main>
   );
 }

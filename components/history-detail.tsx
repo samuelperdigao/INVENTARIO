@@ -17,6 +17,8 @@ import {
   type ShareableReportFormat,
 } from "@/lib/report-client";
 import { LotLocations } from "@/components/lot-locations";
+import { AppRail } from "@/components/app-rail";
+import { Icon } from "@/components/icon";
 import type { AnalysisSummary, LotAnalysis, LotPresentation, PresentationTone } from "@/lib/models";
 
 const shareFormats: ShareableReportFormat[] = ["pdf", "xlsx", "docx"];
@@ -137,16 +139,18 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
   const multiplePiecesOutsideLots = report?.summary.multiplePiecesOutsideLots ?? report?.summary.displacedGroups ?? 0;
   const distributedLots = report?.summary.distributedLots ?? report?.summary.ambiguousDistributions ?? 0;
 
-  return <main className="shell">
+  return <main className="shell app-page-shell">
+    <AppRail active="history" />
+    <div className="app-page-content">
     <header className="page-topbar"><Link className="back-link" href="/historico">‹ Voltar ao histórico</Link><div><p className="eyebrow">Relatório oficial</p><h1>{report ? `Inventário ${formatBrazilianDate(report.inventoryDate)}` : "Abrindo inventário…"}</h1><p className="muted">Modo somente leitura. O snapshot final permanece preservado.</p></div></header>
     {error ? <p className="error" role="alert">{error}</p> : null}
     {!report && !error ? <p className="muted">Carregando relatório central…</p> : null}
     {report ? <div className="stack">
       <section className="metric-grid" aria-label="Resumo final">
-        <div className="metric-card"><span className="metric-label">Total de registros</span><span className="metric-value">{report.totalRecords}</span></div>
-        <div className="metric-card"><span className="metric-label">Total de peças</span><span className="metric-value">{report.totalPieces}</span></div>
-        <div className="metric-card"><span className="metric-label">Total de lotes</span><span className="metric-value">{report.summary.lotsAnalyzed}</span></div>
-        <div className="metric-card"><span className="metric-label">Total de vãos</span><span className="metric-value">{new Set(report.records.map((record) => `${record.side}-${record.bay}`)).size}</span></div>
+        <div className="metric-card metric-card--records"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="file" size={18} /></span><span className="metric-card-kicker">Coleta</span></div><div className="metric-card-copy"><span className="metric-label">Registros</span><span className="metric-value">{report.totalRecords}</span></div></div>
+        <div className="metric-card metric-card--pieces"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="chart" size={18} /></span><span className="metric-card-kicker">Volume</span></div><div className="metric-card-copy"><span className="metric-label">Peças lançadas</span><span className="metric-value">{report.totalPieces}</span></div></div>
+        <div className="metric-card metric-card--lots"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="boxes" size={18} /></span><span className="metric-card-kicker">Rastreio</span></div><div className="metric-card-copy"><span className="metric-label">Lotes</span><span className="metric-value">{report.summary.lotsAnalyzed}</span></div></div>
+        <div className="metric-card metric-card--status"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="check" size={18} /></span><span className="metric-card-kicker">Cobertura</span></div><div className="metric-card-copy"><span className="metric-label">Vãos identificados</span><span className="metric-value">{new Set(report.records.map((record) => `${record.side}-${record.bay}`)).size}</span></div></div>
       </section>
 
       <section className="card section-card stack" aria-label="Situação dos lotes">
@@ -227,5 +231,6 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
         </div>}
       </section>
     </div> : null}
+    </div>
   </main>;
 }

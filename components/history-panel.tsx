@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedContext, getAuthenticatedSession, restoreSession, type AuthUser } from "@/lib/auth-client";
 import { formatBrazilianDate } from "@/lib/local-date";
+import { AppRail } from "@/components/app-rail";
 
 export interface HistoryItem {
   id: string;
@@ -66,5 +67,5 @@ export function HistoryPanel({ standalone = false }: { standalone?: boolean }) {
   </section>;
 
   if (!standalone) return content;
-  return <main className="shell"><header className="page-topbar"><Link className="back-link" href="/dashboard">‹ Voltar ao painel</Link><div><p className="eyebrow">Arquivo central</p><h1>Histórico de inventários</h1><p className="muted">{user ? `Consulta autorizada para ${user.displayName}` : "Carregando conta…"}</p></div></header>{content}</main>;
+  return <main className="shell app-page-shell"><AppRail active="history" showTeam={user?.teams.some((team) => team.role === "ADMIN")} /><div className="app-page-content"><header className="page-topbar"><Link className="back-link" href="/dashboard">‹ Voltar ao painel</Link><div><p className="eyebrow">Arquivo central</p><h1>Histórico de inventários</h1><p className="muted">{user ? `Consulta autorizada para ${user.displayName}` : "Carregando conta…"}</p></div></header>{content}</div></main>;
 }

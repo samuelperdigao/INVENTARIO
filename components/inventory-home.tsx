@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import styles from "@/components/inventory-home.module.css";
+import { AppRail } from "@/components/app-rail";
 import { BrandLogo } from "@/components/brand-logo";
 import { Icon } from "@/components/icon";
 import { logoutAccount, restoreSession, type AuthUser } from "@/lib/auth-client";
@@ -77,18 +78,8 @@ export function InventoryHome() {
   if (loading || !user) return <main className="shell"><div className="dashboard-loading" role="status" aria-label="Carregando seu painel"><span /><span /><span /></div></main>;
 
   return (
-    <main className={`shell dashboard-shell ${styles.dashboardShell}`}>
-      <aside className="dashboard-sidebar" aria-label="Navegação do sistema">
-        <Link className="brand-link" href="/dashboard" aria-label="INVENTÁRIO, painel"><BrandLogo compact subtitle="Beam Blanks e Blocos" /></Link>
-        <nav className="dashboard-nav">
-          <Link className="dashboard-nav-link active" href="/dashboard" aria-current="page"><span aria-hidden="true"><Icon name="home" size={17} /></span>Início</Link>
-          <button className="dashboard-nav-link" type="button" onClick={() => void handleCreate()} disabled={creating}><span aria-hidden="true"><Icon name="plus" size={17} /></span>Novo inventário</button>
-          <a className="dashboard-nav-link" href="#em-andamento"><span aria-hidden="true"><Icon name="boxes" size={17} /></span>Em andamento</a>
-          <Link className="dashboard-nav-link" href="/historico"><span aria-hidden="true"><Icon name="history" size={17} /></span>Histórico</Link>
-          {isTeamAdmin ? <Link className="dashboard-nav-link" href="/equipe"><span aria-hidden="true"><Icon name="users" size={17} /></span>Equipe</Link> : null}
-        </nav>
-        <p className="sidebar-footnote">Operação local com sincronização central protegida.</p>
-      </aside>
+    <main className={`shell app-page-shell dashboard-shell ${styles.dashboardShell}`}>
+      <AppRail active="home" onCreate={() => void handleCreate()} creating={creating} showTeam={isTeamAdmin} />
       <div className="dashboard-content">
       <header className="dashboard-topbar">
         <Link className="brand-link mobile-dashboard-brand" href="/dashboard" aria-label="INVENTÁRIO, painel"><BrandLogo compact subtitle="Beam Blanks e Blocos" /></Link>

@@ -2,6 +2,29 @@
 
 Atualizado em 18/09/2026.
 
+## Entrega em integração — identidade visual transversal
+
+Commit de trabalho: `caabac0 feat: unificar identidade visual do aplicativo`.
+
+A direção visual premium agora é compartilhada pelo aplicativo inteiro: dashboard, equipe, histórico, detalhe de relatório e acesso usam o mesmo rail de navegação, tokens navy/ciano, textura de grid, superfícies elevadas, gradientes, estados de foco e tratamento responsivo. O fluxo de inventário mantém o rail específico de cinco etapas por ser uma tela operacional mais profunda, mas passa a compartilhar a mesma identidade, cores, elevação e linguagem visual.
+
+`components/app-rail.tsx` concentra a navegação comum e `app/globals.css` aplica a camada transversal, incluindo a composição de autenticação e a preferência `prefers-reduced-motion`. Não houve alteração de API, backend, IndexedDB/Dexie, autenticação, sincronização, finalização ou exportações.
+
+### Gates locais desta rodada
+
+- ESLint: aprovado.
+- TypeScript: aprovado.
+- Vitest: `13 arquivos, 61 testes aprovados`.
+- Build de produção com proxy local: aprovado.
+- Playwright completo: `8 cenários aprovados`.
+- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
+- `git diff --check`: aprovado.
+- Conferência manual local: dashboard, equipe e histórico sem overflow no viewport móvel; rail comum, hero, cartões, estados e CTAs presentes.
+
+### Publicação pendente
+
+O commit ainda precisa ser integrado à `main`, enviado para `origin/main` e confirmado na Vercel. A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses dispositivos.
+
 ## Entrega integrada — terceira passada visual premium
 
 Commit: `af4b55a feat: elevar direcao visual do inventario`.

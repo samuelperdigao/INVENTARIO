@@ -2,9 +2,35 @@
 
 Atualizado em: 18/09/2026  
 Checkout: `C:\Projetos\INVENTARIO`  
-Branch final: `main`  
-Commit integrado: `af4b55a feat: elevar direcao visual do inventario`  
+Branch de trabalho: `codex/unificar-identidade-visual`  
+Commit desta passada: `caabac0 feat: unificar identidade visual do aplicativo`  
 Base: `ac95ae5 feat: reforcar microinteracoes visuais do inventario`
+
+## Quarta passada — identidade visual transversal
+
+O refinamento premium deixou de ficar restrito à tela operacional e passou a ser a linguagem comum de todo o aplicativo.
+
+- `components/app-rail.tsx` concentra o rail compartilhado de dashboard, equipe, histórico e detalhe de relatório, com navegação ativa, ação de novo inventário, marca e estado local.
+- `app/globals.css` adiciona tokens e composição transversal: navy/ciano, grid industrial, hero com imagem, superfícies elevadas, acentos de foco, cartões de ação, estados vazios, métricas, inputs e CTA de autenticação.
+- Dashboard, equipe, histórico e detalhe de relatório recebem a mesma hierarquia visual, responsividade, alvos de toque e tratamento de estados.
+- A rota de acesso passa a usar a mesma sala visual, sem alterar autenticação ou contratos.
+- A rota de inventário preserva o rail próprio de cinco etapas, mas usa os mesmos tokens, ritmo, textura, elevação, microinterações e regra de movimento reduzido.
+- Nenhuma mudança foi feita em API, backend, IndexedDB/Dexie, sincronização, autenticação, finalização ou exportações.
+
+### Gates locais desta passada
+
+- ESLint: aprovado.
+- TypeScript: aprovado com `rtk proxy pnpm exec tsc --noEmit`.
+- Vitest: `13` arquivos e `61` testes aprovados.
+- Build de produção com `BACKEND_PROXY_URL=http://127.0.0.1:8000`: aprovado.
+- Playwright completo: `8` cenários aprovados.
+- Pytest: `56` testes aprovados, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
+- `git diff --check`: aprovado.
+- Conferência manual local: dashboard, equipe e histórico visíveis com o rail comum e sem overflow no viewport móvel; inventário operacional preservado.
+
+### Próximo passo de publicação
+
+Integrar o commit na `main`, fazer push sem force push, aguardar a Vercel e confirmar o CSS público e os health checks. A validação física em Android real e iPhone/Safari continua pendente.
 
 ## Objetivo da tarefa
 

@@ -2,6 +2,29 @@
 
 Atualizado em 18/09/2026.
 
+## Entrega integrada — terceira passada visual premium
+
+Commit: `af4b55a feat: elevar direcao visual do inventario`.
+
+A tela operacional recebeu uma direção visual mais ousada e profissional, sem alterar o comportamento da operação: rail navy/ciano com textura discreta, cabeçalho de coleta, indicadores com ícones e metadados, referência SAP como zona de decisão, formulário como foco principal e painel escuro para as etapas de sincronização, análise e finalização. A camada continua escopada ao frontend, preserva IndexedDB/Dexie como fonte primária e mantém a preferência `prefers-reduced-motion`.
+
+### Gates locais desta rodada
+
+- ESLint: aprovado.
+- TypeScript: aprovado.
+- Vitest: `13 arquivos, 61 testes aprovados`.
+- Build de produção com proxy local: aprovado.
+- Playwright visual: `2 cenários aprovados` nos viewports 390, 430, 768, 1024, 1366, 1440 e 1920px, sem overflow horizontal.
+- Playwright completo: `8 cenários aprovados`.
+- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
+- `git diff --check`: aprovado.
+- Conferência manual local: nova composição visível em mobile e operação sem console com erro.
+
+### Limitações reais
+
+- A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses dispositivos.
+- A publicação na Vercel e o smoke público serão confirmados após a integração da branch na `main`.
+
 ## Entrega integrada — refinamento visual operacional
 
 Commit integrado: `0a5a5db` na `main` e enviado para `origin/main`.

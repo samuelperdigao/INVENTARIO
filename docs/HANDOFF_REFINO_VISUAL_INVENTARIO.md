@@ -3,8 +3,8 @@
 Atualizado em: 18/09/2026  
 Checkout: `C:\Projetos\INVENTARIO`  
 Branch final: `main`  
-Commit integrado: `ac95ae5 feat: reforcar microinteracoes visuais do inventario`  
-Base: `1475edc docs: registrar publicacao do refinamento visual`
+Commit integrado: `af4b55a feat: elevar direcao visual do inventario`  
+Base: `ac95ae5 feat: reforcar microinteracoes visuais do inventario`
 
 ## Objetivo da tarefa
 
@@ -24,6 +24,13 @@ Entrega concluída localmente, integrada por fast-forward à `main`, enviada par
 O checkout estava limpo após o push. Não há alterações de backend nesta rodada.
 
 ## O que já foi alterado
+
+### Terceira passada — direção visual premium
+
+- `components/inventory-screen.tsx` passou a expor uma hierarquia visual mais intencional: kicker de operação, estado de coleta no cabeçalho, ícones e metadados nos indicadores e rodapé do rail com o estado local explicado sem linguagem técnica.
+- `app/globals.css` recebeu uma direção visual industrial premium, com rail naval/ciano, textura discreta, cartões de resumo com variação de peso, painel de referência em estado vazio, formulário como área de foco, CTA com gradiente e painel escuro de controle com etapas claras.
+- A nova camada permanece escopada à tela de inventário, preserva a ordem operacional e não altera contratos de API, IndexedDB/Dexie, sincronização, autenticação ou finalização.
+- A composição foi ajustada para leitura mobile sem overflow: rail reduzido, indicadores empilhados, alvos de toque preservados e controle operacional convertido em cartões de etapa.
 
 ### Fluxo de inventário
 
@@ -63,8 +70,26 @@ O checkout estava limpo após o push. Não há alterações de backend nesta rod
   - cabeçalho com brilho de entrada e indicador de status;
   - painéis 03/04/05 com revelação de conteúdo, estado pontuado e microinterações acessíveis;
   - preferência `prefers-reduced-motion` preservada, mantendo o reforço visual estático quando o movimento é reduzido.
+- Terceira passada em `app/globals.css`:
+  - tokens visuais locais, contraste navy/ciano, grid decorativo e elevação por camadas;
+  - indicadores redesenhados com ícones, kicker, peso tipográfico e cartão primário;
+  - foco visual no lançamento físico e painel de controle com hierarquia de etapas;
+  - foco de formulário, CTA, estados vazios e cards de etapa refinados para operação de campo;
+  - animação continua respeitando `prefers-reduced-motion`; a composição estática mantém a diferenciação visual quando o navegador reduz movimento.
 - `e2e/visual-operational.spec.ts`: validação nos viewports 390, 430, 768, 1024, 1366, 1440 e 1920px, incluindo overflow, ordem SAP, rail, colunas, CTA, três etapas de controle e remoção de linguagem técnica.
 - `e2e/sync.spec.ts`: expectativa ajustada para não conflitar com o novo `role="status"` do feedback de salvamento.
+
+## Gates da terceira passada
+
+- ESLint: aprovado.
+- TypeScript: aprovado com `rtk proxy pnpm exec tsc --noEmit`.
+- Vitest: `13` arquivos e `61` testes aprovados.
+- Build de produção final com `BACKEND_PROXY_URL=http://127.0.0.1:8000`: aprovado.
+- Playwright visual: `2` cenários aprovados, com a tela operacional validada nos viewports 390, 430, 768, 1024, 1366, 1440 e 1920px.
+- Playwright completo: `8` cenários aprovados, incluindo offline, sincronização, histórico móvel e 100 lançamentos/exportações.
+- Pytest: `56` testes aprovados, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
+- `git diff --check`: aprovado.
+- Conferência manual local no navegador: mobile sem overflow, indicadores legíveis, referência SAP, formulário e painel de controle com a nova hierarquia visual.
 
 ## Validações concluídas
 

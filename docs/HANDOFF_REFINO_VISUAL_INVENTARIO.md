@@ -90,6 +90,7 @@ O checkout estava limpo após o push. Não há alterações de backend nesta rod
 - Pytest: `56` testes aprovados, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
 - `git diff --check`: aprovado.
 - Conferência manual local no navegador: mobile sem overflow, indicadores legíveis, referência SAP, formulário e painel de controle com a nova hierarquia visual.
+- Smoke público: Vercel HTTP 200; CSS publicado contém `inventory-header-topline`, `inventory-navy` e `metric-card--records`; `/backend-api/healthz` na Vercel e `/healthz` no Render responderam `{"status":"ok"}`.
 
 ## Validações concluídas
 

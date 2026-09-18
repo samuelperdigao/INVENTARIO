@@ -23,7 +23,8 @@ A tela operacional recebeu uma direção visual mais ousada e profissional, sem 
 ### Limitações reais
 
 - A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses dispositivos.
-- A publicação na Vercel e o smoke público serão confirmados após a integração da branch na `main`.
+- Publicação confirmada após a integração na `main`: a Vercel respondeu HTTP 200 e o CSS público contém `inventory-header-topline`, `inventory-navy` e `metric-card--records`.
+- O health check `/backend-api/healthz` da Vercel e `/healthz` do Render responderam `{"status":"ok"}`; Render e Neon não foram alterados nesta rodada.
 
 ## Entrega integrada — refinamento visual operacional
 

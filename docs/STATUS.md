@@ -2,9 +2,9 @@
 
 Atualizado em 17/09/2026.
 
-## Trabalho local — refinamento visual operacional
+## Entrega integrada — refinamento visual operacional
 
-Branch de trabalho: `codex/refino-visual-inventario`.
+Commit integrado: `0a5a5db` na `main` e enviado para `origin/main`.
 
 O fluxo de inventário recebeu refinamento responsivo para mobile, tablet e desktop, com referência SAP posicionada antes do primeiro lançamento, painel único para sincronização/análise/finalização, estados de carregamento e feedback de salvamento, tela segura para inventário indisponível e cobertura visual operacional. IndexedDB, contratos de API, autenticação, sincronização, finalização irreversível e exportações foram preservados.
 
@@ -20,9 +20,10 @@ O fluxo de inventário recebeu refinamento responsivo para mobile, tablet e desk
 - Verificação manual em `pnpm start`: `/acesso` e rota de inventário indisponível sem erros ou avisos no console.
 - `git diff --check`: aprovado.
 
-### Estado e limitações
+### Publicação e limitações
 
-- As alterações ainda não foram commitadas, integradas à `main`, enviadas ao remoto ou publicadas na Vercel.
+- Frontend público na Vercel respondeu HTTP 200 em `/acesso`; a folha pública contém o painel operacional e os estados do refinamento.
+- A rewrite `/backend-api/healthz` e a API pública no Render responderam `{"status":"ok"}`.
 - Não houve alteração de backend; Render e Neon não foram modificados nesta rodada.
 - A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses gates.
 

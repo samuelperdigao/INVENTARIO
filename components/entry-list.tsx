@@ -8,9 +8,10 @@ interface EntryListProps {
   onEdit: (entry: InventoryEntry) => void;
   onDelete: (entry: InventoryEntry) => void;
   readOnly?: boolean;
+  highlightedEntryId?: string;
 }
 
-export function EntryList({ entries, onEdit, onDelete, readOnly = false }: EntryListProps) {
+export function EntryList({ entries, onEdit, onDelete, readOnly = false, highlightedEntryId }: EntryListProps) {
   const groups = groupEntries(entries);
   return (
     <section className="card section-card panel-card stack entries-section" aria-label="Lançamentos registrados">
@@ -33,7 +34,7 @@ export function EntryList({ entries, onEdit, onDelete, readOnly = false }: Entry
             <section className="bay-block" key={bay} aria-label={`Vão ${bay}`}>
               <h3>Vão {bay}</h3>
               {bayEntries.map((entry) => (
-                <article className="entry-row" key={entry.id}>
+                <article className={`entry-row ${highlightedEntryId === entry.id ? "entry-row-highlighted" : ""}`} key={entry.id}>
                   <div className="entry-title">
                     <strong>Lote {entry.lot}</strong><br />
                     <span className="muted">Camada {entry.layer ?? "não informada"} · {entry.quantity} peça(s)</span>

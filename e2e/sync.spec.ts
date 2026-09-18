@@ -13,7 +13,7 @@ test("participa de um inventário com seis dígitos sem expor UUID ou token", as
   await page.getByLabel("Quantidade de peças").fill("19");
   await page.getByRole("button", { name: "Adicionar" }).click();
   await page.getByRole("button", { name: "Sincronizar agora" }).click();
-  await expect(page.getByRole("status")).toHaveText("Sincronização concluída.");
+  await expect(page.getByText("Sincronização concluída.", { exact: true })).toBeVisible();
   const participationCode = (await page.locator(".participation-code").textContent())?.trim();
   expect(participationCode).toMatch(/^\d{6}$/);
   await expect(page.getByText("ID:")).toHaveCount(0);

@@ -27,7 +27,14 @@ const formatLabel: Record<ReportFormat, string> = {
   docx: "Word",
 };
 
-export function FinalizationPanel({ inventory, onFinished }: { inventory: Inventory; onFinished: () => Promise<void> }) {
+interface FinalizationPanelProps {
+  inventory: Inventory;
+  onFinished: () => Promise<void>;
+  embedded?: boolean;
+  readyForFinalization?: boolean;
+}
+
+export function FinalizationPanel({ inventory, onFinished, embedded = false, readyForFinalization = false }: FinalizationPanelProps) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
   const [shareOpen, setShareOpen] = useState(false);
@@ -111,20 +118,21 @@ export function FinalizationPanel({ inventory, onFinished }: { inventory: Invent
   }
 
   const shareReady = Boolean(preparedResources.pdf && preparedResources.xlsx && preparedResources.docx);
+  const finishReady = embedded ? readyForFinalization : true;
 
   return <>
-    <section className="card section-card panel-card stack" aria-label="Finalização e exportações">
-    <div className="section-header">
+    <section className={embedded ? "control-stage-content stack" : "card section-card panel-card stack"} aria-label="Finalização e exportações">
+    {!embedded ? <div className="section-header">
       <div className="panel-heading">
         <span className="panel-index" aria-hidden="true">05</span>
         <div className="panel-copy">
           <p className="eyebrow">Encerramento</p>
           <h2>Finalização e relatórios</h2>
-          <p className="muted">Ao finalizar, o relatório consolidado é congelado no servidor e o inventário passa para somente leitura.</p>
+          <p className="muted">Ao finalizar, o relatório oficial fica preservado e o inventário entra em somente leitura.</p>
         </div>
       </div>
-      {inventory.status === "OPEN" ? <button className="primary" type="button" disabled={busy} onClick={() => setConfirmingFinish(true)}>{busy ? "Processando…" : "Finalizar inventário"}</button> : <span className="micro-pill good">Finalizado</span>}
-    </div>
+      {inventory.status === "OPEN" ? <button className={finishReady ? "primary" : "secondary"} type="button" disabled={busy} aria-busy={busy} data-finalization-ready={finishReady} onClick={() => setConfirmingFinish(true)}>{busy ? "Processando…" : "Finalizar inventário"}</button> : <span className="micro-pill good">Finalizado</span>}
+    </div> : <div className="control-stage-action">{inventory.status === "OPEN" ? <button className={finishReady ? "primary" : "secondary"} type="button" disabled={busy} aria-busy={busy} data-finalization-ready={finishReady} onClick={() => setConfirmingFinish(true)}>{busy ? "Processando…" : "Finalizar inventário"}</button> : <span className="micro-pill good">Finalizado</span>}</div>}
 
     {inventory.status === "FINISHED" ? <div className="stack">
       <button

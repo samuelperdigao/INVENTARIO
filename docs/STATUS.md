@@ -2,6 +2,30 @@
 
 Atualizado em 17/09/2026.
 
+## Trabalho local — refinamento visual operacional
+
+Branch de trabalho: `codex/refino-visual-inventario`.
+
+O fluxo de inventário recebeu refinamento responsivo para mobile, tablet e desktop, com referência SAP posicionada antes do primeiro lançamento, painel único para sincronização/análise/finalização, estados de carregamento e feedback de salvamento, tela segura para inventário indisponível e cobertura visual operacional. IndexedDB, contratos de API, autenticação, sincronização, finalização irreversível e exportações foram preservados.
+
+### Gates locais desta rodada
+
+- ESLint: aprovado.
+- TypeScript: aprovado.
+- Vitest: `13 arquivos, 61 testes aprovados`.
+- Build de produção local com proxy da API: aprovado.
+- Playwright afetado: `5 cenários aprovados`.
+- Playwright completo: `8 cenários aprovados`, incluindo offline e 100 lançamentos/exportações.
+- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
+- Verificação manual em `pnpm start`: `/acesso` e rota de inventário indisponível sem erros ou avisos no console.
+- `git diff --check`: aprovado.
+
+### Estado e limitações
+
+- As alterações ainda não foram commitadas, integradas à `main`, enviadas ao remoto ou publicadas na Vercel.
+- Não houve alteração de backend; Render e Neon não foram modificados nesta rodada.
+- A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses gates.
+
 ## Entrega integrada — regra oficial de lotes e importação SAP
 
 Commit integrado: `cbc55dd` na `main`.

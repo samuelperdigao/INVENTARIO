@@ -25,6 +25,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
   const [duplicates, setDuplicates] = useState<InventoryEntry[]>([]);
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<string>();
   const [referenceFeedback, setReferenceFeedback] = useState<ReferenceFeedback>();
   const lotInputRef = useRef<HTMLInputElement>(null);
   const referenceRequestRef = useRef(0);
@@ -77,6 +78,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
     try {
       await onSave(draft, editing?.id, allowDuplicate);
       setDuplicates([]);
+      setFeedback(editing ? "Registro atualizado." : "Registro adicionado. Próximo lote.");
       setLot("");
       setQuantity("");
       referenceRequestRef.current += 1;
@@ -85,6 +87,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
     } catch (cause) {
       if (cause instanceof DuplicateLotError) {
         setDuplicates(cause.duplicates);
+        setFeedback(undefined);
         return;
       }
       const message = cause instanceof Error ? cause.message : "Falha de armazenamento.";
@@ -183,7 +186,8 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
         {referenceFeedback === "found" ? <p className="reference-feedback found" role="status">✓ Lote previsto na referência SAP.</p> : null}
         {referenceFeedback === "outside" ? <p className="reference-feedback outside" role="status">Este lote não consta na referência SAP. O lançamento continua liberado.</p> : null}
         {error && <p className="error" role="alert">{error}</p>}
-        <button className="primary" type="submit" disabled={saving}>{saving ? "Salvando…" : editing ? "Salvar alterações" : "Adicionar"}</button>
+        {feedback ? <p className="success-feedback" role="status">{feedback}</p> : null}
+        <button className="primary entry-form-submit" type="submit" disabled={saving} aria-label={editing ? "Salvar alterações" : "Adicionar"}>{saving ? "Salvando…" : editing ? "Salvar alterações" : "Adicionar registro"}</button>
       </form>
 
       {duplicates.length > 0 && (

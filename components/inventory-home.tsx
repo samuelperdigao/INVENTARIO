@@ -74,7 +74,7 @@ export function InventoryHome() {
     router.replace("/acesso");
   }
 
-  if (loading || !user) return <main className="shell"><p className="muted">Carregando seu painel…</p></main>;
+  if (loading || !user) return <main className="shell"><div className="dashboard-loading" role="status" aria-label="Carregando seu painel"><span /><span /><span /></div></main>;
 
   return (
     <main className={`shell dashboard-shell ${styles.dashboardShell}`}>
@@ -127,7 +127,7 @@ export function InventoryHome() {
           <section className="card section-card panel-card stack" id="participar" aria-labelledby="join-title">
             <div className="panel-heading"><span className="panel-index" aria-hidden="true">06</span><div className="panel-copy"><p className="eyebrow">Trabalho em equipe</p><h2 id="join-title">Participar de inventário</h2><p className="muted">Digite somente o código exibido no dispositivo que iniciou a conferência.</p></div></div>
             <form className="stack" onSubmit={(event) => void handleJoin(event)}><label>Código de participação<input className="code-input" value={participationCode} onChange={(event) => setParticipationCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required placeholder="000000" /></label><button className="primary" type="submit" disabled={joining || participationCode.length !== 6}>{joining ? "Entrando…" : "Participar agora"}</button></form>
-            <p className="security-note">O código identifica o inventário aberto. A segurança continua vinculada à sua conta e a um token interno protegido.</p>
+            <p className="security-note">O código identifica o inventário aberto. O acesso continua protegido pela sua conta.</p>
           </section>
 
         <section className="card section-card stack" aria-labelledby="guide-title"><div><p className="eyebrow">Guia rápido</p><h2 id="guide-title">Fluxo do inventário</h2></div><ol className="guide-list"><li><span>1</span><div><strong>Lance os registros</strong><small>Informe lado, vão, lote e quantidade.</small></div></li><li><span>2</span><div><strong>Sincronize a equipe</strong><small>Compartilhe o código de seis números.</small></div></li><li><span>3</span><div><strong>Confira a análise</strong><small>Revise os lotes para conferência.</small></div></li><li><span>4</span><div><strong>Finalize e compartilhe</strong><small>Gere PDF, Excel ou Word.</small></div></li></ol></section>

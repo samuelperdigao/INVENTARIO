@@ -11,7 +11,13 @@ function conflictLabel(conflict: SyncConflict): string {
   return "lot" in record ? `registro do lote ${record.lot}` : "registro";
 }
 
-export function SyncPanel({ inventory, onSynced }: { inventory: Inventory; onSynced: () => Promise<void> }) {
+interface SyncPanelProps {
+  inventory: Inventory;
+  onSynced: () => Promise<void>;
+  embedded?: boolean;
+}
+
+export function SyncPanel({ inventory, onSynced, embedded = false }: SyncPanelProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string>();
   const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
@@ -68,24 +74,24 @@ export function SyncPanel({ inventory, onSynced }: { inventory: Inventory; onSyn
   }
 
   return (
-    <section className="card section-card panel-card stack" aria-label="Sincronização">
-      <div className="section-header">
+    <section className={embedded ? "control-stage-content stack" : "card section-card panel-card stack"} aria-label="Sincronização">
+      {!embedded ? <div className="section-header">
         <div className="panel-heading">
           <span className="panel-index" aria-hidden="true">03</span>
           <div className="panel-copy">
-            <p className="eyebrow">Proteção central</p>
+            <p className="eyebrow">Sincronização</p>
             <h2>Sincronização</h2>
-            <p className="muted">{inventory.syncStatus === "SYNCED" ? "Todos os dados locais conhecidos estão sincronizados." : "Há alterações locais pendentes de envio ao servidor."}</p>
+            <p className="muted">{inventory.syncStatus === "SYNCED" ? "Os lançamentos deste dispositivo estão em dia." : "Há lançamentos locais aguardando envio."}</p>
           </div>
         </div>
         <span className={`micro-pill ${inventory.syncStatus === "SYNCED" ? "good" : ""}`}>{inventory.syncStatus === "SYNCED" ? "Em dia" : "Pendente"}</span>
-      </div>
+      </div> : <p className="muted">Envie os lançamentos preservados neste dispositivo quando houver conexão.</p>}
 
-      <button className="secondary" type="button" onClick={() => void handleSync()} disabled={loading}>{loading ? "Sincronizando…" : "Sincronizar agora"}</button>
+      <button className="secondary" type="button" onClick={() => void handleSync()} disabled={loading} aria-busy={loading}>{loading ? "Sincronizando…" : "Sincronizar agora"}</button>
       {message ? <p className={message.startsWith("Sincronização") ? "notice" : "error"} role="status">{message}</p> : null}
 
       {inventory.status === "OPEN" ? <div className="participation-box">
-        <div><p className="eyebrow">Código de participação</p><strong className="participation-code">{inventory.participationCode ?? "Sincronize para gerar"}</strong><p className="muted">Compartilhe apenas estes seis números. IDs e tokens técnicos permanecem protegidos internamente.</p></div>
+        <div><p className="eyebrow">Código de participação</p><strong className="participation-code">{inventory.participationCode ?? "Sincronize para gerar"}</strong><p className="muted">Compartilhe apenas o código de 6 números.</p></div>
         {inventory.participationCode ? <button className="secondary" type="button" onClick={() => void copyCode()}>{copied ? "Copiado" : "Copiar código"}</button> : null}
       </div> : null}
 

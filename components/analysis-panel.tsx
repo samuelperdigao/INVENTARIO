@@ -8,14 +8,22 @@ import type { AnalysisReport, Inventory, InventoryEntry } from "@/lib/models";
 interface AnalysisPanelProps {
   inventory: Inventory;
   entries: InventoryEntry[];
+  embedded?: boolean;
+  onStateChange?: (state: AnalysisState) => void;
 }
 
-export function AnalysisPanel({ inventory, entries }: AnalysisPanelProps) {
+export type AnalysisState = "idle" | "loading" | "ready" | "attention";
+
+export function AnalysisPanel({ inventory, entries, embedded = false, onStateChange }: AnalysisPanelProps) {
   const [report, setReport] = useState<AnalysisReport>();
   const [fromCache, setFromCache] = useState(false);
   const [possiblyStale, setPossiblyStale] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string>();
+
+  useEffect(() => {
+    onStateChange?.(loading ? "loading" : report ? possiblyStale ? "attention" : "ready" : "idle");
+  }, [loading, onStateChange, possiblyStale, report]);
 
   useEffect(() => {
     let active = true;
@@ -55,8 +63,8 @@ export function AnalysisPanel({ inventory, entries }: AnalysisPanelProps) {
   }
 
   return (
-    <section className="card section-card panel-card stack" aria-label="Análise">
-      <div className="section-header">
+    <section className={embedded ? "control-stage-content stack" : "card section-card panel-card stack"} aria-label="Análise">
+      {!embedded ? <div className="section-header">
         <div className="panel-heading">
           <span className="panel-index" aria-hidden="true">04</span>
           <div className="panel-copy">
@@ -66,10 +74,10 @@ export function AnalysisPanel({ inventory, entries }: AnalysisPanelProps) {
           </div>
         </div>
         <button className="secondary" type="button" onClick={() => void handleAnalysis()} disabled={loading}>{loading ? "Analisando…" : "Atualizar análise"}</button>
-      </div>
+      </div> : <div className="control-stage-inline-action"><p className="muted">Atualize a análise online para revisar os lotes que precisam de conferência física.</p><button className="secondary" type="button" onClick={() => void handleAnalysis()} disabled={loading} aria-busy={loading}>{loading ? "Analisando…" : "Atualizar análise"}</button></div>}
       {fromCache && report ? <p className="notice">Resultado em cache{possiblyStale ? ", possivelmente desatualizado" : ""}.</p> : null}
       {message && !fromCache ? <p className="error" role="alert">{message}</p> : null}
-      {!report ? <p className="muted">A análise nova exige conexão com o serviço FastAPI. Os lançamentos locais continuam disponíveis sem rede.</p> : null}
+      {!report ? <p className="muted">Conecte-se à internet para atualizar a análise. Os lançamentos locais continuam disponíveis sem internet.</p> : null}
       {report ? <>
         <div className="inventory-card-meta">
           <span className="micro-pill good">{report.summary.lotsOk ?? report.summary.regularLots} lote(s) OK</span>

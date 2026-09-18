@@ -4,7 +4,7 @@ Atualizado em 18/09/2026.
 
 ## Entrega em integração — identidade visual transversal
 
-Commit de trabalho: `caabac0 feat: unificar identidade visual do aplicativo`.
+Commits integrados: `caabac0 feat: unificar identidade visual do aplicativo` e `bc46847 docs: registrar identidade visual transversal`.
 
 A direção visual premium agora é compartilhada pelo aplicativo inteiro: dashboard, equipe, histórico, detalhe de relatório e acesso usam o mesmo rail de navegação, tokens navy/ciano, textura de grid, superfícies elevadas, gradientes, estados de foco e tratamento responsivo. O fluxo de inventário mantém o rail específico de cinco etapas por ser uma tela operacional mais profunda, mas passa a compartilhar a mesma identidade, cores, elevação e linguagem visual.
 
@@ -21,9 +21,11 @@ A direção visual premium agora é compartilhada pelo aplicativo inteiro: dashb
 - `git diff --check`: aprovado.
 - Conferência manual local: dashboard, equipe e histórico sem overflow no viewport móvel; rail comum, hero, cartões, estados e CTAs presentes.
 
-### Publicação pendente
+### Publicação confirmada
 
-O commit ainda precisa ser integrado à `main`, enviado para `origin/main` e confirmado na Vercel. A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses dispositivos.
+`main` e `origin/main` estão alinhadas em `bc46847`. A Vercel respondeu HTTP 200 e o CSS público contém `app-rail-kicker`, `app-page-shell`, `control-navy` e `metric-card--records`. O dashboard e o histórico foram conferidos visualmente no domínio público. O proxy `/backend-api/healthz` da Vercel e `https://inventory-api-6o8h.onrender.com/healthz` responderam `{"status":"ok"}`.
+
+A validação física em Android real e iPhone/Safari continua pendente; Chromium local e navegador desktop não substituem esses dispositivos.
 
 ## Entrega integrada — terceira passada visual premium
 

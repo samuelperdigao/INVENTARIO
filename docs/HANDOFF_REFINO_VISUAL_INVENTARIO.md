@@ -2,8 +2,8 @@
 
 Atualizado em: 18/09/2026  
 Checkout: `C:\Projetos\INVENTARIO`  
-Branch de trabalho: `codex/unificar-identidade-visual`  
-Commit desta passada: `caabac0 feat: unificar identidade visual do aplicativo`  
+Branch final: `main`  
+Commits desta passada: `caabac0 feat: unificar identidade visual do aplicativo` e `bc46847 docs: registrar identidade visual transversal`  
 Base: `ac95ae5 feat: reforcar microinteracoes visuais do inventario`
 
 ## Quarta passada — identidade visual transversal
@@ -28,9 +28,11 @@ O refinamento premium deixou de ficar restrito à tela operacional e passou a se
 - `git diff --check`: aprovado.
 - Conferência manual local: dashboard, equipe e histórico visíveis com o rail comum e sem overflow no viewport móvel; inventário operacional preservado.
 
-### Próximo passo de publicação
+### Publicação confirmada
 
-Integrar o commit na `main`, fazer push sem force push, aguardar a Vercel e confirmar o CSS público e os health checks. A validação física em Android real e iPhone/Safari continua pendente.
+O commit foi integrado por fast-forward à `main` e enviado para `origin/main`. A Vercel respondeu HTTP 200; o CSS público contém `app-rail-kicker`, `app-page-shell`, `control-navy` e `metric-card--records`. Dashboard e histórico foram conferidos no domínio público. O proxy `/backend-api/healthz` da Vercel e `https://inventory-api-6o8h.onrender.com/healthz` responderam `{"status":"ok"}`.
+
+A validação física em Android real e iPhone/Safari continua pendente; Chromium local e navegador desktop não substituem esses dispositivos.
 
 ## Objetivo da tarefa
 

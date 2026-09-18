@@ -972,3 +972,291 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 @media (prefers-reduced-motion: reduce) {
   .entry-row-highlighted, .loading-skeleton span, .history-skeleton span, .dashboard-loading span { animation: none; }
 }
+
+/* Polimento visual da operação: movimento curto, hierarquia clara e feedback imediato. */
+.inventory-shell {
+  --inventory-ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+.inventory-shell .inventory-rail {
+  isolation: isolate;
+  animation: inventory-rail-enter 480ms var(--inventory-ease) both;
+}
+.inventory-rail-steps { position: relative; }
+.inventory-rail-step {
+  position: relative;
+  z-index: 1;
+  border: 1px solid transparent;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+.inventory-rail-step:not(.active):hover {
+  border-color: #d8e8f8;
+  background: rgba(255, 255, 255, .72);
+  transform: translateX(2px);
+}
+.inventory-rail-step.active {
+  border-color: #bcd8f7;
+  box-shadow: inset 3px 0 0 var(--blue-600), 0 7px 16px rgba(23, 105, 224, .08);
+  transform: translateX(2px);
+}
+.inventory-rail-step.active > b {
+  box-shadow: 0 0 0 5px rgba(35, 129, 246, .12), 0 5px 12px rgba(23, 105, 224, .2);
+  animation: inventory-step-pop 520ms var(--inventory-ease) 360ms both;
+}
+.inventory-rail-foot { animation: inventory-fade-in 420ms ease 520ms both; }
+
+.inventory-shell .inventory-header {
+  isolation: isolate;
+  animation: inventory-surface-enter 520ms var(--inventory-ease) 60ms both;
+}
+.inventory-header::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: -45% -20%;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 40%, rgba(115, 188, 255, .18) 49%, rgba(255, 255, 255, .46) 52%, transparent 62%);
+  transform: translateX(-72%) rotate(8deg);
+  animation: inventory-header-sheen 1500ms ease-out 520ms both;
+}
+.inventory-header .status-pill {
+  position: relative;
+  overflow: hidden;
+  padding-left: 27px;
+  box-shadow: 0 5px 14px rgba(23, 105, 224, .08);
+}
+.inventory-header .status-pill::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blue-600);
+  box-shadow: 0 0 0 4px rgba(35, 129, 246, .12);
+  animation: inventory-status-breathe 2400ms ease-in-out infinite;
+}
+
+.inventory-shell .metric-grid {
+  animation: inventory-surface-enter 480ms var(--inventory-ease) 130ms both;
+}
+.inventory-shell .metric-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 180ms var(--inventory-ease), border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+.inventory-shell .metric-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 16px;
+  width: 40px;
+  height: 3px;
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(90deg, var(--blue-600), #85c6ff);
+  opacity: .82;
+}
+.inventory-shell .metric-card:hover {
+  border-color: #b8d5f5;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 12px 24px rgba(24, 68, 129, .09);
+  transform: translateY(-3px);
+}
+.inventory-shell .metric-card:hover .metric-value { color: var(--blue-700); }
+
+.inventory-shell .inventory-content > .stack > .reference-panel {
+  animation: inventory-surface-enter 480ms var(--inventory-ease) 200ms both;
+}
+.inventory-shell .inventory-content > .stack > .entry-workspace {
+  animation: inventory-surface-enter 480ms var(--inventory-ease) 255ms both;
+}
+.inventory-shell .inventory-content > .stack > .inventory-control-panel {
+  animation: inventory-surface-enter 480ms var(--inventory-ease) 310ms both;
+}
+.inventory-shell .entry-row {
+  animation-name: inventory-row-enter;
+  animation-duration: 420ms;
+  animation-timing-function: var(--inventory-ease);
+}
+.inventory-shell .entry-row:nth-child(2) { animation-delay: 55ms; }
+.inventory-shell .entry-row:nth-child(3) { animation-delay: 95ms; }
+.inventory-shell .entry-row:nth-child(4) { animation-delay: 135ms; }
+.inventory-shell .entry-row:nth-child(5) { animation-delay: 175ms; }
+.inventory-shell .entry-row:nth-child(6) { animation-delay: 215ms; }
+
+.inventory-control-panel {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.inventory-control-panel::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 18px;
+  left: 18px;
+  height: 2px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(90deg, transparent, #8bc5ff 24%, var(--blue-600) 50%, #8bc5ff 76%, transparent);
+  opacity: .78;
+}
+.inventory-control-panel::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: -120px;
+  right: -110px;
+  width: 260px;
+  height: 260px;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(35, 129, 246, .14), transparent 68%);
+  animation: inventory-orb-breathe 4200ms ease-in-out infinite;
+}
+.inventory-control-panel > * { position: relative; z-index: 1; }
+.control-panel-hint {
+  position: relative;
+  overflow: hidden;
+}
+.control-panel-hint::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .78) 50%, transparent 70%);
+  transform: translateX(-130%);
+  animation: inventory-hint-sheen 1200ms ease-out 760ms both;
+}
+.control-stage-details {
+  transition: transform 180ms var(--inventory-ease), border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+.control-stage-details[open] { transform: translateY(-1px); }
+.control-stage-summary {
+  transition: background 180ms ease, padding 180ms ease;
+}
+.control-stage-summary:hover { background: #f7fbff; }
+.control-stage-summary::after {
+  transition: transform 180ms var(--inventory-ease), background 180ms ease, color 180ms ease;
+}
+.control-stage-details[open] .control-stage-summary::after {
+  background: #ddecff;
+  transform: rotate(180deg);
+}
+.control-stage-index {
+  transition: transform 180ms var(--inventory-ease), box-shadow 180ms ease, background 180ms ease;
+}
+.control-stage-details[open] .control-stage-index {
+  box-shadow: 0 0 0 5px rgba(35, 129, 246, .09);
+  animation: inventory-step-pop 520ms var(--inventory-ease) 470ms both;
+}
+.control-stage-content {
+  transform-origin: top center;
+}
+.control-stage-details[open] .control-stage-content {
+  animation: inventory-stage-reveal 300ms var(--inventory-ease) both;
+}
+.stage-state {
+  gap: 6px;
+}
+.stage-state::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #8aa0b8;
+}
+.stage-state.good::before {
+  background: #20a657;
+  box-shadow: 0 0 0 3px rgba(32, 166, 87, .12);
+}
+.stage-state.attention::before {
+  background: #d49318;
+  box-shadow: 0 0 0 3px rgba(212, 147, 24, .13);
+}
+.control-stage-details[open] .stage-state::before { animation: inventory-status-breathe 2400ms ease-in-out 900ms infinite; }
+
+@keyframes inventory-rail-enter {
+  from { opacity: 0; transform: translateX(-14px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes inventory-surface-enter {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes inventory-row-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes inventory-stage-reveal {
+  from { opacity: 0; transform: translateY(-7px) scaleY(.985); }
+  to { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+@keyframes inventory-step-pop {
+  0% { transform: scale(.82); }
+  65% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes inventory-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes inventory-header-sheen {
+  from { transform: translateX(-72%) rotate(8deg); }
+  to { transform: translateX(72%) rotate(8deg); }
+}
+@keyframes inventory-hint-sheen {
+  from { transform: translateX(-130%); }
+  to { transform: translateX(130%); }
+}
+@keyframes inventory-status-breathe {
+  0%, 100% { opacity: .72; transform: scale(.9); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+@keyframes inventory-orb-breathe {
+  0%, 100% { opacity: .64; transform: scale(.94); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@media (min-width: 1180px) {
+  .inventory-rail-steps::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    top: 21px;
+    bottom: 21px;
+    left: 19px;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, #c7ddf5 12%, #c7ddf5 88%, transparent);
+  }
+}
+
+@media (max-width: 639px) {
+  .inventory-shell .inventory-rail-step.active { transform: none; }
+  .inventory-shell .metric-card:hover { transform: none; }
+  .inventory-header .status-pill { align-self: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inventory-shell .inventory-rail,
+  .inventory-shell .inventory-header,
+  .inventory-shell .metric-grid,
+  .inventory-shell .reference-panel,
+  .inventory-shell .entry-workspace,
+  .inventory-shell .inventory-control-panel,
+  .inventory-shell .entry-row,
+  .inventory-shell .inventory-rail-foot,
+  .inventory-header::before,
+  .inventory-header .status-pill::before,
+  .inventory-control-panel::after,
+  .control-panel-hint::after,
+  .inventory-rail-step.active > b,
+  .control-stage-details[open] .control-stage-index,
+  .control-stage-details[open] .control-stage-content,
+  .control-stage-details[open] .stage-state::before {
+    animation: none !important;
+  }
+  .inventory-shell .inventory-rail-step.active,
+  .control-stage-details[open] { transform: none; }
+}

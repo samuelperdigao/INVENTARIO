@@ -1,10 +1,10 @@
 # Handoff técnico — refinamento visual do INVENTARIO
 
-Atualizado em: 17/09/2026  
+Atualizado em: 18/09/2026  
 Checkout: `C:\Projetos\INVENTARIO`  
 Branch final: `main`  
-Commit integrado: `0a5a5db feat: refinar interface operacional do inventario`  
-Base: `409ed5d docs: confirmar deploy funcional do Render`
+Commit integrado: `ac95ae5 feat: reforcar microinteracoes visuais do inventario`  
+Base: `1475edc docs: registrar publicacao do refinamento visual`
 
 ## Objetivo da tarefa
 
@@ -56,6 +56,13 @@ O checkout estava limpo após o push. Não há alterações de backend nesta rod
   - painel único de controle;
   - estados de loading, sucesso, atenção e erro;
   - redução de movimento e prevenção de overflow horizontal.
+- Segunda passada em `app/globals.css`:
+  - entrada escalonada do rail, cabeçalho, resumo, referência, lançamento e controle;
+  - rail com etapa ativa, linha de progresso e destaque de hover;
+  - cartões de resumo com barras de acento e elevação;
+  - cabeçalho com brilho de entrada e indicador de status;
+  - painéis 03/04/05 com revelação de conteúdo, estado pontuado e microinterações acessíveis;
+  - preferência `prefers-reduced-motion` preservada, mantendo o reforço visual estático quando o movimento é reduzido.
 - `e2e/visual-operational.spec.ts`: validação nos viewports 390, 430, 768, 1024, 1366, 1440 e 1920px, incluindo overflow, ordem SAP, rail, colunas, CTA, três etapas de controle e remoção de linguagem técnica.
 - `e2e/sync.spec.ts`: expectativa ajustada para não conflitar com o novo `role="status"` do feedback de salvamento.
 
@@ -70,7 +77,7 @@ O checkout estava limpo após o push. Não há alterações de backend nesta rod
 - Playwright completo: `8` cenários aprovados, incluindo offline, sincronização, histórico móvel, visual responsivo e 100 lançamentos/exportações.
 - Pytest: `56` testes aprovados, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
 - Verificação manual via navegador local em `/acesso` e rota de inventário indisponível: layout e console sem erros ou avisos.
-- Smoke público: frontend Vercel HTTP 200; rewrite `/backend-api/healthz` e API Render responderam `{"status":"ok"}`.
+- Smoke público: frontend Vercel HTTP 200; CSS público contém as animações da segunda passada; rewrite `/backend-api/healthz` e API Render responderam `{"status":"ok"}`.
 
 ## Pendências e limites reais
 

@@ -1,6 +1,6 @@
 # Status do projeto
 
-Atualizado em 17/09/2026.
+Atualizado em 18/09/2026.
 
 ## Entrega integrada — refinamento visual operacional
 
@@ -26,6 +26,30 @@ O fluxo de inventário recebeu refinamento responsivo para mobile, tablet e desk
 - A rewrite `/backend-api/healthz` e a API pública no Render responderam `{"status":"ok"}`.
 - Não houve alteração de backend; Render e Neon não foram modificados nesta rodada.
 - A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses gates.
+
+## Entrega integrada — segunda passada visual e microinterações
+
+Commit integrado: `ac95ae5` na `main` e enviado para `origin/main`.
+
+A tela operacional recebeu uma segunda camada visual, sem mudança de fluxo ou contrato: entrada escalonada dos blocos, etapa ativa mais evidente, linha de progresso no rail, barras de acento nos indicadores, estados com pontos de status, abertura animada dos painéis de controle, elevação nos cartões e brilho pontual no cabeçalho. A animação continua condicionada à preferência do navegador; `prefers-reduced-motion: reduce` desliga o movimento e mantém os sinais visuais estáticos.
+
+### Gates locais desta rodada
+
+- ESLint: aprovado.
+- TypeScript: aprovado.
+- Vitest: `13 arquivos, 61 testes aprovados`.
+- Build de produção local com proxy da API: aprovado.
+- Playwright afetado: `5 cenários aprovados`.
+- Playwright completo: `8 cenários aprovados`.
+- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
+- `git diff --check`: aprovado.
+- Verificação visual no navegador local e no site público: rail, painel único, acentos de cartão e indicadores de status presentes; o navegador usado na conferência sinalizou movimento reduzido.
+
+### Publicação e limites
+
+- O CSS público da Vercel contém `inventory-rail-enter`, `inventory-header-sheen` e `inventory-stage-reveal`.
+- O frontend público respondeu e exibiu a nova camada visual no inventário aberto; Render e Neon não foram alterados nesta rodada.
+- A validação física em Android real e iPhone/Safari continua pendente; Chromium local e navegador desktop não substituem esses gates.
 
 ## Entrega integrada — regra oficial de lotes e importação SAP
 

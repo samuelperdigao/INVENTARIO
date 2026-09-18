@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 import styles from "@/components/confirm-dialog.module.css";
 
@@ -73,9 +74,9 @@ export function ConfirmDialog({
     };
   }, [open]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div className={styles.backdrop} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
       <section
         ref={dialogRef}
@@ -86,14 +87,17 @@ export function ConfirmDialog({
         aria-describedby="confirm-dialog-description"
         aria-busy={busy}
       >
-        <span className={styles.icon} aria-hidden="true">{variant === "danger" ? "!" : "✓"}</span>
-        <h2 id="confirm-dialog-title">{title}</h2>
-        <p id="confirm-dialog-description" className={styles.description}>{description}</p>
+        <div className={styles.content}>
+          <span className={styles.icon} aria-hidden="true">{variant === "danger" ? "!" : "✓"}</span>
+          <h2 id="confirm-dialog-title">{title}</h2>
+          <p id="confirm-dialog-description" className={styles.description}>{description}</p>
+        </div>
         <div className={styles.actions}>
           <button ref={cancelRef} className="secondary" type="button" disabled={busy} onClick={onClose}>{cancelLabel}</button>
           <button className={variant === "danger" ? "danger" : "primary"} type="button" disabled={busy} onClick={onConfirm}>{busy ? (busyLabel ?? "Processando…") : confirmLabel}</button>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }

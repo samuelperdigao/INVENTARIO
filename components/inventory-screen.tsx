@@ -122,17 +122,19 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
     <main className="shell inventory-shell">
       <aside className="inventory-rail" aria-label="Etapas do inventário">
         <Link className="brand-link" href="/dashboard" aria-label="INVENTÁRIO, painel"><BrandLogo compact subtitle="Beam Blanks e Blocos" /></Link>
+        <p className="inventory-rail-kicker">Operação de campo</p>
         <p className="inventory-rail-label"><span>Inventário ativo</span><span className="inventory-current-step">Etapa atual: {currentStep}</span></p>
         <nav className="inventory-rail-steps">
            {workflowSteps.map(([number, label, description]) => <span className={`inventory-rail-step ${label === currentStep ? "active" : ""}`} key={number}><b>{number}</b><span><strong>{label}</strong><small>{description}</small></span></span>)}
         </nav>
-        <p className="inventory-rail-foot"><Icon name="cloud" size={14} /> Salvo localmente</p>
+        <p className="inventory-rail-foot"><span className="inventory-rail-foot-icon"><Icon name="cloud" size={15} /></span><span><strong>Local ativo</strong><small>Salvo neste dispositivo</small></span></p>
       </aside>
       <div className="inventory-content">
       <header className="inventory-header">
         <div className="inventory-header-row">
           <div className="inventory-header-copy">
             <Link className="back-link" href="/dashboard">‹ Painel</Link>
+            <div className="inventory-header-topline"><span className="inventory-header-topline-dot" aria-hidden="true" /> <span>Coleta em andamento</span><i aria-hidden="true">/</i><span>{entries.length ? `${entries.length} registro(s) capturado(s)` : "Aguardando primeiro lançamento"}</span></div>
             <p className="eyebrow">Inventário em operação</p>
             <h1>Inventário {formatBrazilianDate(inventory.date)}</h1>
              <p className="muted">Registros físicos ficam salvos neste dispositivo e seguem disponíveis sem internet.</p>
@@ -142,10 +144,10 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       </header>
 
       <section className="metric-grid" aria-label="Resumo do inventário">
-        <div className="metric-card"><span className="metric-label">Registros</span><span className="metric-value">{entries.length}</span></div>
-        <div className="metric-card"><span className="metric-label">Lotes</span><span className="metric-value">{distinctLots}</span></div>
-        <div className="metric-card"><span className="metric-label">Peças lançadas</span><span className="metric-value">{totalPieces}</span></div>
-        <div className="metric-card"><span className="metric-label">Situação</span><span className="metric-value">{inventory.status === "FINISHED" ? "Finalizado" : "Em andamento"}</span></div>
+        <div className="metric-card metric-card--records"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="boxes" size={18} /></span><span className="metric-card-kicker">Coleta</span></div><div className="metric-card-copy"><span className="metric-label">Registros</span><span className="metric-value">{entries.length}</span></div></div>
+        <div className="metric-card metric-card--lots"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="file" size={18} /></span><span className="metric-card-kicker">Rastreio</span></div><div className="metric-card-copy"><span className="metric-label">Lotes</span><span className="metric-value">{distinctLots}</span></div></div>
+        <div className="metric-card metric-card--pieces"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="chart" size={18} /></span><span className="metric-card-kicker">Volume</span></div><div className="metric-card-copy"><span className="metric-label">Peças lançadas</span><span className="metric-value">{totalPieces}</span></div></div>
+        <div className="metric-card metric-card--status"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="check" size={18} /></span><span className="metric-card-kicker">Estado</span></div><div className="metric-card-copy"><span className="metric-label">Situação</span><span className="metric-value">{inventory.status === "FINISHED" ? "Finalizado" : "Em andamento"}</span></div></div>
       </section>
 
       {error && <p className="error" role="alert">{error}</p>}

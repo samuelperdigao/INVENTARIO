@@ -69,6 +69,47 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
   }
 });
 
+test("mantém todas as ações do diálogo de finalização dentro do viewport mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 520 });
+  const { ownerEmail } = seedUsers("mobile-finalization-dialog");
+  await login(page, ownerEmail);
+  await page.getByRole("button", { name: /Iniciar novo inventário/ }).click();
+
+  const trigger = page.getByRole("button", { name: "Finalizar inventário", exact: true });
+  await trigger.scrollIntoViewIfNeeded();
+  await trigger.click();
+
+  const dialog = page.getByRole("dialog", { name: "Finalizar inventário?" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Cancelar", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Finalizar inventário", exact: true })).toBeVisible();
+
+  const layout = await dialog.evaluate((node) => {
+    const dialogRect = node.getBoundingClientRect();
+    const buttons = [...node.querySelectorAll<HTMLButtonElement>("button")].map((button) => {
+      const rect = button.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom };
+    });
+
+    return {
+      viewportHeight: window.innerHeight,
+      portalMountedOnBody: node.parentElement?.parentElement === document.body,
+      dialogTop: dialogRect.top,
+      dialogBottom: dialogRect.bottom,
+      buttons,
+    };
+  });
+
+  expect(layout.portalMountedOnBody).toBe(true);
+  expect(layout.dialogTop).toBeGreaterThanOrEqual(0);
+  expect(layout.dialogBottom).toBeLessThanOrEqual(layout.viewportHeight + 1);
+  expect(layout.buttons).toHaveLength(2);
+  for (const button of layout.buttons) {
+    expect(button.top).toBeGreaterThanOrEqual(0);
+    expect(button.bottom).toBeLessThanOrEqual(layout.viewportHeight + 1);
+  }
+});
+
 test("mostra a tela segura quando o inventário não está no dispositivo", async ({ page }) => {
   await page.goto("/inventarios/00000000-0000-7000-8000-000000000000");
 

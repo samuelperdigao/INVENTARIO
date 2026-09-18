@@ -5,19 +5,31 @@
   display: grid;
   place-items: center;
   padding: 20px;
+  overflow: hidden;
   background: rgb(5 19 42 / 66%);
   backdrop-filter: blur(7px);
   animation: dialog-backdrop-in 180ms ease both;
 }
 
 .dialog {
+  display: flex;
   width: min(100%, 438px);
+  max-height: calc(100dvh - 40px);
+  min-height: 0;
+  flex-direction: column;
   border: 1px solid rgb(194 216 243 / 82%);
   border-radius: 22px;
   background: #fff;
   box-shadow: 0 30px 80px rgb(3 20 47 / 35%);
   padding: 28px;
+  overflow: hidden;
   animation: dialog-in 210ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .icon {
@@ -36,14 +48,21 @@
 .danger .icon { background: #fff0ef; color: #c3342b; }
 .dialog h2 { margin: 0 0 8px; font-size: 1.35rem; }
 .description { margin: 0; color: var(--muted); line-height: 1.58; }
-.actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 26px; }
+.actions { display: flex; flex: 0 0 auto; justify-content: flex-end; gap: 10px; margin-top: 26px; }
 
 @keyframes dialog-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 @media (max-width: 480px) {
-  .backdrop { align-items: end; padding: 12px; }
-  .dialog { border-radius: 20px; padding: 23px 18px; }
+  .backdrop {
+    align-items: end;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  }
+  .dialog {
+    max-height: calc(100dvh - 24px - env(safe-area-inset-bottom));
+    border-radius: 20px;
+    padding: 23px 18px 18px;
+  }
   .actions { display: grid; grid-template-columns: 1fr; }
   .actions button { width: 100%; }
 }

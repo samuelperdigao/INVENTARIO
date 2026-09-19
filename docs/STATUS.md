@@ -4,6 +4,8 @@ Atualizado em 19/09/2026.
 
 ## Entrega em integração — sincronização silenciosa do inventário
 
+Commits integrados: `338f5e7`, `98427ba` e `f541bb1` em `main`/`origin/main`.
+
 A tela de inventário agora consulta o sync central em segundo plano a cada 10 segundos somente enquanto o inventário está aberto, visível e com conexão. O IndexedDB continua sendo a fonte imediata: lançar, editar e excluir concluem localmente antes de qualquer rede. O sync automático reaproveita uma única requisição em voo por inventário, só atualiza a tela quando há mudança real, preserva foco/rolagem/formulário e para ao sair da tela, ficar offline ou detectar finalização central.
 
 Respostas antigas não sobrescrevem lançamentos feitos durante a requisição. Quando o servidor finaliza enquanto ainda há dados locais pendentes, o dispositivo preserva esses dados, registra o conflito e mostra o inventário em modo somente leitura. O botão `Sincronizar agora` permanece disponível para diagnóstico e ação explícita.
@@ -18,6 +20,8 @@ Respostas antigas não sobrescrevem lançamentos feitos durante a requisição. 
 - Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
 - `git diff --check`: aprovado.
 - Verificação visual local: dashboard renderizado no navegador integrado, com conteúdo acessível e sem tela em branco ou overlay de erro visível.
+- Quality Gates do commit `f541bb1`: aprovado no GitHub Actions.
+- Production Smoke do commit `f541bb1`: aprovado no GitHub Actions.
 
 O servidor de teste do Playwright passou a compilar o frontend apontando para a API local antes de iniciar. Isso evita que a suíte use acidentalmente o proxy público do Render durante a validação local.
 
@@ -25,7 +29,11 @@ O servidor de teste do Playwright passou a compilar o frontend apontando para a 
 
 - A validação física em Android real e iPhone/Safari continua pendente; Chromium local e navegador desktop não substituem esses gates.
 - Concorrência de produção em PostgreSQL/Neon continua sem exercício físico nesta rodada; os testes backend seguem usando o ambiente local previsto.
-- A integração na `main`, push e confirmação dos endpoints públicos ocorrerão após a revisão final do branch.
+- `main` e `origin/main` estão alinhadas em `f541bb1`.
+- Frontend Vercel `/acesso`: HTTP 200.
+- Rewrite Vercel `/backend-api/healthz`: HTTP 200 com `{"status":"ok"}`.
+- API Render `/healthz`: HTTP 200 com `{"status":"ok"}`.
+- Não houve alteração de schema, Render ou Neon nesta rodada.
 
 ## Entrega em integração — identidade visual transversal
 

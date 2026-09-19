@@ -154,14 +154,12 @@ pnpm e2e
 
 O workflow `Quality Gates` executa os mesmos grupos em Pull Requests e na `main`. O workflow `Production Smoke` verifica as superfícies publicadas após mudanças na `main`.
 
-Para executar o E2E local depois de um build de produção, aponte a rewrite para
-a API local antes de construir:
+O comando E2E prepara automaticamente um build de teste com a rewrite apontando
+para a API local em `127.0.0.1:8000`; não é necessário alterar variáveis de
+ambiente ou reconstruir manualmente:
 
 ```powershell
-$env:BACKEND_PROXY_URL = "http://127.0.0.1:8000"
-pnpm build
 pnpm e2e
-Remove-Item Env:BACKEND_PROXY_URL
 ```
 
 ## Fontes de verdade

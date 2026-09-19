@@ -1,6 +1,31 @@
 # Status do projeto
 
-Atualizado em 18/09/2026.
+Atualizado em 19/09/2026.
+
+## Entrega em integração — sincronização silenciosa do inventário
+
+A tela de inventário agora consulta o sync central em segundo plano a cada 10 segundos somente enquanto o inventário está aberto, visível e com conexão. O IndexedDB continua sendo a fonte imediata: lançar, editar e excluir concluem localmente antes de qualquer rede. O sync automático reaproveita uma única requisição em voo por inventário, só atualiza a tela quando há mudança real, preserva foco/rolagem/formulário e para ao sair da tela, ficar offline ou detectar finalização central.
+
+Respostas antigas não sobrescrevem lançamentos feitos durante a requisição. Quando o servidor finaliza enquanto ainda há dados locais pendentes, o dispositivo preserva esses dados, registra o conflito e mostra o inventário em modo somente leitura. O botão `Sincronizar agora` permanece disponível para diagnóstico e ação explícita.
+
+### Gates locais desta rodada
+
+- ESLint: aprovado.
+- TypeScript: aprovado.
+- Vitest: `14 arquivos, 67 testes aprovados`, incluindo polling, resposta repetida, chamadas concorrentes, edição durante requisição e finalização remota.
+- Build de produção: aprovado, incluindo o service worker.
+- Playwright completo: `9 cenários aprovados`, incluindo login local, operação offline, sincronização automática entre dois usuários, histórico móvel, finalização/exportações e 100 lançamentos.
+- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
+- `git diff --check`: aprovado.
+- Verificação visual local: dashboard renderizado no navegador integrado, com conteúdo acessível e sem tela em branco ou overlay de erro visível.
+
+O servidor de teste do Playwright passou a compilar o frontend apontando para a API local antes de iniciar. Isso evita que a suíte use acidentalmente o proxy público do Render durante a validação local.
+
+### Limitações e publicação
+
+- A validação física em Android real e iPhone/Safari continua pendente; Chromium local e navegador desktop não substituem esses gates.
+- Concorrência de produção em PostgreSQL/Neon continua sem exercício físico nesta rodada; os testes backend seguem usando o ambiente local previsto.
+- A integração na `main`, push e confirmação dos endpoints públicos ocorrerão após a revisão final do branch.
 
 ## Entrega em integração — identidade visual transversal
 

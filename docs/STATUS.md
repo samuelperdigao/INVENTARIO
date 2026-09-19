@@ -2,11 +2,11 @@
 
 Atualizado em 19/09/2026.
 
-## Entrega em preparação — inventário vazio e compartilhamento moderno
+## Entrega publicada — inventário vazio e compartilhamento moderno
 
-Branch: `feat/inventario-vazio-flexivel`, baseada em `7bb799f`. Esta entrega ainda
-não foi integrada à `main`, enviada ao repositório remoto ou publicada nos
-provedores.
+Commit integrado: `2766981` em `main` e `origin/main`. O push foi concluído e a
+Vercel publicou o frontend automaticamente; o smoke de produção confirmou as
+superfícies públicas da Vercel e do Render.
 
 Inventários sem lançamentos agora podem ser finalizados. O fluxo sincroniza
 antes da finalização, recarrega a revisão e o token locais atuais e bloqueia a
@@ -36,12 +36,17 @@ houve alteração de schema ou migration.
 - Chromium do Playwright: instalado/verificado.
 - Playwright completo: `9 cenários aprovados`, incluindo operação offline, sincronização, histórico móvel, finalização/exportações e 100 lançamentos.
 - `git diff --check`: aprovado após a atualização desta documentação e antes do commit.
+- Quality Gates do commit `2766981`: aprovado no GitHub Actions (`35470279570`).
+- Production Smoke do commit `2766981`: aprovado no GitHub Actions (`35470279619`).
 
-### Limitações e publicação
+### Publicação e limitações
 
 - A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses gates.
 - Concorrência de produção em PostgreSQL/Neon continua sem exercício físico nesta rodada.
-- Nenhum merge, push, deploy ou validação pública foi realizado nesta rodada.
+- Frontend Vercel `/` e `/acesso`: HTTP 200.
+- Rewrite Vercel `/backend-api/healthz`: HTTP 200 com `{"status":"ok"}`.
+- API Render `/healthz`: HTTP 200 com `{"status":"ok"}`.
+- O retry automático de exclusões pendentes enquanto o dashboard permanece aberto após o retorno da conexão continua como melhoria posterior.
 
 ## Entrega em integração — sincronização silenciosa do inventário
 

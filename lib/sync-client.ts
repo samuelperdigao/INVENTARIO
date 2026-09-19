@@ -299,7 +299,9 @@ async function applyResponse(
         received += 1;
         changed = true;
         remoteChanged = true;
-      } else if (!response.acknowledged.inventory && local.syncStatus === "SYNCED") {
+      } else if (response.acknowledged.inventory) {
+        // Acknowledgement belongs to the request snapshot; keep newer local data untouched.
+      } else if (local.syncStatus === "SYNCED") {
         const nextInventory = { ...remote, syncToken: local.syncToken || syncToken };
         if (inventoryStateKey(local) !== inventoryStateKey(nextInventory)) {
           await db.inventories.put(nextInventory);

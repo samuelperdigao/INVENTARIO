@@ -193,3 +193,5 @@ def test_report_email_uses_authenticated_recipient_and_selected_formats() -> Non
     delivered = development_outbox[-1]
     assert delivered.recipient == "relatorio@gerdau.com.br"
     assert delivered.attachment_names == ("Inventario_12-09-2026.pdf", "Inventario_12-09-2026.xlsx")
+    assert f"/api/v1/shared/exports/{inventory_id}/xlsx" in delivered.text
+    assert "signature=" in delivered.text

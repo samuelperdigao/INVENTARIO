@@ -21,6 +21,18 @@ export class DuplicateLotError extends Error {
   }
 }
 
+export class InventoryDeletionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InventoryDeletionError";
+  }
+}
+
+export interface InventoryDeletionSnapshot {
+  previous: Inventory;
+  tombstoned: Inventory;
+}
+
 export interface EntrySaveOptions {
   allowDuplicate?: boolean;
   createdByUserId?: string;
@@ -62,6 +74,7 @@ export async function createInventory(date = localDateIso()): Promise<Inventory>
     syncStatus: "PENDING",
     tombstone: false,
     syncToken: uuidv4(),
+    isOwner: true,
   };
   await db.inventories.add(inventory);
   return inventory;
@@ -201,11 +214,81 @@ export async function tombstoneEntry(entryId: string): Promise<void> {
   });
 }
 
+export async function tombstoneEmptyInventory(inventoryId: string): Promise<InventoryDeletionSnapshot> {
+  const now = timestamp();
+  let snapshot: InventoryDeletionSnapshot | undefined;
+  await db.transaction("rw", db.inventories, db.entries, async () => {
+    const inventory = await db.inventories.get(inventoryId);
+    if (!inventory || inventory.tombstone) throw new InventoryDeletionError("Inventário não encontrado.");
+    if (inventory.status !== "OPEN") throw new InventoryDeletionError("Inventário finalizado não pode ser excluído.");
+    const activeEntry = await db.entries
+      .where("inventoryId")
+      .equals(inventoryId)
+      .filter((entry) => !entry.tombstone)
+      .first();
+    if (activeEntry) throw new InventoryDeletionError("Exclua os lançamentos antes de excluir o inventário.");
+
+    const tombstoned: Inventory = {
+      ...inventory,
+      tombstone: true,
+      deletedAt: now,
+      updatedAt: now,
+      revision: inventory.revision + 1,
+      syncStatus: "PENDING",
+    };
+    await db.inventories.put(tombstoned);
+    snapshot = { previous: inventory, tombstoned };
+  });
+  if (!snapshot) throw new InventoryDeletionError("Inventário não encontrado.");
+  return snapshot;
+}
+
+export async function restoreInventoryAfterDeletionFailure(inventoryId: string): Promise<void> {
+  await db.transaction("rw", db.inventories, async () => {
+    const inventory = await db.inventories.get(inventoryId);
+    if (!inventory || !inventory.tombstone) return;
+    await db.inventories.put({
+      ...inventory,
+      tombstone: false,
+      deletedAt: undefined,
+      revision: Math.max(1, inventory.revision - 1),
+      syncStatus: "ERROR",
+      participationCode: inventory.participationCode,
+    });
+  });
+}
+
+export async function listPendingInventoryDeletions(): Promise<Inventory[]> {
+  return db.inventories.filter((inventory) => inventory.tombstone && inventory.syncStatus === "PENDING").toArray();
+}
+
+export async function purgeInventory(inventoryId: string): Promise<void> {
+  await db.transaction(
+    "rw",
+    db.entries,
+    db.analysisCache,
+    db.syncConflicts,
+    db.inventoryReferences,
+    db.referenceLots,
+    async () => {
+      await db.entries.where("inventoryId").equals(inventoryId).delete();
+      await db.analysisCache.where("inventoryId").equals(inventoryId).delete();
+      await db.syncConflicts.where("inventoryId").equals(inventoryId).delete();
+      await db.inventoryReferences.where("inventoryId").equals(inventoryId).delete();
+      await db.referenceLots.where("inventoryId").equals(inventoryId).delete();
+    },
+  );
+  await db.transaction("rw", db.inventories, db.syncMetadata, async () => {
+      await db.syncMetadata.delete(inventoryId);
+      await db.inventories.delete(inventoryId);
+  });
+}
+
 /** Compatibiliza inventários criados na Fase 1 antes da chave de sincronização. */
 export async function prepareInventoryForSync(inventoryId: string): Promise<Inventory> {
   return db.transaction("rw", db.inventories, async () => {
     const inventory = await db.inventories.get(inventoryId);
-    if (!inventory || inventory.tombstone) throw new Error("Inventário não encontrado.");
+    if (!inventory) throw new Error("Inventário não encontrado.");
     const prepared: Inventory = {
       ...inventory,
       syncToken: inventory.syncToken || uuidv4(),

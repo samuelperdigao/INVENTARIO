@@ -28,6 +28,8 @@ export interface Inventory extends LocalRecord {
   status: "OPEN" | "FINISHED";
   /** Segredo de capacidade local para acessar o inventário central. */
   syncToken: string;
+  /** Presente quando este dispositivo iniciou o inventário; o servidor continua sendo a autoridade. */
+  isOwner?: boolean;
   /** Código amigável de seis dígitos, emitido pelo servidor enquanto aberto. */
   participationCode?: string;
 }

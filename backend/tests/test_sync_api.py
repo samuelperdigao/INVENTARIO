@@ -261,3 +261,60 @@ def test_operator_can_sync_but_cannot_manage_members() -> None:
     assert synced.status_code == 200
     forbidden = client.post(f"/api/v1/teams/{team_id}/members", json={"email": "owner-operator@gerdau.com.br", "role": "OPERATOR"}, headers=operator_auth)
     assert forbidden.status_code == 403
+
+
+def test_owner_can_sync_deletion_of_empty_inventory_but_participant_cannot() -> None:
+    owner, owner_auth = register("empty-delete-owner@gerdau.com.br", "Equipe exclusao")
+    team_id = owner["user"]["teams"][0]["id"]
+    inventory_id, owner_token = str(uuid4()), str(uuid4())
+    created = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[]),
+        headers=sync_headers(owner_auth, owner_token),
+    )
+    assert created.status_code == 200
+
+    collaborator, collaborator_auth = register("empty-delete-collaborator@gerdau.com.br", "Equipe colaboradora")
+    joined = client.post("/api/v1/inventories/join", json={"code": created.json()["participationCode"]}, headers=collaborator_auth)
+    assert joined.status_code == 200
+    deletion = inventory(inventory_id, revision=2, base_revision=1)
+    deletion["tombstone"] = True
+    deletion["deletedAt"] = datetime.now(timezone.utc).isoformat()
+    denied = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, None, inventory_record=deletion, entries=[]),
+        headers=sync_headers(collaborator_auth, joined.json()["accessToken"]),
+    )
+    assert denied.status_code == 403
+
+    deleted = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, team_id, inventory_record=deletion, entries=[]),
+        headers=sync_headers(owner_auth, owner_token),
+    )
+    assert deleted.status_code == 200
+    assert deleted.json()["acknowledged"]["inventory"] is True
+    assert deleted.json()["inventory"]["tombstone"] is True
+    assert deleted.json()["participationCode"] is None
+
+
+def test_sync_rejects_deletion_when_central_inventory_has_active_entries() -> None:
+    owner, owner_auth = register("delete-with-entry@gerdau.com.br", "Equipe exclusao com item")
+    team_id = owner["user"]["teams"][0]["id"]
+    inventory_id, token = str(uuid4()), str(uuid4())
+    created = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, team_id, inventory_record=inventory(inventory_id), entries=[entry(inventory_id, str(uuid4()), "2815634434")]),
+        headers=sync_headers(owner_auth, token),
+    )
+    assert created.status_code == 200
+    deletion = inventory(inventory_id, revision=2, base_revision=1)
+    deletion["tombstone"] = True
+    deletion["deletedAt"] = datetime.now(timezone.utc).isoformat()
+
+    blocked = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, team_id, inventory_record=deletion, entries=[]),
+        headers=sync_headers(owner_auth, token),
+    )
+    assert blocked.status_code == 409

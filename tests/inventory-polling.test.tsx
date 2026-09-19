@@ -4,6 +4,8 @@ import { afterEach, expect, it, vi } from "vitest";
 import { InventoryScreen } from "@/components/inventory-screen";
 import { createInventory } from "@/lib/inventory-repository";
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
+
 const { syncInventoryMock, listSyncConflictsMock } = vi.hoisted(() => ({
   syncInventoryMock: vi.fn(),
   listSyncConflictsMock: vi.fn(),

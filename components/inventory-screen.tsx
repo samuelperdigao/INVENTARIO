@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -13,9 +14,9 @@ import { Icon } from "@/components/icon";
 import { getCurrentUser } from "@/lib/auth-client";
 import { findRemoteDuplicateLotEntries } from "@/lib/duplicate-client";
 import { formatBrazilianDate } from "@/lib/local-date";
-import { createEntry, DuplicateLotError, findDuplicateLotEntries, getInventory, listActiveEntries, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
+import { createEntry, DuplicateLotError, findDuplicateLotEntries, getInventory, listActiveEntries, purgeInventory, restoreInventoryAfterDeletionFailure, tombstoneEmptyInventory, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
 import type { EntryDraft, Inventory, InventoryEntry } from "@/lib/models";
-import { INVENTORY_POLLING_INTERVAL_MS, syncInventory } from "@/lib/sync-client";
+import { INVENTORY_POLLING_INTERVAL_MS, SyncHttpError, syncInventory } from "@/lib/sync-client";
 
 function inventoryScreenKey(value?: Inventory): string {
   if (!value) return "";
@@ -57,6 +58,7 @@ function entriesScreenKey(value: InventoryEntry[]): string {
 }
 
 export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
+  const router = useRouter();
   const [inventory, setInventory] = useState<Inventory>();
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
   const [editing, setEditing] = useState<InventoryEntry>();
@@ -64,6 +66,8 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const [loading, setLoading] = useState(true);
   const [pendingDeletion, setPendingDeletion] = useState<InventoryEntry>();
   const [deleting, setDeleting] = useState(false);
+  const [confirmingInventoryDeletion, setConfirmingInventoryDeletion] = useState(false);
+  const [deletingInventory, setDeletingInventory] = useState(false);
   const [highlightedEntryId, setHighlightedEntryId] = useState<string>();
   const [formDirty, setFormDirty] = useState(false);
   const [remoteFinalized, setRemoteFinalized] = useState(false);
@@ -211,6 +215,50 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
     }
   }
 
+  async function deleteInventory(): Promise<void> {
+    const currentInventory = inventory;
+    if (!currentInventory || currentInventory.status !== "OPEN" || entries.length > 0) return;
+    setDeletingInventory(true);
+    setError(undefined);
+    try {
+      const { tombstoned } = await tombstoneEmptyInventory(currentInventory.id);
+      const online = typeof navigator === "undefined" || navigator.onLine;
+      if (online) {
+        try {
+          const result = await syncInventory(tombstoned.id);
+          if (result.conflicts > 0) {
+            await restoreInventoryAfterDeletionFailure(tombstoned.id);
+            throw new Error("O inventário mudou em outro dispositivo. Ele foi mantido para conferência.");
+          }
+          if (!result.serverDeleted) {
+            await restoreInventoryAfterDeletionFailure(tombstoned.id);
+            throw new Error("Não foi possível confirmar a exclusão no servidor.");
+          }
+          await purgeInventory(tombstoned.id);
+        } catch (cause) {
+          if (cause instanceof SyncHttpError && cause.status === 404) {
+            await purgeInventory(tombstoned.id);
+          } else if (cause instanceof SyncHttpError) {
+            await restoreInventoryAfterDeletionFailure(tombstoned.id);
+            throw new Error(cause.message);
+          } else if (cause instanceof TypeError) {
+            setConfirmingInventoryDeletion(false);
+            router.replace("/dashboard");
+            return;
+          } else {
+            throw cause;
+          }
+        }
+      }
+      setConfirmingInventoryDeletion(false);
+      router.replace("/dashboard");
+    } catch (cause) {
+      setError(cause instanceof Error ? `Inventário não excluído. ${cause.message}` : "Inventário não excluído.");
+    } finally {
+      setDeletingInventory(false);
+    }
+  }
+
   if (loading) return <main className="shell"><div className="loading-skeleton" role="status" aria-label="Abrindo inventário"><span /><span /><span /></div></main>;
   if (!inventory) return <main className="shell unavailable-shell">
     <section className="card unavailable-card" aria-labelledby="inventory-unavailable-title">
@@ -282,6 +330,10 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
           <EntryList entries={entries} onEdit={(entry) => { setEditing(entry); setFormDirty(false); }} onDelete={setPendingDeletion} readOnly={readOnly} highlightedEntryId={highlightedEntryId} />
         </div>
         <InventoryControlPanel inventory={displayedInventory} entries={entries} onChanged={refresh} />
+        {displayedInventory.status === "OPEN" && entries.length === 0 && displayedInventory.isOwner !== false ? <section className="card section-card stack" aria-label="Excluir inventário vazio">
+          <div className="section-header"><div><p className="eyebrow">Gestão</p><h2>Inventário vazio</h2><p className="muted">Se esta conferência foi criada por engano, você pode removê-la sem deixar mais um inventário aberto no painel.</p></div></div>
+          <div className="actions"><button className="danger" type="button" disabled={deletingInventory} onClick={() => setConfirmingInventoryDeletion(true)}>Excluir inventário vazio</button></div>
+        </section> : null}
       </div>
       <ConfirmDialog
         open={Boolean(pendingDeletion)}
@@ -293,6 +345,17 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
         busy={deleting}
         onConfirm={() => void deleteEntry()}
         onClose={() => setPendingDeletion(undefined)}
+      />
+      <ConfirmDialog
+        open={confirmingInventoryDeletion}
+        variant="danger"
+        title="Excluir inventário vazio?"
+        description="Esta ação remove o inventário vazio deste dispositivo e, quando houver conexão, também solicita a remoção central. Inventários com lançamentos não podem ser excluídos por este caminho."
+        confirmLabel="Excluir inventário"
+        busyLabel="Excluindo inventário…"
+        busy={deletingInventory}
+        onConfirm={() => void deleteInventory()}
+        onClose={() => setConfirmingInventoryDeletion(false)}
       />
       </div>
     </main>

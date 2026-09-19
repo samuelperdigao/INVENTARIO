@@ -72,7 +72,7 @@ it("compartilha Excel como link pelo menu nativo", async () => {
   const url = "https://inventario-lpe.vercel.app/backend-api/api/v1/shared/exports/id/xlsx?expires=1&signature=x";
 
   const resultPromise = sharePreparedResource(url, "xlsx");
-  expect(share).toHaveBeenCalledWith(expect.objectContaining({ url }));
+  expect(share).toHaveBeenCalledWith(expect.objectContaining({ url, text: expect.stringContaining(url) }));
   await expect(resultPromise).resolves.toBe("shared");
 });
 

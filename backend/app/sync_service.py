@@ -41,6 +41,14 @@ class SyncFinalizationRequiredError(Exception):
     pass
 
 
+class SyncDeletionAuthorizationError(Exception):
+    pass
+
+
+class SyncDeletionBlockedError(Exception):
+    pass
+
+
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -190,6 +198,8 @@ def _apply_inventory(
         row.revision = incoming.revision
         row.tombstone = incoming.tombstone
         row.deleted_at = incoming.deletedAt
+        if incoming.tombstone:
+            row.participation_code = None
         _append_event(session, row.id, "inventory", row.id)
         return True, None
     return False, _record_conflict(
@@ -272,6 +282,8 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
     if inventory is None:
         if payload.inventory is None:
             raise SyncNotFoundError()
+        if payload.inventory.tombstone:
+            raise SyncNotFoundError()
         inventory = _create_inventory(session, payload.inventory, sync_token, team_id, actor_user_id)
         acknowledged_inventory = True
     else:
@@ -293,6 +305,18 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
         if inventory.status == "OPEN" and inventory.participation_code is None:
             inventory.participation_code = _new_participation_code(session)
         acknowledged_inventory = False
+
+        if payload.inventory is not None and payload.inventory.tombstone:
+            if not owner_access:
+                raise SyncDeletionAuthorizationError()
+            active_entry = session.scalar(
+                select(InventoryEntryRow.id).where(
+                    InventoryEntryRow.inventory_id == inventory.id,
+                    InventoryEntryRow.tombstone.is_(False),
+                )
+            )
+            if active_entry is not None:
+                raise SyncDeletionBlockedError()
 
     if inventory.status == "FINISHED" and (payload.inventory is not None or payload.entries):
         raise SyncFinalizedError()
@@ -369,5 +393,5 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
         "entries": returned_entries,
         "acknowledged": {"inventory": acknowledged_inventory, "entryIds": acknowledged_entry_ids},
         "conflicts": conflicts,
-        "participationCode": inventory.participation_code if inventory.status == "OPEN" else None,
+        "participationCode": inventory.participation_code if inventory.status == "OPEN" and not inventory.tombstone else None,
     }

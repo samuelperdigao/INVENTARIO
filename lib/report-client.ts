@@ -147,7 +147,7 @@ export function sharePreparedResource(
 
   return shareWithNative({
     title: `Inventário em ${formatLabels[format]}`,
-    text: `Acesse o arquivo ${formatLabels[format]} do inventário:`,
+    text: `Acesse o arquivo ${formatLabels[format]} do inventário:\n${resource}`,
     url: resource,
   });
 }

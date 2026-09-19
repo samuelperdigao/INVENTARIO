@@ -30,13 +30,14 @@ export interface SyncResult {
   changed: boolean;
   remoteChanged: boolean;
   serverStatus?: Inventory["status"];
+  serverDeleted?: boolean;
 }
 
 export interface SyncOptions {
   background?: boolean;
 }
 
-class SyncHttpError extends Error {
+export class SyncHttpError extends Error {
   constructor(readonly status: number, message: string) {
     super(message);
     this.name = "SyncHttpError";
@@ -138,8 +139,8 @@ function serializeEntry(entry: InventoryEntry) {
   };
 }
 
-function remoteInventory(record: NonNullable<SyncResponse["inventory"]>, syncToken: string, participationCode?: string | null): Inventory {
-  return { ...record, syncToken, participationCode: participationCode ?? undefined, syncStatus: "SYNCED", syncBaseRevision: record.revision };
+function remoteInventory(record: NonNullable<SyncResponse["inventory"]>, syncToken: string, participationCode?: string | null, isOwner?: boolean): Inventory {
+  return { ...record, syncToken, isOwner, participationCode: participationCode ?? undefined, syncStatus: "SYNCED", syncBaseRevision: record.revision };
 }
 
 function remoteEntry(record: SyncResponse["entries"][number]): InventoryEntry {
@@ -302,7 +303,7 @@ async function applyResponse(
       } else if (response.acknowledged.inventory) {
         // Acknowledgement belongs to the request snapshot; keep newer local data untouched.
       } else if (local.syncStatus === "SYNCED") {
-        const nextInventory = { ...remote, syncToken: local.syncToken || syncToken };
+        const nextInventory = { ...remote, syncToken: local.syncToken || syncToken, isOwner: local.isOwner };
         if (inventoryStateKey(local) !== inventoryStateKey(nextInventory)) {
           await db.inventories.put(nextInventory);
           received += 1;
@@ -400,6 +401,7 @@ async function applyResponse(
     changed,
     remoteChanged,
     serverStatus: response.inventory?.status,
+    serverDeleted: response.inventory?.tombstone === true,
   };
 }
 
@@ -412,7 +414,7 @@ async function performSync(inventoryId: string, background: boolean, pullOnly = 
     const response = await requestSync(inventoryId, inventory.syncToken, {
       cursor,
       inventory: pullOnly ? null : inventory.syncStatus === "PENDING" ? inventory : null,
-      entries: pullOnly ? [] : pendingEntries(entries),
+      entries: pullOnly || inventory.tombstone ? [] : pendingEntries(entries),
     });
     return applyResponse(inventoryId, inventory.syncToken, response, snapshot);
   } catch (cause) {
@@ -452,8 +454,15 @@ export async function joinInventoryByCode(code: string): Promise<{ inventoryId: 
   if (!response.ok || !body?.inventoryId || !body.accessToken) {
     throw new Error(body?.detail ?? "Não foi possível participar do inventário.");
   }
-  const syncResponse = await requestSync(body.inventoryId, body.accessToken, { inventory: null, entries: [], cursor: 0 });
-  return { inventoryId: body.inventoryId, result: await applyResponse(body.inventoryId, body.accessToken, syncResponse, { entries: new Map() }) };
+  const joinedInventoryId = body.inventoryId;
+  const accessToken = body.accessToken;
+  const syncResponse = await requestSync(joinedInventoryId, accessToken, { inventory: null, entries: [], cursor: 0 });
+  const result = await applyResponse(joinedInventoryId, accessToken, syncResponse, { entries: new Map() });
+  await db.transaction("rw", db.inventories, async () => {
+    const inventory = await db.inventories.get(joinedInventoryId);
+    if (inventory) await db.inventories.put({ ...inventory, isOwner: false });
+  });
+  return { inventoryId: joinedInventoryId, result };
 }
 
 export async function listSyncConflicts(inventoryId: string): Promise<SyncConflict[]> {

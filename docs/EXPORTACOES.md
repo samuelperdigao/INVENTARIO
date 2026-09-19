@@ -138,3 +138,10 @@ evitar compressão das colunas operacionais.
 O compartilhamento nativo continua oferecendo PDF, `.xlsx` e `.docx` por link
 temporário assinado. O download direto oferece também o `.xls` compatível,
 apresentado primeiro na interface.
+
+No compartilhamento nativo, o link do `.xlsx` é enviado tanto no campo de URL
+quanto no texto entregue ao aplicativo de e-mail, para que clientes que não
+preservam o campo de URL ainda recebam um endereço utilizável. No envio de
+relatório por e-mail pelo backend, os anexos selecionados continuam sendo
+enviados e o corpo da mensagem inclui links temporários assinados para os
+formatos modernos `.xlsx` e `.docx`.

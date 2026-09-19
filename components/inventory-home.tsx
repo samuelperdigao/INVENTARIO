@@ -9,10 +9,10 @@ import { AppRail } from "@/components/app-rail";
 import { BrandLogo } from "@/components/brand-logo";
 import { Icon } from "@/components/icon";
 import { logoutAccount, restoreSession, type AuthUser } from "@/lib/auth-client";
-import { createInventory, listOpenInventories } from "@/lib/inventory-repository";
+import { createInventory, listOpenInventories, listPendingInventoryDeletions, purgeInventory, restoreInventoryAfterDeletionFailure } from "@/lib/inventory-repository";
 import { formatBrazilianDate } from "@/lib/local-date";
 import type { Inventory } from "@/lib/models";
-import { joinInventoryByCode } from "@/lib/sync-client";
+import { SyncHttpError, joinInventoryByCode, syncInventory } from "@/lib/sync-client";
 
 function visualLabels(inventories: Inventory[]): Map<string, string> {
   const occurrences = new Map<string, number>();
@@ -27,6 +27,27 @@ function firstName(displayName: string): string {
   return displayName.trim().split(/\s+/)[0] || displayName;
 }
 
+async function reconcilePendingInventoryDeletions(): Promise<void> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+  const pending = await listPendingInventoryDeletions();
+  for (const inventory of pending) {
+    try {
+      const result = await syncInventory(inventory.id);
+      if (result.serverDeleted && result.conflicts === 0) {
+        await purgeInventory(inventory.id);
+      } else {
+        await restoreInventoryAfterDeletionFailure(inventory.id);
+      }
+    } catch (cause) {
+      if (cause instanceof SyncHttpError && cause.status === 404) {
+        await purgeInventory(inventory.id);
+      } else if (cause instanceof SyncHttpError) {
+        await restoreInventoryAfterDeletionFailure(inventory.id);
+      }
+    }
+  }
+}
+
 export function InventoryHome() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser>();
@@ -39,14 +60,21 @@ export function InventoryHome() {
 
   useEffect(() => {
     let active = true;
-    void Promise.all([restoreSession(), listOpenInventories()])
-      .then(([restored, items]) => {
-        if (!active) return;
+    async function loadDashboard(): Promise<void> {
+      try {
+        const restored = await restoreSession();
         if (!restored) { router.replace("/acesso"); return; }
+        await reconcilePendingInventoryDeletions();
+        const items = await listOpenInventories();
+        if (!active) return;
         setUser(restored); setInventories(items);
-      })
-      .catch(() => { if (active) setError("Não foi possível carregar o painel."); })
-      .finally(() => { if (active) setLoading(false); });
+      } catch {
+        if (active) setError("Não foi possível carregar o painel.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void loadDashboard();
     return () => { active = false; };
   }, [router]);
 

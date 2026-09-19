@@ -22,7 +22,7 @@ export function InventoryControlPanel({ inventory, entries, onChanged }: Invento
   const handleAnalysisStateChange = useCallback((state: AnalysisState) => setAnalysisState(state), []);
   const syncReady = inventory.syncStatus === "SYNCED";
   const analysisReady = analysisState === "ready";
-  const finalizationReady = syncReady && analysisReady;
+  const finalizationReady = syncReady && (analysisReady || entries.length === 0);
 
   return (
     <section className="card section-card inventory-control-panel" aria-label="Controle do inventário">
@@ -60,7 +60,7 @@ export function InventoryControlPanel({ inventory, entries, onChanged }: Invento
             <span className="control-stage-summary-copy"><strong>Finalização</strong><small>Congele o relatório e gere os arquivos oficiais.</small></span>
             <StageState tone={inventory.status === "FINISHED" ? "good" : finalizationReady ? "good" : "attention"}>{inventory.status === "FINISHED" ? "Concluída" : finalizationReady ? "Disponível" : "Pendente"}</StageState>
           </summary>
-          <FinalizationPanel inventory={inventory} onFinished={onChanged} readyForFinalization={finalizationReady} embedded />
+          <FinalizationPanel inventory={inventory} onFinished={onChanged} readyForFinalization={finalizationReady} emptyInventory={entries.length === 0} embedded />
         </details>
       </div>
     </section>

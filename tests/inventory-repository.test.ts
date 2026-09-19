@@ -7,6 +7,8 @@ import {
   DuplicateLotError,
   getInventory,
   listActiveEntries,
+  restoreInventoryAfterDeletionFailure,
+  tombstoneEmptyInventory,
   tombstoneEntry,
   updateEntry,
   validateEntryDraft,
@@ -78,5 +80,26 @@ describe("repositório IndexedDB", () => {
 
     const withoutLayer = await updateEntry(withLayer.id, { side: "EF", bay: "15", layer: null, lot: "2712345680", quantity: 4 });
     expect(withoutLayer.layer).toBeUndefined();
+  });
+
+  it("marca inventário vazio para exclusão sem depender da rede", async () => {
+    const inventory = await createInventory("2026-09-14");
+
+    const deletion = await tombstoneEmptyInventory(inventory.id);
+
+    expect(deletion.tombstoned).toMatchObject({ tombstone: true, syncStatus: "PENDING", revision: 2 });
+    expect(await getInventory(inventory.id)).toBeUndefined();
+    expect((await db.inventories.get(inventory.id))?.deletedAt).toBeTruthy();
+
+    await restoreInventoryAfterDeletionFailure(inventory.id);
+    expect(await getInventory(inventory.id)).toMatchObject({ tombstone: false, revision: 1, syncStatus: "ERROR" });
+  });
+
+  it("não permite excluir inventário que já possui lançamento ativo", async () => {
+    const inventory = await createInventory("2026-09-14");
+    await createEntry(inventory.id, { side: "EF", bay: "01", lot: "2712345678", quantity: 1 });
+
+    await expect(tombstoneEmptyInventory(inventory.id)).rejects.toThrow("Exclua os lançamentos");
+    expect(await getInventory(inventory.id)).toMatchObject({ tombstone: false, revision: 2 });
   });
 });

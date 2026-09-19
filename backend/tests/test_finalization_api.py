@@ -99,3 +99,28 @@ def test_sync_cannot_set_finished_without_the_finalization_endpoint() -> None:
         json={"deviceId": str(uuid4()), "inventoryId": inventory_id, "teamId": team_id, "cursor": 0, "inventory": None, "entries": []},
         headers={**auth, "X-Inventory-Sync-Token": token},
     ).status_code == 404
+
+
+def test_empty_inventory_can_be_finalized_with_zeroed_report() -> None:
+    account, auth = _register("finalize-empty@gerdau.com.br")
+    team_id = account["user"]["teams"][0]["id"]
+    inventory_id, token = str(uuid4()), str(uuid4())
+    headers = {**auth, "X-Inventory-Sync-Token": token}
+    inventory = {"id": inventory_id, "date": "2026-09-19", "status": "OPEN", "revision": 1, "syncBaseRevision": 0, "tombstone": False, "deletedAt": None, **_times()}
+
+    synced = client.post(
+        "/api/v1/sync",
+        json={"deviceId": str(uuid4()), "inventoryId": inventory_id, "teamId": team_id, "cursor": 0, "inventory": inventory, "entries": []},
+        headers=headers,
+    )
+    assert synced.status_code == 200
+
+    finalized = client.post(f"/api/v1/inventories/{inventory_id}/finalize", json={"revision": 1}, headers=headers)
+    assert finalized.status_code == 200
+    assert finalized.json()["status"] == "FINISHED"
+    assert finalized.json()["summary"]["lotsAnalyzed"] == 0
+
+    report = client.get(f"/api/v1/inventories/{inventory_id}/report", headers=headers)
+    assert report.status_code == 200
+    assert report.json()["lots"] == []
+    assert report.json()["summary"]["lotsAnalyzed"] == 0

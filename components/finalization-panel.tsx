@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedContext } from "@/lib/auth-client";
-import { markInventoryFinished } from "@/lib/inventory-repository";
+import { getInventory, markInventoryFinished } from "@/lib/inventory-repository";
 import { syncInventory } from "@/lib/sync-client";
 import type { Inventory } from "@/lib/models";
 import {
@@ -32,9 +32,10 @@ interface FinalizationPanelProps {
   onFinished: () => Promise<void>;
   embedded?: boolean;
   readyForFinalization?: boolean;
+  emptyInventory?: boolean;
 }
 
-export function FinalizationPanel({ inventory, onFinished, embedded = false, readyForFinalization = false }: FinalizationPanelProps) {
+export function FinalizationPanel({ inventory, onFinished, embedded = false, readyForFinalization = false, emptyInventory = false }: FinalizationPanelProps) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
   const [shareOpen, setShareOpen] = useState(false);
@@ -42,16 +43,25 @@ export function FinalizationPanel({ inventory, onFinished, embedded = false, rea
   const [preparedResources, setPreparedResources] = useState<PreparedShareResources>({});
   const [confirmingFinish, setConfirmingFinish] = useState(false);
 
-  async function headers(): Promise<Record<string, string>> {
+  async function headers(syncToken: string): Promise<Record<string, string>> {
     const auth = await getAuthenticatedContext();
-    return { Authorization: `Bearer ${auth.accessToken}`, "X-Inventory-Sync-Token": inventory.syncToken, "Content-Type": "application/json" };
+    return { Authorization: `Bearer ${auth.accessToken}`, "X-Inventory-Sync-Token": syncToken, "Content-Type": "application/json" };
   }
 
   async function finish(): Promise<void> {
     setBusy(true); setMessage(undefined);
     try {
-      await syncInventory(inventory.id);
-      const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventory.id}/finalize`, { method: "POST", credentials: "include", headers: await headers(), body: JSON.stringify({ revision: inventory.revision }) });
+      const syncResult = await syncInventory(inventory.id);
+      if (syncResult.serverStatus === "FINISHED") {
+        await onFinished();
+        throw new Error("Este inventário já foi finalizado em outro dispositivo.");
+      }
+      if (syncResult.conflicts > 0) throw new Error("Resolva os conflitos de sincronização antes de finalizar.");
+      const currentInventory = await getInventory(inventory.id);
+      if (!currentInventory || currentInventory.tombstone) throw new Error("Inventário não encontrado neste dispositivo.");
+      if (currentInventory.status !== "OPEN") throw new Error("Este inventário já foi finalizado.");
+      if (currentInventory.syncStatus !== "SYNCED") throw new Error("Não foi possível confirmar a sincronização antes da finalização.");
+      const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${currentInventory.id}/finalize`, { method: "POST", credentials: "include", headers: await headers(currentInventory.syncToken), body: JSON.stringify({ revision: currentInventory.revision }) });
       const body = await response.json().catch(() => undefined) as { detail?: string; revision?: number } | undefined;
       if (!response.ok || !body?.revision) throw new Error(body?.detail ?? "Não foi possível finalizar o inventário.");
       await markInventoryFinished(inventory.id, body.revision);
@@ -202,7 +212,9 @@ export function FinalizationPanel({ inventory, onFinished, embedded = false, rea
     <ConfirmDialog
       open={confirmingFinish}
       title="Finalizar inventário?"
-      description="Ao finalizar, os lançamentos permanecerão preservados e não poderão ser alterados sem uma regra de reabertura aprovada."
+      description={emptyInventory
+        ? "Este inventário está vazio. O aplicativo vai sincronizar e gerar um relatório oficial sem lançamentos. Depois disso, o inventário ficará somente para leitura."
+        : "Ao finalizar, os lançamentos permanecerão preservados e não poderão ser alterados sem uma regra de reabertura aprovada."}
       confirmLabel="Finalizar inventário"
       busyLabel="Finalizando…"
       busy={busy}

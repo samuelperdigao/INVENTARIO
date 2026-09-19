@@ -2,6 +2,47 @@
 
 Atualizado em 19/09/2026.
 
+## Entrega em preparação — inventário vazio e compartilhamento moderno
+
+Branch: `feat/inventario-vazio-flexivel`, baseada em `7bb799f`. Esta entrega ainda
+não foi integrada à `main`, enviada ao repositório remoto ou publicada nos
+provedores.
+
+Inventários sem lançamentos agora podem ser finalizados. O fluxo sincroniza
+antes da finalização, recarrega a revisão e o token locais atuais e bloqueia a
+operação quando há conflito ou quando outro dispositivo já finalizou o
+inventário. O relatório vazio é gerado oficialmente com totais zerados.
+
+Inventários vazios também podem ser excluídos pelo criador em fluxo
+offline-first: a remoção cria um tombstone local imediato, é sincronizada
+posteriormente e só remove os registros relacionados após confirmação central.
+Participantes não recebem essa ação, e o servidor rejeita a exclusão quando já
+existem lançamentos centrais. Tentativas pendentes são reconciliadas ao abrir o
+dashboard; uma tentativa de retry enquanto o dashboard permanece aberto após o
+retorno da conexão fica como melhoria posterior.
+
+O compartilhamento nativo inclui o link `.xlsx` no campo de URL e no texto do
+aplicativo de e-mail. O endpoint de envio de relatório mantém os anexos e
+acrescenta ao corpo links temporários assinados para `.xlsx` e `.docx`. Não
+houve alteração de schema ou migration.
+
+### Gates locais desta rodada
+
+- TypeScript: aprovado.
+- ESLint: aprovado.
+- Vitest: `14 arquivos, 69 testes aprovados`.
+- Pytest: `59 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
+- Build de produção: aprovado, incluindo o service worker.
+- Chromium do Playwright: instalado/verificado.
+- Playwright completo: `9 cenários aprovados`, incluindo operação offline, sincronização, histórico móvel, finalização/exportações e 100 lançamentos.
+- `git diff --check`: aprovado após a atualização desta documentação e antes do commit.
+
+### Limitações e publicação
+
+- A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses gates.
+- Concorrência de produção em PostgreSQL/Neon continua sem exercício físico nesta rodada.
+- Nenhum merge, push, deploy ou validação pública foi realizado nesta rodada.
+
 ## Entrega em integração — sincronização silenciosa do inventário
 
 Commits integrados: `338f5e7`, `98427ba` e `f541bb1` em `main`/`origin/main`.

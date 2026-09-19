@@ -8,7 +8,7 @@ import smtplib
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import Cookie, Depends, FastAPI, File, Form, Header, HTTPException, Query, Response, UploadFile, status
+from fastapi import Cookie, Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import exists, or_, select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -58,6 +58,8 @@ from app.share_service import (
 )
 from app.sync_service import (
     SyncAuthorizationError,
+    SyncDeletionAuthorizationError,
+    SyncDeletionBlockedError,
     SyncFinalizationRequiredError,
     SyncFinalizedError,
     SyncNotFoundError,
@@ -362,6 +364,8 @@ def _inventory_access(
         raise HTTPException(status_code=404, detail="Inventário central não encontrado.")
     if not _authorized_for_inventory(session, inventory, user):
         raise HTTPException(status_code=404, detail="Inventário central não encontrado.")
+    if inventory.tombstone:
+        raise HTTPException(status_code=404, detail="Inventário central não encontrado.")
     if (require_token or inventory.status != "FINISHED") and not _valid_inventory_token(session, inventory, user, sync_token):
         raise HTTPException(status_code=403, detail="Código de sincronização inválido.")
     return inventory
@@ -646,8 +650,6 @@ def finalize_inventory(
             InventoryEntryRow.tombstone.is_(False),
         )
     ).all()
-    if not rows:
-        raise HTTPException(status_code=422, detail="Registre ao menos um lançamento antes de finalizar.")
     now = datetime.now(timezone.utc)
     reference_lots, reference_info = _report_reference(session, inventory.id)
     inventory.report_snapshot = build_consolidated_report(
@@ -866,6 +868,7 @@ def join_inventory(
 def email_inventory_report(
     inventory_id: str,
     payload: EmailReportRequest,
+    request: Request,
     user: UserRow = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> dict[str, str]:
@@ -899,12 +902,29 @@ def email_inventory_report(
             )
     if sum(len(item.content) for item in attachments) > settings.email_attachment_max_mb * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Os anexos excedem o limite de envio. Baixe os arquivos separadamente.")
+    share_links: list[str] = []
+    public_api_base = str(request.base_url).rstrip("/")
+    for format_name in payload.formats:
+        if format_name not in SHAREABLE_FORMATS:
+            continue
+        expires, signature = create_export_share_signature(
+            settings,
+            inventory_id=inventory.id,
+            format_name=format_name,
+        )
+        share_links.append(
+            f"{public_api_base}/api/v1/shared/exports/{inventory.id}/{format_name}"
+            f"?expires={expires}&signature={signature}"
+        )
+    email_text = "Os relatórios solicitados estão anexados. Esta mensagem foi enviada pelo aplicativo INVENTARIO."
+    if share_links:
+        email_text += "\n\nLinks para abrir os arquivos modernos sem login:\n" + "\n".join(share_links)
     try:
         send_email(
             settings,
             recipient=user.email,
             subject=f"Relatório do inventário {suffix}",
-            text="Os relatórios solicitados estão anexados. Esta mensagem foi enviada pelo aplicativo INVENTARIO.",
+            text=email_text,
             attachments=tuple(attachments),
         )
     except (OSError, smtplib.SMTPException, RuntimeError) as error:
@@ -928,6 +948,12 @@ def sync(
     except SyncAuthorizationError as error:
         session.rollback()
         raise HTTPException(status_code=403, detail="Código de sincronização inválido.") from error
+    except SyncDeletionAuthorizationError as error:
+        session.rollback()
+        raise HTTPException(status_code=403, detail="Somente quem criou o inventário pode excluí-lo.") from error
+    except SyncDeletionBlockedError as error:
+        session.rollback()
+        raise HTTPException(status_code=409, detail="Não é possível excluir um inventário com lançamentos centralizados.") from error
     except SyncFinalizedError as error:
         session.rollback()
         raise HTTPException(status_code=409, detail="Inventário finalizado não aceita alterações.") from error

@@ -1,10 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 
 import { InventoryScreen } from "@/components/inventory-screen";
 import { db } from "@/lib/db";
 import { createEntry, createInventory } from "@/lib/inventory-repository";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
 it("edita e exige confirmação antes de tombstonar um registro", async () => {
   const inventory = await createInventory("2026-09-11");

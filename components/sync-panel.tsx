@@ -31,7 +31,7 @@ export function SyncPanel({ inventory, onSynced, embedded = false }: SyncPanelPr
     let active = true;
     void listSyncConflicts(inventory.id).then((items) => { if (active) setConflicts(items); });
     return () => { active = false; };
-  }, [inventory.id]);
+  }, [inventory.id, inventory.revision, inventory.syncStatus]);
 
   async function handleSync(): Promise<void> {
     if (typeof navigator !== "undefined" && !navigator.onLine) {

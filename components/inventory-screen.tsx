@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EntryForm } from "@/components/entry-form";
@@ -15,6 +15,46 @@ import { findRemoteDuplicateLotEntries } from "@/lib/duplicate-client";
 import { formatBrazilianDate } from "@/lib/local-date";
 import { createEntry, DuplicateLotError, findDuplicateLotEntries, getInventory, listActiveEntries, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
 import type { EntryDraft, Inventory, InventoryEntry } from "@/lib/models";
+import { INVENTORY_POLLING_INTERVAL_MS, syncInventory } from "@/lib/sync-client";
+
+function inventoryScreenKey(value?: Inventory): string {
+  if (!value) return "";
+  return JSON.stringify({
+    id: value.id,
+    date: value.date,
+    status: value.status,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    revision: value.revision,
+    syncBaseRevision: value.syncBaseRevision,
+    syncStatus: value.syncStatus,
+    participationCode: value.participationCode ?? null,
+    tombstone: value.tombstone,
+    deletedAt: value.deletedAt ?? null,
+  });
+}
+
+function entriesScreenKey(value: InventoryEntry[]): string {
+  return JSON.stringify(value
+    .map((entry) => ({
+      id: entry.id,
+      inventoryId: entry.inventoryId,
+      side: entry.side,
+      bay: entry.bay,
+      layer: entry.layer ?? null,
+      lot: entry.lot,
+      quantity: entry.quantity,
+      duplicateConfirmed: Boolean(entry.duplicateConfirmed),
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      revision: entry.revision,
+      syncBaseRevision: entry.syncBaseRevision,
+      syncStatus: entry.syncStatus,
+      tombstone: entry.tombstone,
+      deletedAt: entry.deletedAt ?? null,
+    }))
+    .sort((left, right) => left.id.localeCompare(right.id)));
+}
 
 export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const [inventory, setInventory] = useState<Inventory>();
@@ -25,12 +65,29 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const [pendingDeletion, setPendingDeletion] = useState<InventoryEntry>();
   const [deleting, setDeleting] = useState(false);
   const [highlightedEntryId, setHighlightedEntryId] = useState<string>();
+  const [formDirty, setFormDirty] = useState(false);
+  const [remoteFinalized, setRemoteFinalized] = useState(false);
+  const latestInventoryRef = useRef<Inventory | undefined>(undefined);
+  const latestEntriesRef = useRef<InventoryEntry[]>([]);
 
   const refresh = useCallback(async () => {
     const [currentInventory, currentEntries] = await Promise.all([getInventory(inventoryId), listActiveEntries(inventoryId)]);
     if (!currentInventory) throw new Error("Inventário não encontrado neste dispositivo.");
+    latestInventoryRef.current = currentInventory;
+    latestEntriesRef.current = currentEntries;
     setInventory(currentInventory);
     setEntries(currentEntries);
+  }, [inventoryId]);
+
+  const refreshIfChanged = useCallback(async () => {
+    const previousInventory = latestInventoryRef.current;
+    const previousEntries = latestEntriesRef.current;
+    const [currentInventory, currentEntries] = await Promise.all([getInventory(inventoryId), listActiveEntries(inventoryId)]);
+    if (!currentInventory) throw new Error("Inventário não encontrado neste dispositivo.");
+    if (inventoryScreenKey(previousInventory) !== inventoryScreenKey(currentInventory)) setInventory(currentInventory);
+    if (entriesScreenKey(previousEntries) !== entriesScreenKey(currentEntries)) setEntries(currentEntries);
+    latestInventoryRef.current = currentInventory;
+    latestEntriesRef.current = currentEntries;
   }, [inventoryId]);
 
   useEffect(() => {
@@ -39,6 +96,10 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       .then(([currentInventory, currentEntries]) => {
         if (!active) return;
         if (!currentInventory) throw new Error("Inventário não encontrado neste dispositivo.");
+        setFormDirty(false);
+        setRemoteFinalized(false);
+        latestInventoryRef.current = currentInventory;
+        latestEntriesRef.current = currentEntries;
         setInventory(currentInventory);
         setEntries(currentEntries);
       })
@@ -48,6 +109,57 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [inventoryId]);
+
+  const runBackgroundSync = useCallback(async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    try {
+      const result = await syncInventory(inventoryId, { background: true });
+      if (result.serverStatus === "FINISHED") setRemoteFinalized(true);
+      if (result.changed) await refreshIfChanged();
+    } catch {
+      // Local writes stay available when the network or authentication is unavailable.
+    }
+  }, [inventoryId, refreshIfChanged]);
+
+  const inventoryStatus = inventory?.status;
+
+  useEffect(() => {
+    if (inventoryStatus !== "OPEN" || remoteFinalized) return;
+    let active = true;
+    let busy = false;
+    let lastTriggerAt = 0;
+
+    async function poll(): Promise<void> {
+      if (!active || busy || (typeof document !== "undefined" && document.visibilityState !== "visible")) return;
+      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+      const now = Date.now();
+      if (now - lastTriggerAt < 500) return;
+      lastTriggerAt = now;
+      busy = true;
+      try {
+        const result = await syncInventory(inventoryId, { background: true });
+        if (!active) return;
+        if (result.serverStatus === "FINISHED") setRemoteFinalized(true);
+        if (result.changed) await refreshIfChanged();
+      } catch {
+        // Polling is intentionally silent; manual sync remains available for visible errors.
+      } finally {
+        busy = false;
+      }
+    }
+
+    const intervalId = window.setInterval(() => { void poll(); }, INVENTORY_POLLING_INTERVAL_MS);
+    const handleVisibility = () => { if (document.visibilityState === "visible") void poll(); };
+    const handleOnline = () => { void poll(); };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [inventoryId, inventoryStatus, refreshIfChanged, remoteFinalized]);
 
   const totalPieces = useMemo(() => entries.reduce((sum, entry) => sum + entry.quantity, 0), [entries]);
   const distinctLots = useMemo(() => new Set(entries.map((entry) => entry.lot.trim())).size, [entries]);
@@ -74,8 +186,10 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
         });
     await refresh();
     setEditing(undefined);
+    setFormDirty(false);
     setHighlightedEntryId(savedEntry.id);
     window.setTimeout(() => setHighlightedEntryId((current) => current === savedEntry.id ? undefined : current), 1800);
+    void runBackgroundSync();
   }
 
   async function deleteEntry(): Promise<void> {
@@ -83,9 +197,13 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
     setDeleting(true);
     try {
       await tombstoneEntry(pendingDeletion.id);
-      if (editing?.id === pendingDeletion.id) setEditing(undefined);
+      if (editing?.id === pendingDeletion.id) {
+        setEditing(undefined);
+        setFormDirty(false);
+      }
       await refresh();
       setPendingDeletion(undefined);
+      void runBackgroundSync();
     } catch (cause) {
       setError(cause instanceof Error ? `Registro não excluído. ${cause.message}` : "Registro não excluído.");
     } finally {
@@ -109,6 +227,11 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
     </section>
   </main>;
 
+  const displayedInventory: Inventory = remoteFinalized && inventory.status === "OPEN"
+    ? { ...inventory, status: "FINISHED" }
+    : inventory;
+  const readOnly = displayedInventory.status === "FINISHED";
+  const showEntryForm = displayedInventory.status === "OPEN" || formDirty;
   const workflowSteps = [
     ["01", "Lançar", "Registrar itens"],
     ["02", "Conferir", "Revisar registros"],
@@ -116,7 +239,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
     ["04", "Analisar", "Ver lotes para conferência"],
     ["05", "Finalizar", "Gerar relatório"],
   ] as const;
-  const currentStep = inventory.status === "FINISHED" ? "Finalizar" : entries.length > 0 ? "Conferir" : "Lançar";
+  const currentStep = readOnly ? "Finalizar" : entries.length > 0 ? "Conferir" : "Lançar";
 
   return (
     <main className="shell inventory-shell">
@@ -134,12 +257,12 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
         <div className="inventory-header-row">
           <div className="inventory-header-copy">
             <Link className="back-link" href="/dashboard">‹ Painel</Link>
-            <div className="inventory-header-topline"><span className="inventory-header-topline-dot" aria-hidden="true" /> <span>Coleta em andamento</span><i aria-hidden="true">/</i><span>{entries.length ? `${entries.length} registro(s) capturado(s)` : "Aguardando primeiro lançamento"}</span></div>
+            <div className="inventory-header-topline"><span className="inventory-header-topline-dot" aria-hidden="true" /> <span>{readOnly ? "Inventário finalizado" : "Coleta em andamento"}</span><i aria-hidden="true">/</i><span>{entries.length ? `${entries.length} registro(s) capturado(s)` : "Aguardando primeiro lançamento"}</span></div>
             <p className="eyebrow">Inventário em operação</p>
             <h1>Inventário {formatBrazilianDate(inventory.date)}</h1>
              <p className="muted">Registros físicos ficam salvos neste dispositivo e seguem disponíveis sem internet.</p>
           </div>
-          <span className="status-pill">{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span>
+          <span className="status-pill">{readOnly ? "Finalizado" : inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span>
         </div>
       </header>
 
@@ -147,17 +270,18 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
         <div className="metric-card metric-card--records"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="boxes" size={18} /></span><span className="metric-card-kicker">Coleta</span></div><div className="metric-card-copy"><span className="metric-label">Registros</span><span className="metric-value">{entries.length}</span></div></div>
         <div className="metric-card metric-card--lots"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="file" size={18} /></span><span className="metric-card-kicker">Rastreio</span></div><div className="metric-card-copy"><span className="metric-label">Lotes</span><span className="metric-value">{distinctLots}</span></div></div>
         <div className="metric-card metric-card--pieces"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="chart" size={18} /></span><span className="metric-card-kicker">Volume</span></div><div className="metric-card-copy"><span className="metric-label">Peças lançadas</span><span className="metric-value">{totalPieces}</span></div></div>
-        <div className="metric-card metric-card--status"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="check" size={18} /></span><span className="metric-card-kicker">Estado</span></div><div className="metric-card-copy"><span className="metric-label">Situação</span><span className="metric-value">{inventory.status === "FINISHED" ? "Finalizado" : "Em andamento"}</span></div></div>
+        <div className="metric-card metric-card--status"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="check" size={18} /></span><span className="metric-card-kicker">Estado</span></div><div className="metric-card-copy"><span className="metric-label">Situação</span><span className="metric-value">{readOnly ? "Finalizado" : "Em andamento"}</span></div></div>
       </section>
 
       {error && <p className="error" role="alert">{error}</p>}
       <div className="stack">
-        <ReferencePanel inventory={inventory} onChanged={refresh} />
+        <ReferencePanel inventory={displayedInventory} onChanged={refresh} />
         <div className="entry-workspace">
-          {inventory.status === "OPEN" ? <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => setEditing(undefined)} referenceChecker={createReferenceLotChecker(inventory)} /> : <p className="notice">Inventário finalizado: lançamentos preservados em modo somente leitura.</p>}
-          <EntryList entries={entries} onEdit={setEditing} onDelete={setPendingDeletion} readOnly={inventory.status === "FINISHED"} highlightedEntryId={highlightedEntryId} />
+          {remoteFinalized && inventory.status === "OPEN" ? <p className="notice" role="status">Este inventário foi finalizado no servidor. Os dados locais pendentes foram preservados para decisão.</p> : null}
+          {showEntryForm ? <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => { setEditing(undefined); setFormDirty(false); }} referenceChecker={createReferenceLotChecker(displayedInventory)} readOnly={readOnly} onDirtyChange={setFormDirty} /> : <p className="notice">Inventário finalizado: lançamentos preservados em modo somente leitura.</p>}
+          <EntryList entries={entries} onEdit={(entry) => { setEditing(entry); setFormDirty(false); }} onDelete={setPendingDeletion} readOnly={readOnly} highlightedEntryId={highlightedEntryId} />
         </div>
-        <InventoryControlPanel inventory={inventory} entries={entries} onChanged={refresh} />
+        <InventoryControlPanel inventory={displayedInventory} entries={entries} onChanged={refresh} />
       </div>
       <ConfirmDialog
         open={Boolean(pendingDeletion)}

@@ -12,11 +12,13 @@ interface EntryFormProps {
   onSave: (draft: EntryDraft, entryId?: string, allowDuplicate?: boolean) => Promise<void>;
   onCancelEdit: () => void;
   referenceChecker?: (lot: string) => Promise<boolean | null>;
+  readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 type ReferenceFeedback = "checking" | "found" | "outside";
 
-export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: EntryFormProps) {
+export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker, readOnly = false, onDirtyChange }: EntryFormProps) {
   const [side, setSide] = useState<Side | undefined>(editing?.side);
   const [bay, setBay] = useState(editing?.bay ?? "");
   const [layer, setLayer] = useState<InventoryLayer | "">(editing?.layer ?? "");
@@ -29,6 +31,10 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
   const [referenceFeedback, setReferenceFeedback] = useState<ReferenceFeedback>();
   const lotInputRef = useRef<HTMLInputElement>(null);
   const referenceRequestRef = useRef(0);
+
+  function markDirty(): void {
+    onDirtyChange?.(true);
+  }
 
   function checkReference(lotValue: string): void {
     const normalizedLot = normalizeLot(lotValue);
@@ -84,6 +90,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
       referenceRequestRef.current += 1;
       setReferenceFeedback(undefined);
       lotInputRef.current?.focus();
+      onDirtyChange?.(false);
     } catch (cause) {
       if (cause instanceof DuplicateLotError) {
         setDuplicates(cause.duplicates);
@@ -99,6 +106,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (readOnly) return;
     const draft = currentDraft();
     if (draft) {
       if (!referenceFeedback) checkReference(draft.lot);
@@ -107,6 +115,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
   }
 
   async function confirmDuplicate(): Promise<void> {
+    if (readOnly) return;
     const draft = currentDraft();
     if (draft) await persist(draft, true);
   }
@@ -134,8 +143,9 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
                 className="side-button"
                 key={option}
                 type="button"
+                disabled={readOnly}
                 aria-pressed={side === option}
-                onClick={() => setSide(option)}
+                onClick={() => { setSide(option); markDirty(); }}
               >
                 {option}
               </button>
@@ -145,10 +155,10 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
 
         <div className={styles.positionGrid}>
           <label className="field" htmlFor="bay">Vão
-            <input id="bay" name="bay" value={bay} onChange={(event) => setBay(event.target.value)} inputMode="numeric" autoComplete="off" placeholder="Ex.: 15" />
+            <input id="bay" name="bay" value={bay} onChange={(event) => { setBay(event.target.value); markDirty(); }} disabled={readOnly} inputMode="numeric" autoComplete="off" placeholder="Ex.: 15" />
           </label>
           <label className="field" htmlFor="layer">Camada (opcional)
-            <select id="layer" name="layer" value={layer} onChange={(event) => setLayer(event.target.value as InventoryLayer | "")}>
+            <select id="layer" name="layer" value={layer} onChange={(event) => { setLayer(event.target.value as InventoryLayer | ""); markDirty(); }} disabled={readOnly}>
               <option value="">Sem camada</option>
               {INVENTORY_LAYERS.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
@@ -167,6 +177,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
               value={lot}
               onChange={(event) => {
                 setLot(sanitizeLotInput(event.target.value));
+                markDirty();
                 setError(undefined);
                 referenceRequestRef.current += 1;
                 setReferenceFeedback(undefined);
@@ -175,10 +186,11 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
               autoComplete="off"
               placeholder="Número do lote"
               aria-invalid={Boolean(lotValidationError)}
+              disabled={readOnly}
             />
           </label>
           <label className="field" htmlFor="quantity">Quantidade de peças
-            <input id="quantity" name="quantity" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(/\D/g, ""))} inputMode="numeric" pattern="[0-9]*" autoComplete="off" placeholder="Ex.: 20" />
+            <input id="quantity" name="quantity" value={quantity} onChange={(event) => { setQuantity(event.target.value.replace(/\D/g, "")); markDirty(); }} disabled={readOnly} inputMode="numeric" pattern="[0-9]*" autoComplete="off" placeholder="Ex.: 20" />
           </label>
         </div>
         {lotValidationError ? <p className="error" role="alert">{lotValidationError}</p> : null}
@@ -187,7 +199,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker }: E
         {referenceFeedback === "outside" ? <p className="reference-feedback outside" role="status">Este lote não consta na referência SAP. O lançamento continua liberado.</p> : null}
         {error && <p className="error" role="alert">{error}</p>}
         {feedback ? <p className="success-feedback" role="status">{feedback}</p> : null}
-        <button className="primary entry-form-submit" type="submit" disabled={saving} aria-label={editing ? "Salvar alterações" : "Adicionar"}>{saving ? "Salvando…" : editing ? "Salvar alterações" : "Adicionar registro"}</button>
+        <button className="primary entry-form-submit" type="submit" disabled={saving || readOnly} aria-label={editing ? "Salvar alterações" : "Adicionar"}>{saving ? "Salvando…" : editing ? "Salvar alterações" : "Adicionar registro"}</button>
       </form>
 
       {duplicates.length > 0 && (

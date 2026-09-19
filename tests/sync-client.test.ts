@@ -95,3 +95,75 @@ it("entra por seis dígitos e guarda somente o token interno retornado", async (
     syncToken: "secure-participant-token-with-more-than-32-characters",
   });
 });
+
+it("não marca uma resposta repetida como mudança visual", async () => {
+  const inventory = await createInventory("2026-09-15");
+  const entry = await createEntry(inventory.id, { side: "EF", bay: "01", lot: "2712345680", quantity: 1 });
+  const fetchMock = vi.fn().mockImplementation(() => new Response(JSON.stringify(response(inventory.id, entry.id)), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  await syncInventory(inventory.id);
+  const secondResult = await syncInventory(inventory.id);
+
+  expect(secondResult.changed).toBe(false);
+  expect(secondResult.remoteChanged).toBe(false);
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+it("reaproveita o mesmo sync quando uma segunda chamada chega durante a primeira", async () => {
+  const inventory = await createInventory("2026-09-16");
+  const entry = await createEntry(inventory.id, { side: "DE", bay: "02", lot: "2712345681", quantity: 2 });
+  let resolveRequest: ((value: Response) => void) | undefined;
+  const fetchMock = vi.fn().mockImplementation(() => new Promise<Response>((resolve) => { resolveRequest = resolve; }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const first = syncInventory(inventory.id);
+  const second = syncInventory(inventory.id);
+  expect(second).toBe(first);
+  await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  resolveRequest?.(new Response(JSON.stringify(response(inventory.id, entry.id)), { status: 200 }));
+  await first;
+
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it("não sobrescreve um lançamento feito enquanto a requisição estava em voo", async () => {
+  const inventory = await createInventory("2026-09-17");
+  const entry = await createEntry(inventory.id, { side: "EF", bay: "03", lot: "2712345682", quantity: 2 });
+  let resolveRequest: ((value: Response) => void) | undefined;
+  const fetchMock = vi.fn().mockImplementation(() => new Promise<Response>((resolve) => { resolveRequest = resolve; }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const syncing = syncInventory(inventory.id);
+  await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  const newerEntry = await createEntry(inventory.id, { side: "DE", bay: "04", lot: "2712345683", quantity: 4 });
+  resolveRequest?.(new Response(JSON.stringify(response(inventory.id, entry.id)), { status: 200 }));
+  await syncing;
+
+  expect((await db.entries.get(newerEntry.id))?.syncStatus).toBe("PENDING");
+  expect((await db.inventories.get(inventory.id))).toMatchObject({ revision: 3, syncStatus: "PENDING" });
+});
+
+it("faz somente uma leitura quando o servidor já finalizou durante um polling", async () => {
+  const inventory = await createInventory("2026-09-18");
+  await createEntry(inventory.id, { side: "EF", bay: "05", lot: "2712345684", quantity: 1 });
+  const finishedResponse = {
+    cursor: 4,
+    inventory: { id: inventory.id, date: "2026-09-18", status: "FINISHED", createdAt: inventory.createdAt, updatedAt: inventory.updatedAt, revision: 3, syncBaseRevision: 3, tombstone: false, deletedAt: null },
+    entries: [],
+    acknowledged: { inventory: false, entryIds: [] },
+    conflicts: [],
+    participationCode: null,
+  };
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response(null, { status: 409 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify(finishedResponse), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const result = await syncInventory(inventory.id, { background: true });
+
+  expect(result.serverStatus).toBe("FINISHED");
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect((await db.inventories.get(inventory.id))?.syncStatus).toBe("ERROR");
+  expect(await listSyncConflicts(inventory.id)).toHaveLength(1);
+});

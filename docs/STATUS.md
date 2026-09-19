@@ -29,7 +29,7 @@ O servidor de teste do Playwright passou a compilar o frontend apontando para a 
 
 - A validação física em Android real e iPhone/Safari continua pendente; Chromium local e navegador desktop não substituem esses gates.
 - Concorrência de produção em PostgreSQL/Neon continua sem exercício físico nesta rodada; os testes backend seguem usando o ambiente local previsto.
-- `main` e `origin/main` estão alinhadas em `f541bb1`.
+- `main` e `origin/main` estão alinhadas; a implementação funcional está em `f541bb1`.
 - Frontend Vercel `/acesso`: HTTP 200.
 - Rewrite Vercel `/backend-api/healthz`: HTTP 200 com `{"status":"ok"}`.
 - API Render `/healthz`: HTTP 200 com `{"status":"ok"}`.

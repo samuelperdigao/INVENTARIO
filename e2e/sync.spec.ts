@@ -7,7 +7,7 @@ test("participa de um inventário com seis dígitos sem expor UUID ou token", as
   await login(page, ownerEmail);
   await expect(page.getByText(/Bem-vindo\(a\)/)).toBeVisible();
   await page.getByRole("button", { name: "Iniciar novo inventário" }).click();
-  await page.getByRole("button", { name: "EF" }).click();
+  await page.getByRole("button", { name: "LE" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("15");
   await page.getByLabel("Camada").selectOption("A1");
   await page.getByLabel("Lote").fill("2712345678");
@@ -26,13 +26,13 @@ test("participa de um inventário com seis dígitos sem expor UUID ou token", as
   await secondPage.getByRole("button", { name: "Participar agora" }).click();
   await expect(secondPage.getByText("Lote 2712345678")).toBeVisible();
 
-  await page.getByRole("button", { name: "EF" }).click();
+  await page.getByRole("button", { name: "LE" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("17");
   await page.getByLabel("Camada").selectOption("A2");
   await page.getByLabel("Lote").fill("2712345689");
   await page.getByLabel("Quantidade de peças").fill("7");
 
-  await secondPage.getByRole("button", { name: "DE" }).click();
+  await secondPage.getByRole("button", { name: "LP" }).click();
   await secondPage.getByRole("textbox", { name: "Vão" }).fill("16");
   await secondPage.getByLabel("Lote").fill("2712345679");
   await secondPage.getByLabel("Quantidade de peças").fill("4");

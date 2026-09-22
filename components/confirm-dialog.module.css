@@ -1,4 +1,4 @@
-.backdrop {
+ .backdrop {
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -65,4 +65,37 @@
   }
   .actions { display: grid; grid-template-columns: 1fr; }
   .actions button { width: 100%; }
+}
+
+
+/* Gerdau visual system: confirmação acessível e responsiva. */
+.backdrop {
+  background: rgba(0, 51, 102, .68);
+  backdrop-filter: blur(9px);
+}
+
+.dialog {
+  border-color: rgba(255, 204, 0, .58);
+  border-radius: 20px;
+  background: linear-gradient(145deg, #fff, #f4f8fa);
+  box-shadow: 0 30px 80px rgba(0, 51, 102, .33);
+}
+
+.icon {
+  background: linear-gradient(145deg, #ffcc00, #fff1a8);
+  color: #003366;
+}
+
+.danger .icon {
+  background: #fff1ef;
+  color: #b42318;
+}
+
+.description {
+  color: #607381;
+}
+
+.actions button {
+  min-height: 44px;
+  border-radius: 11px;
 }

@@ -75,14 +75,14 @@
 }
 
 .dialog {
-  border-color: rgba(255, 204, 0, .58);
+  border-color: rgba(155, 201, 247, .72);
   border-radius: 20px;
   background: linear-gradient(145deg, #fff, #f4f8fa);
   box-shadow: 0 30px 80px rgba(0, 51, 102, .33);
 }
 
 .icon {
-  background: linear-gradient(145deg, #ffcc00, #fff1a8);
+  background: linear-gradient(145deg, #e5f1fd, #9bc9f7);
   color: #003366;
 }
 

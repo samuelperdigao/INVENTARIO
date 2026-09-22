@@ -2744,6 +2744,1240 @@ select:focus {
 
 
 .app-page-shell .app-rail .brand-logo-mark {
+
+
+
+/* BLUEPRINT CONTROL ROOM V3
+   Direção visual: operação industrial, blueprint técnico e azul integral.
+   Somente apresentação visual. Nenhuma regra de negócio ou fluxo foi alterado.
+*/
+:root {
+  --blue-950: #031326;
+  --blue-900: #062653;
+  --blue-850: #07366f;
+  --blue-800: #0a4d9c;
+  --blue-700: #0b63c7;
+  --blue-600: #147de5;
+  --blue-500: #4b9cf2;
+  --blue-300: #9bc9f7;
+  --blue-200: #c9e1fa;
+  --blue-100: #e5f1fd;
+  --blue-50: #f4f8fd;
+  --ink: #0a1d34;
+  --muted: #5c7088;
+  --border: #c9d9ea;
+  --surface: #ffffff;
+  --surface-soft: #f4f8fd;
+  --success: #0b63c7;
+  --success-soft: #e5f1fd;
+  --amber: #0b63c7;
+  --amber-soft: #e5f1fd;
+  --shadow-sm: 0 12px 28px rgba(4, 35, 78, .07);
+  --shadow-md: 0 22px 52px rgba(4, 35, 78, .12);
+  --shadow-lg: 0 34px 86px rgba(4, 35, 78, .16);
+  --control-ink: #0a1d34;
+  --control-ink-soft: #5c7088;
+  --control-navy: #062653;
+  --control-navy-2: #07366f;
+  --control-cyan: #147de5;
+  --control-cyan-soft: #e5f1fd;
+  --control-electric: #147de5;
+  --control-line: #c9d9ea;
+  --control-surface: #ffffff;
+  --control-surface-soft: #f4f8fd;
+  --control-shadow: 0 22px 52px rgba(4, 35, 78, .12);
+  --inventory-ink: #0a1d34;
+  --inventory-ink-soft: #5c7088;
+  --inventory-navy: #062653;
+  --inventory-navy-2: #07366f;
+  --inventory-cyan: #147de5;
+  --inventory-cyan-soft: #e5f1fd;
+  --inventory-electric: #147de5;
+  --inventory-line: #c9d9ea;
+  --inventory-surface: #ffffff;
+  --inventory-surface-soft: #f4f8fd;
+  --inventory-shadow: 0 22px 52px rgba(4, 35, 78, .12);
+}
+
+html {
+  background: #f4f8fd !important;
+}
+
+body {
+  color: var(--ink) !important;
+  background:
+    radial-gradient(circle at 94% -4%, rgba(20, 125, 229, .14), transparent 25rem),
+    radial-gradient(circle at 2% 28%, rgba(155, 201, 247, .15), transparent 28rem),
+    linear-gradient(145deg, #f8fbff 0%, #eef4fb 58%, #f8fbff 100%) !important;
+}
+
+body:has(.auth-shell),
+body:has(.app-page-shell),
+body:has(.inventory-shell) {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(20, 125, 229, .13), transparent 28rem),
+    radial-gradient(circle at 0% 42%, rgba(201, 225, 250, .20), transparent 30rem),
+    linear-gradient(145deg, #f8fbff 0%, #edf4fb 57%, #f8fbff 100%) !important;
+}
+
+::selection {
+  background: #c9e1fa !important;
+  color: #062653 !important;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+.primary,
+.primary-action,
+.entry-form-submit,
+.success-button {
+  border-color: #0a4d9c !important;
+  background: linear-gradient(135deg, #062653 0%, #0a4d9c 58%, #147de5 100%) !important;
+  box-shadow: 0 14px 28px rgba(6, 38, 83, .22) !important;
+}
+
+.primary:hover:not(:disabled),
+.primary-action:hover:not(:disabled),
+.entry-form-submit:hover:not(:disabled),
+.success-button:hover:not(:disabled) {
+  box-shadow: 0 18px 36px rgba(6, 38, 83, .30) !important;
+  filter: brightness(1.04);
+}
+
+.secondary,
+.small-button,
+.side-button {
+  border-color: #b7cde5 !important;
+  background: #ffffff !important;
+  color: #07366f !important;
+}
+
+.secondary:hover:not(:disabled),
+.small-button:hover:not(:disabled),
+.side-button:hover:not(:disabled) {
+  border-color: #147de5 !important;
+  background: #eef6ff !important;
+  box-shadow: 0 9px 20px rgba(20, 125, 229, .10) !important;
+}
+
+.text-button,
+.auth-links button,
+.back-link {
+  color: #0a63c7 !important;
+}
+
+input,
+select {
+  border-color: #b7cde5 !important;
+  background: rgba(255, 255, 255, .96) !important;
+  color: #0a1d34 !important;
+}
+
+input:hover,
+select:hover {
+  border-color: #7eafe2 !important;
+}
+
+input:focus,
+select:focus {
+  border-color: #147de5 !important;
+  box-shadow: 0 0 0 4px rgba(20, 125, 229, .13) !important;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(20, 125, 229, .36) !important;
+  outline-offset: 3px;
+}
+
+.card,
+.app-page-content .card,
+.app-page-shell .dashboard-content .card {
+  border-color: #c9d9ea !important;
+  border-radius: 22px !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(246,250,255,.98)) !important;
+  box-shadow: 0 18px 42px rgba(4, 35, 78, .08) !important;
+}
+
+.card:hover,
+.app-page-content .card:hover,
+.app-page-shell .dashboard-content .card:hover {
+  border-color: #9fc4eb !important;
+}
+
+.status-pill,
+.micro-pill,
+.app-page-content .status-pill,
+.app-page-shell .dashboard-content .status-pill {
+  border-color: #b5d1ed !important;
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+}
+
+.micro-pill.good,
+.classification-tag.good,
+.classification-tag.ok,
+.report-summary-item.good,
+.stage-state.good {
+  border-color: #b5d1ed !important;
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+}
+
+.classification-tag.attention,
+.classification-tag.single-piece,
+.classification-tag.multiple-pieces,
+.classification-tag.distributed,
+.classification-tag.review,
+.report-summary-item.attention,
+.report-summary-item.warning {
+  border-color: #b5d1ed !important;
+  background: #eef6ff !important;
+  color: #0a4d9c !important;
+}
+
+.live-dot,
+.ok-dot,
+.alert-dot,
+.inventory-header-topline-dot,
+.stage-state.attention {
+  color: #0a63c7 !important;
+}
+
+.live-dot::before,
+.ok-dot,
+.alert-dot,
+.inventory-header-topline-dot,
+.stage-state.good::before,
+.stage-state.attention::before {
+  background: #147de5 !important;
+  box-shadow: 0 0 0 4px rgba(20, 125, 229, .14) !important;
+}
+
+.notice,
+.success-feedback {
+  border-color: #b5d1ed !important;
+  background: #eaf4ff !important;
+  color: #0a4d9c !important;
+}
+
+.warning,
+.reference-warnings {
+  color: #0a4d9c !important;
+}
+
+.warning {
+  border-color: #b5d1ed !important;
+  background: #eef6ff !important;
+}
+
+code {
+  background: #e5f1fd !important;
+  color: #07366f !important;
+}
+
+/* Acesso: portal operacional com painel editorial e cartão de comando. */
+body:has(.auth-shell) {
+  overflow-x: hidden;
+}
+
+.auth-shell {
+  min-height: 100dvh !important;
+  grid-template-columns: minmax(370px, .92fr) minmax(500px, 1.08fr) !important;
+  background: #061d3d !important;
+}
+
+.auth-aside {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  isolation: isolate;
+  padding: clamp(30px, 6vw, 82px) clamp(28px, 6vw, 86px) clamp(30px, 5vw, 66px) !important;
+  border-right: 1px solid rgba(155, 201, 247, .28) !important;
+  background:
+    linear-gradient(133deg, rgba(2, 17, 43, .99) 0%, rgba(5, 42, 93, .96) 48%, rgba(10, 85, 177, .91) 100%),
+    url("/industrial-yard-hero.jpg") center / cover !important;
+}
+
+.auth-aside::before {
+  content: "LPE / INVENTÁRIO";
+  position: absolute;
+  z-index: -1;
+  top: 18%;
+  right: -18%;
+  color: rgba(155, 201, 247, .075);
+  font-size: clamp(4rem, 10vw, 9rem);
+  font-weight: 950;
+  letter-spacing: -.08em;
+  line-height: .8;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  white-space: nowrap;
+}
+
+.auth-aside::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -170px;
+  bottom: -160px;
+  width: 480px;
+  height: 480px;
+  border: 1px solid rgba(155, 201, 247, .34);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 25px rgba(155, 201, 247, .06),
+    0 0 0 52px rgba(155, 201, 247, .045),
+    0 0 0 104px rgba(20, 125, 229, .06);
+  pointer-events: none;
+}
+
+.auth-aside > * {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-aside .brand-logo {
+  --brand-logo-size: 48px;
+}
+
+.auth-aside .brand-logo-mark {
+  border-color: rgba(201, 225, 250, .75) !important;
+  background: linear-gradient(145deg, #e5f1fd, #9bc9f7 62%, #4b9cf2) !important;
+  box-shadow: 0 14px 32px rgba(0, 14, 42, .30) !important;
+}
+
+.auth-aside .brand-logo-beam {
+  fill: #062653 !important;
+}
+
+.auth-aside .brand-logo-check {
+  stroke: #0a63c7 !important;
+}
+
+.auth-aside .brand-logo-copy strong {
+  color: #ffffff !important;
+}
+
+.auth-aside .brand-logo-copy small {
+  color: #c9e1fa !important;
+}
+
+.auth-aside h1 {
+  max-width: 12ch !important;
+  margin: 14px 0 22px !important;
+  color: #ffffff !important;
+  font-size: clamp(2.65rem, 5.2vw, 5.8rem) !important;
+  line-height: .92 !important;
+  letter-spacing: -.085em !important;
+}
+
+.auth-aside p:not(.eyebrow) {
+  max-width: 47ch !important;
+  color: #c9e1fa !important;
+  font-size: clamp(.96rem, 1.3vw, 1.10rem) !important;
+}
+
+.auth-aside .light-eyebrow {
+  color: #9bc9f7 !important;
+  letter-spacing: .18em !important;
+}
+
+.auth-benefits {
+  display: grid !important;
+  gap: 0 !important;
+  width: min(100%, 510px);
+  margin-top: 34px !important;
+}
+
+.auth-benefits li {
+  padding: 13px 0 !important;
+  border-top: 1px solid rgba(155, 201, 247, .22);
+  color: #e5f1fd !important;
+  font-size: .82rem !important;
+  letter-spacing: .01em;
+}
+
+.auth-benefits li:last-child {
+  border-bottom: 1px solid rgba(155, 201, 247, .22);
+}
+
+.auth-benefits li::before {
+  color: #4b9cf2 !important;
+}
+
+.auth-main {
+  position: relative;
+  overflow: hidden;
+  align-items: center;
+  padding: clamp(28px, 5vw, 72px) clamp(18px, 5vw, 84px) !important;
+  background:
+    linear-gradient(rgba(20, 125, 229, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 125, 229, .045) 1px, transparent 1px),
+    linear-gradient(145deg, #f8fbff 0%, #edf4fb 58%, #f8fbff 100%) !important;
+  background-size: 28px 28px, 28px 28px, auto;
+}
+
+.auth-main::after {
+  content: "OPERATIONAL ACCESS / 01";
+  position: absolute;
+  right: clamp(18px, 5vw, 84px);
+  bottom: 24px;
+  color: #a0b9d3;
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+
+.auth-card {
+  width: min(100%, 540px) !important;
+  padding: clamp(28px, 4vw, 43px) !important;
+  border: 1px solid #c9d9ea !important;
+  border-radius: 28px !important;
+  background: rgba(255, 255, 255, .90) !important;
+  box-shadow: 0 34px 86px rgba(4, 35, 78, .16) !important;
+  backdrop-filter: blur(18px);
+  animation: blueprint-card-in 520ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.auth-card::before {
+  right: 34px !important;
+  left: 34px !important;
+  height: 5px !important;
+  border-radius: 0 0 8px 8px !important;
+  background: linear-gradient(90deg, transparent, #0a4d9c 24%, #147de5 52%, #9bc9f7 78%, transparent) !important;
+}
+
+.auth-card::after {
+  content: "ACESSO CONTROLADO";
+  position: absolute;
+  top: 30px;
+  right: 34px;
+  color: #7f9abb;
+  font-size: .58rem;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+
+.auth-card .eyebrow {
+  margin-top: 36px !important;
+  color: #0a63c7 !important;
+  letter-spacing: .16em !important;
+}
+
+.auth-card h2 {
+  color: #061f43 !important;
+  font-size: clamp(1.85rem, 3.6vw, 2.65rem) !important;
+  letter-spacing: -.065em !important;
+}
+
+.auth-card .auth-description {
+  max-width: 42ch;
+  color: #5c7088 !important;
+}
+
+.auth-card .auth-form {
+  gap: 15px !important;
+  margin-top: 28px !important;
+}
+
+.auth-card label {
+  color: #183454 !important;
+}
+
+.auth-card label small {
+  color: #7188a2;
+  font-size: .75rem;
+  font-weight: 600;
+}
+
+.auth-card .primary {
+  min-height: 56px !important;
+  margin-top: 5px;
+  border-radius: 14px !important;
+  font-size: .94rem;
+  letter-spacing: .02em;
+}
+
+.auth-card .auth-links {
+  margin-top: 24px !important;
+}
+
+.auth-card .auth-links button:hover {
+  color: #062653 !important;
+}
+
+/* Dashboard: navegação de console e hero em blueprint. */
+.app-page-shell,
+.app-page-shell.dashboard-shell {
+  color: #0a1d34 !important;
+}
+
+.app-page-shell .app-rail,
+.inventory-shell .inventory-rail {
+  border-color: rgba(155, 201, 247, .34) !important;
+  border-radius: 28px !important;
+  background:
+    linear-gradient(165deg, #031a3c 0%, #062653 56%, #0a4d9c 100%),
+    radial-gradient(circle at 100% 0%, rgba(155, 201, 247, .18), transparent 18rem) !important;
+  box-shadow: 0 28px 64px rgba(4, 35, 78, .22) !important;
+}
+
+.app-page-shell .app-rail::before,
+.inventory-shell .inventory-rail::before {
+  background-image:
+    linear-gradient(rgba(155, 201, 247, .10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(155, 201, 247, .10) 1px, transparent 1px) !important;
+  opacity: .22 !important;
+}
+
+.app-page-shell .app-rail::after,
+.inventory-shell .inventory-rail::after {
+  border-color: rgba(155, 201, 247, .24) !important;
+  box-shadow:
+    0 0 0 22px rgba(155, 201, 247, .055),
+    0 0 0 44px rgba(20, 125, 229, .06) !important;
+}
+
+.app-page-shell .app-rail .brand-logo-mark,
+.inventory-shell .inventory-rail .brand-logo-mark {
+  border-color: rgba(201, 225, 250, .76) !important;
+  background: linear-gradient(145deg, #e5f1fd, #9bc9f7 60%, #4b9cf2) !important;
+  box-shadow: 0 14px 30px rgba(0, 14, 42, .28) !important;
+}
+
+.app-page-shell .app-rail .brand-logo-beam,
+.inventory-shell .inventory-rail .brand-logo-beam {
+  fill: #062653 !important;
+}
+
+.app-page-shell .app-rail .brand-logo-check,
+.inventory-shell .inventory-rail .brand-logo-check {
+  stroke: #0a63c7 !important;
+}
+
+.app-page-shell .app-rail .brand-logo-copy strong,
+.inventory-shell .inventory-rail .brand-logo-copy strong {
+  color: #ffffff !important;
+}
+
+.app-page-shell .app-rail .brand-logo-copy small,
+.inventory-shell .inventory-rail .brand-logo-copy small {
+  color: #c9e1fa !important;
+}
+
+.app-rail-kicker,
+.inventory-rail-kicker {
+  color: #9bc9f7 !important;
+  letter-spacing: .18em !important;
+}
+
+.app-page-shell .app-rail .dashboard-nav-link,
+.inventory-shell .inventory-rail-step {
+  color: #b8d2ed !important;
+  border-radius: 14px !important;
+}
+
+.app-page-shell .app-rail .dashboard-nav-link span,
+.inventory-shell .inventory-rail-step > b {
+  border-color: rgba(155, 201, 247, .22) !important;
+  background: rgba(155, 201, 247, .10) !important;
+  color: #9bc9f7 !important;
+}
+
+.app-page-shell .app-rail .dashboard-nav-link:hover:not(:disabled),
+.inventory-shell .inventory-rail-step:not(.active):hover {
+  border-color: rgba(155, 201, 247, .34) !important;
+  background: rgba(155, 201, 247, .12) !important;
+  color: #ffffff !important;
+  transform: translateX(3px);
+}
+
+.app-page-shell .app-rail .dashboard-nav-link.active,
+.inventory-shell .inventory-rail-step.active {
+  border-color: rgba(201, 225, 250, .55) !important;
+  background: linear-gradient(100deg, rgba(155, 201, 247, .22), rgba(20, 125, 229, .28)) !important;
+  box-shadow: inset 4px 0 0 #9bc9f7, 0 12px 24px rgba(0, 18, 51, .20) !important;
+  color: #ffffff !important;
+}
+
+.app-page-shell .app-rail .dashboard-nav-link.active span,
+.inventory-shell .inventory-rail-step.active > b {
+  border-color: #c9e1fa !important;
+  background: #c9e1fa !important;
+  color: #062653 !important;
+  box-shadow: 0 0 0 5px rgba(201, 225, 250, .13) !important;
+}
+
+.app-page-shell .app-rail .dashboard-nav-link.active strong,
+.inventory-shell .inventory-rail-step.active strong {
+  color: #ffffff !important;
+}
+
+.app-rail-foot,
+.inventory-rail-foot {
+  border-top-color: rgba(155, 201, 247, .24) !important;
+  color: #c9e1fa !important;
+}
+
+.app-rail-foot-icon,
+.inventory-rail-foot-icon {
+  border-color: rgba(155, 201, 247, .34) !important;
+  background: rgba(155, 201, 247, .11) !important;
+  color: #9bc9f7 !important;
+}
+
+.app-rail-foot strong,
+.inventory-rail-foot strong {
+  color: #ffffff !important;
+}
+
+.app-rail-foot small,
+.inventory-rail-foot small {
+  color: #b8d2ed !important;
+}
+
+.app-page-shell .dashboard-topbar {
+  border-bottom-color: #c9d9ea !important;
+}
+
+.app-page-shell .dashboard-topbar .text-button,
+.app-page-shell .dashboard-content .text-button {
+  color: #0a63c7 !important;
+}
+
+.app-page-shell .dashboard-hero {
+  position: relative;
+  min-height: 218px !important;
+  overflow: hidden;
+  border-color: rgba(155, 201, 247, .56) !important;
+  border-radius: 28px !important;
+  background-image:
+    linear-gradient(105deg, rgba(2, 17, 43, .98), rgba(5, 54, 111, .90) 58%, rgba(10, 99, 199, .76)),
+    repeating-linear-gradient(122deg, transparent 0 30px, rgba(155, 201, 247, .13) 31px 33px, transparent 34px 70px),
+    url("/industrial-yard-hero.jpg") !important;
+  box-shadow: 0 28px 62px rgba(4, 35, 78, .22) !important;
+}
+
+.app-page-shell .dashboard-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: .22;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(201, 225, 250, .12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201, 225, 250, .12) 1px, transparent 1px);
+  background-size: 25px 25px;
+  mask-image: linear-gradient(120deg, black, transparent 76%);
+}
+
+.app-page-shell .dashboard-hero::after {
+  background: linear-gradient(90deg, transparent 12%, rgba(155, 201, 247, .24) 50%, transparent 88%) !important;
+}
+
+.app-page-shell .dashboard-hero h1 {
+  color: #ffffff !important;
+  font-size: clamp(1.95rem, 4vw, 3.2rem) !important;
+}
+
+.app-page-shell .dashboard-hero .eyebrow {
+  color: #9bc9f7 !important;
+  letter-spacing: .18em !important;
+}
+
+.app-page-shell .dashboard-hero p:last-child {
+  color: #c9e1fa !important;
+  opacity: 1 !important;
+}
+
+.app-page-shell .dashboard-status small,
+.app-page-shell .dashboard-status .live-dot {
+  color: #c9e1fa !important;
+}
+
+.app-page-shell .action-grid {
+  gap: 16px !important;
+}
+
+.app-page-shell .action-card {
+  min-height: 132px !important;
+  border-color: #c9d9ea !important;
+  border-radius: 20px !important;
+  background: linear-gradient(145deg, #ffffff, #f2f7fd) !important;
+  box-shadow: 0 16px 32px rgba(4, 35, 78, .08) !important;
+}
+
+.app-page-shell .action-card:hover {
+  border-color: #8fb9e5 !important;
+  box-shadow: 0 21px 38px rgba(4, 35, 78, .14) !important;
+  transform: translateY(-4px);
+}
+
+.app-page-shell .action-card strong {
+  color: #062653 !important;
+}
+
+.app-page-shell .action-card small {
+  color: #5c7088 !important;
+}
+
+.app-page-shell .action-icon {
+  border-color: #b7d2ee !important;
+  background: #e5f1fd !important;
+  color: #0a63c7 !important;
+}
+
+.app-page-shell .primary-action {
+  border-color: rgba(201, 225, 250, .54) !important;
+  background: linear-gradient(145deg, #062653, #0a4d9c 78%, #147de5) !important;
+}
+
+.app-page-shell .primary-action strong,
+.app-page-shell .primary-action small {
+  color: #ffffff !important;
+}
+
+.app-page-shell .primary-action .action-icon {
+  border-color: rgba(201, 225, 250, .36) !important;
+  background: rgba(201, 225, 250, .14) !important;
+  color: #c9e1fa !important;
+}
+
+/* Cabeçalhos, métricas e tabelas com leitura técnica. */
+.app-page-content .page-topbar,
+.inventory-shell .inventory-header {
+  border-color: #c9d9ea !important;
+  border-radius: 28px !important;
+  background:
+    linear-gradient(120deg, rgba(255,255,255,.99), rgba(240,247,254,.97)),
+    repeating-linear-gradient(132deg, transparent 0 34px, rgba(20,125,229,.08) 35px 37px, transparent 38px 72px) !important;
+  box-shadow: 0 24px 56px rgba(4, 35, 78, .12) !important;
+}
+
+.app-page-content .page-topbar::before,
+.inventory-shell .inventory-header::before {
+  background: linear-gradient(105deg, transparent 42%, rgba(20,125,229,.14) 49%, rgba(255,255,255,.66) 53%, transparent 62%) !important;
+}
+
+.app-page-content .page-topbar .eyebrow,
+.inventory-shell .inventory-header .eyebrow,
+.inventory-shell .inventory-header .back-link {
+  color: #0a63c7 !important;
+}
+
+.app-page-content .page-topbar h1,
+.inventory-shell .inventory-header h1 {
+  color: #062653 !important;
+  letter-spacing: -.075em !important;
+}
+
+.app-page-content .page-topbar .muted,
+.inventory-shell .inventory-header .muted {
+  color: #5c7088 !important;
+}
+
+.app-page-content .metric-card,
+.inventory-shell .metric-card {
+  border-color: #c9d9ea !important;
+  border-radius: 20px !important;
+  background: linear-gradient(145deg, #ffffff, #f3f8fe) !important;
+  box-shadow: 0 16px 34px rgba(4, 35, 78, .08) !important;
+}
+
+.app-page-content .metric-card::before,
+.inventory-shell .metric-card::before {
+  background: linear-gradient(90deg, #9bc9f7, #147de5) !important;
+}
+
+.app-page-content .metric-card-icon,
+.inventory-shell .metric-card-icon {
+  border-color: #b7d2ee !important;
+  background: #e5f1fd !important;
+  color: #0a63c7 !important;
+}
+
+.app-page-content .metric-card-kicker,
+.app-page-content .metric-label,
+.inventory-shell .metric-card-kicker,
+.inventory-shell .metric-label {
+  color: #6d829a !important;
+}
+
+.app-page-content .metric-value,
+.inventory-shell .metric-value {
+  color: #062653 !important;
+}
+
+.app-page-content .metric-card--records,
+.inventory-shell .metric-card--records {
+  border-color: rgba(155, 201, 247, .48) !important;
+  background: linear-gradient(145deg, #031a3c, #062653 62%, #0a63c7) !important;
+  box-shadow: 0 20px 40px rgba(4, 35, 78, .22) !important;
+}
+
+.app-page-content .metric-card--records .metric-card-icon,
+.inventory-shell .metric-card--records .metric-card-icon {
+  border-color: rgba(201, 225, 250, .42) !important;
+  background: rgba(201, 225, 250, .14) !important;
+  color: #c9e1fa !important;
+}
+
+.app-page-content .metric-card--records .metric-card-kicker,
+.app-page-content .metric-card--records .metric-label,
+.inventory-shell .metric-card--records .metric-card-kicker,
+.inventory-shell .metric-card--records .metric-label {
+  color: #b8d2ed !important;
+}
+
+.app-page-content .metric-card--records .metric-value,
+.inventory-shell .metric-card--records .metric-value {
+  color: #ffffff !important;
+}
+
+.app-page-content .section-title h2,
+.app-page-shell .dashboard-content .section-title h2,
+.app-page-content .panel-copy h2,
+.inventory-shell .panel-copy h2 {
+  color: #062653 !important;
+}
+
+.app-page-content .section-title .muted,
+.app-page-shell .dashboard-content .section-title .muted,
+.app-page-content .panel-copy .muted,
+.inventory-shell .panel-copy .muted {
+  color: #5c7088 !important;
+}
+
+.app-page-content .inventory-card,
+.app-page-shell .dashboard-content .inventory-card {
+  border-color: #c9d9ea !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(4, 35, 78, .06) !important;
+}
+
+.app-page-content .inventory-card:hover,
+.app-page-shell .dashboard-content .inventory-card:hover {
+  border-color: #8fb9e5 !important;
+  box-shadow: 0 16px 30px rgba(4, 35, 78, .12) !important;
+}
+
+.app-page-content .inventory-card-main strong,
+.app-page-shell .dashboard-content .inventory-card-main strong,
+.app-page-content .history-date span {
+  color: #062653 !important;
+}
+
+.app-page-content .inventory-card-main .muted,
+.app-page-shell .dashboard-content .inventory-card-main .muted,
+.app-page-content .history-date small {
+  color: #5c7088 !important;
+}
+
+.app-page-content .chevron {
+  color: #0a63c7 !important;
+}
+
+.app-page-content .segmented-control {
+  border-color: #b7d2ee !important;
+  background: #e5f1fd !important;
+}
+
+.app-page-content .segmented-control button[aria-selected="true"] {
+  background: linear-gradient(135deg, #062653, #0a63c7) !important;
+  color: #ffffff !important;
+}
+
+.app-page-content .history-row {
+  border-color: #c9d9ea !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+}
+
+.app-page-content .report-summary-item {
+  border-color: #c9d9ea !important;
+  background: #f4f8fd !important;
+}
+
+.app-page-content .report-summary-item span {
+  color: #5c7088 !important;
+}
+
+.app-page-content .report-summary-item strong {
+  color: #062653 !important;
+}
+
+.app-page-content .details-box,
+.app-page-content .report-table-wrap {
+  border-color: #c9d9ea !important;
+  background: #ffffff !important;
+}
+
+.app-page-content .details-box summary,
+.app-page-content .report-table th {
+  color: #062653 !important;
+  background: #eaf4ff !important;
+}
+
+/* Inventário: estação de coleta com trilho azul e controle de alta visibilidade. */
+.inventory-shell .inventory-rail {
+  color: #dcecff !important;
+}
+
+.inventory-shell .inventory-rail-label {
+  color: #b8d2ed !important;
+}
+
+.inventory-shell .inventory-current-step {
+  color: #9bc9f7 !important;
+}
+
+.inventory-shell .inventory-rail-step strong {
+  color: #dcecff !important;
+}
+
+.inventory-shell .inventory-rail-step small {
+  color: #9eb9d7 !important;
+}
+
+.inventory-shell .inventory-header {
+  min-height: 218px !important;
+}
+
+.inventory-shell .inventory-header .status-pill {
+  border-color: #8fb9e5 !important;
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+}
+
+.inventory-shell .entry-workspace > form,
+.inventory-shell .entries-section,
+.inventory-shell .inventory-control-panel,
+.inventory-shell .reference-panel {
+  border-color: #c9d9ea !important;
+  border-radius: 22px !important;
+  box-shadow: 0 22px 52px rgba(4, 35, 78, .10) !important;
+}
+
+.inventory-shell .entry-workspace > form,
+.inventory-shell .entries-section,
+.inventory-shell .reference-panel {
+  background: linear-gradient(145deg, #ffffff, #f5f9fe) !important;
+}
+
+.inventory-shell .entry-workspace > form::after {
+  background: linear-gradient(90deg, transparent, #9bc9f7, #147de5, transparent) !important;
+}
+
+.inventory-shell .entry-workspace > form .panel-index,
+.inventory-shell .entries-section .panel-index {
+  border-color: #b7d2ee !important;
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+  box-shadow: 0 8px 16px rgba(4, 35, 78, .12) !important;
+}
+
+.inventory-shell .side-button[aria-pressed="true"] {
+  border-color: #8fb9e5 !important;
+  background: linear-gradient(135deg, #062653, #0a63c7) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 22px rgba(4, 35, 78, .20) !important;
+}
+
+.inventory-shell .entry-form-submit {
+  min-height: 56px !important;
+  border-radius: 14px !important;
+}
+
+.inventory-shell .entries-section > .card {
+  border-color: #c9d9ea !important;
+  border-radius: 18px !important;
+  background: #f4f8fd !important;
+}
+
+.inventory-shell .side-heading {
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+}
+
+.inventory-shell .entry-row {
+  border-color: #c9d9ea !important;
+  border-radius: 15px !important;
+  background: #ffffff !important;
+  box-shadow: 0 9px 19px rgba(4, 35, 78, .06) !important;
+}
+
+.inventory-shell .entry-title strong {
+  color: #062653 !important;
+}
+
+.inventory-shell .entry-title .muted {
+  color: #5c7088 !important;
+}
+
+.inventory-shell .small-button.delete {
+  border-color: #b7cde5 !important;
+  background: #eef6ff !important;
+  color: #0a4d9c !important;
+}
+
+.inventory-shell .inventory-control-panel {
+  border-color: #0a4d9c !important;
+  background: linear-gradient(145deg, #031a3c 0%, #062653 60%, #0a63c7 100%) !important;
+  box-shadow: 0 28px 62px rgba(4, 35, 78, .24) !important;
+}
+
+.inventory-shell .inventory-control-panel::before {
+  background: linear-gradient(90deg, transparent, #9bc9f7 24%, #e5f1fd 50%, #9bc9f7 76%, transparent) !important;
+}
+
+.inventory-shell .inventory-control-panel::after {
+  background: radial-gradient(circle, rgba(155, 201, 247, .18), transparent 68%) !important;
+}
+
+.inventory-shell .control-panel-header h2 {
+  color: #ffffff !important;
+}
+
+.inventory-shell .control-panel-header .eyebrow {
+  color: #9bc9f7 !important;
+}
+
+.inventory-shell .control-panel-header .muted {
+  color: #c9e1fa !important;
+}
+
+.inventory-shell .control-panel-hint {
+  border-color: rgba(201, 225, 250, .42) !important;
+  background: rgba(201, 225, 250, .12) !important;
+  color: #e5f1fd !important;
+}
+
+.inventory-shell .control-stage-details {
+  border-color: #b7d2ee !important;
+  border-radius: 17px !important;
+  background: #fafdff !important;
+}
+
+.inventory-shell .control-stage-details[open] {
+  border-color: #8fb9e5 !important;
+  box-shadow: 0 16px 30px rgba(4, 35, 78, .17) !important;
+}
+
+.inventory-shell .control-stage-summary:hover {
+  background: #eef6ff !important;
+}
+
+.inventory-shell .control-stage-index {
+  border-color: #b7d2ee !important;
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+}
+
+.inventory-shell .control-stage-summary-copy strong {
+  color: #062653 !important;
+}
+
+.inventory-shell .control-stage-summary-copy small,
+.inventory-shell .control-stage-content > .muted {
+  color: #5c7088 !important;
+}
+
+.inventory-shell .control-stage-summary::after {
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+}
+
+.inventory-shell .control-stage-details[open] .control-stage-summary::after {
+  background: #c9e1fa !important;
+}
+
+.inventory-shell .control-stage-content::before {
+  background: #c9d9ea !important;
+}
+
+.inventory-shell .participation-box {
+  border-color: #b7d2ee !important;
+  background: #eaf4ff !important;
+}
+
+/* Movimento discreto, sem comprometer operação ou acessibilidade. */
+@keyframes blueprint-card-in {
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes blueprint-scan {
+  from { transform: translateX(-130%); }
+  to { transform: translateX(130%); }
+}
+
+.auth-card::before,
+.inventory-shell .inventory-control-panel::before {
+  animation: blueprint-scan 1600ms cubic-bezier(.2,.8,.2,1) 500ms both;
+}
+
+@media (max-width: 1179px) {
+  .auth-shell {
+    grid-template-columns: 1fr !important;
+  }
+
+  .auth-aside {
+    min-height: 330px !important;
+    padding: 32px 28px 36px !important;
+  }
+
+  .auth-aside h1 {
+    max-width: 15ch !important;
+    font-size: clamp(2.35rem, 8vw, 4.8rem) !important;
+  }
+
+  .auth-benefits {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px !important;
+    margin-top: 25px !important;
+  }
+
+  .auth-benefits li {
+    border: 1px solid rgba(155, 201, 247, .22);
+    border-radius: 12px;
+    padding: 10px !important;
+    font-size: .72rem !important;
+  }
+
+  .auth-benefits li:last-child {
+    border-bottom: 1px solid rgba(155, 201, 247, .22);
+  }
+
+  .auth-main {
+    min-height: calc(100dvh - 330px);
+  }
+
+  .app-page-shell .app-rail,
+  .inventory-shell .inventory-rail {
+    border-radius: 0 0 22px 22px !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .auth-aside {
+    min-height: 292px !important;
+    padding: 24px 19px 26px !important;
+  }
+
+  .auth-aside .brand-logo {
+    --brand-logo-size: 40px;
+  }
+
+  .auth-aside h1 {
+    max-width: 14ch !important;
+    margin: 12px 0 13px !important;
+    font-size: clamp(2.15rem, 12vw, 3.25rem) !important;
+  }
+
+  .auth-aside p:not(.eyebrow) {
+    max-width: 35ch !important;
+    font-size: .87rem !important;
+  }
+
+  .auth-benefits {
+    display: none !important;
+  }
+
+  .auth-main {
+    min-height: calc(100dvh - 292px);
+    padding: 18px 12px 42px !important;
+  }
+
+  .auth-main::after {
+    right: 14px;
+    bottom: 16px;
+    font-size: .52rem;
+  }
+
+  .auth-card {
+    width: 100% !important;
+    padding: 25px 18px !important;
+    border-radius: 22px !important;
+  }
+
+  .auth-card::after {
+    top: 27px;
+    right: 18px;
+    font-size: .50rem;
+  }
+
+  .auth-card .eyebrow {
+    margin-top: 32px !important;
+  }
+
+  .auth-card h2 {
+    max-width: 10ch;
+    font-size: 2rem !important;
+  }
+
+  .app-page-shell,
+  .app-page-shell.dashboard-shell,
+  .inventory-shell.inventory-shell {
+    padding-inline: 12px !important;
+  }
+
+  .app-page-shell .app-rail,
+  .inventory-shell .inventory-rail {
+    margin-inline: -12px !important;
+    border-radius: 0 0 18px 18px !important;
+  }
+
+  .app-page-shell .dashboard-hero,
+  .inventory-shell .inventory-header,
+  .app-page-content .page-topbar {
+    border-radius: 21px !important;
+  }
+
+  .app-page-shell .dashboard-hero {
+    min-height: 0 !important;
+    padding: 23px 18px !important;
+  }
+
+  .app-page-shell .action-card {
+    min-height: 96px !important;
+    border-radius: 17px !important;
+  }
+
+  .app-page-content .metric-card,
+  .inventory-shell .metric-card {
+    min-height: 110px !important;
+    border-radius: 17px !important;
+  }
+
+  .inventory-shell .inventory-header {
+    min-height: 0 !important;
+    padding: 21px 18px !important;
+  }
+
+  .inventory-shell .inventory-control-panel,
+  .inventory-shell .entry-workspace > form,
+  .inventory-shell .entries-section,
+  .inventory-shell .reference-panel {
+    border-radius: 20px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card,
+  .auth-card::before,
+  .inventory-shell .inventory-control-panel::before {
+    animation: none !important;
+  }
+}
   border-color: rgba(193, 221, 239, .85) !important;
   background: linear-gradient(145deg, #0578be, #0b91d1 68%, #c1ddef) !important;
 }
@@ -4165,5 +5399,1238 @@ body:has(.inventory-shell) {
   .inventory-shell .inventory-header {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+
+/* BLUEPRINT CONTROL ROOM V3
+   Direção visual: operação industrial, blueprint técnico e azul integral.
+   Somente apresentação visual. Nenhuma regra de negócio ou fluxo foi alterado.
+*/
+:root {
+  --blue-950: #031326;
+  --blue-900: #062653;
+  --blue-850: #07366f;
+  --blue-800: #0a4d9c;
+  --blue-700: #0b63c7;
+  --blue-600: #147de5;
+  --blue-500: #4b9cf2;
+  --blue-300: #9bc9f7;
+  --blue-200: #c9e1fa;
+  --blue-100: #e5f1fd;
+  --blue-50: #f4f8fd;
+  --ink: #0a1d34;
+  --muted: #5c7088;
+  --border: #c9d9ea;
+  --surface: #ffffff;
+  --surface-soft: #f4f8fd;
+  --success: #0b63c7;
+  --success-soft: #e5f1fd;
+  --amber: #0b63c7;
+  --amber-soft: #e5f1fd;
+  --shadow-sm: 0 12px 28px rgba(4, 35, 78, .07);
+  --shadow-md: 0 22px 52px rgba(4, 35, 78, .12);
+  --shadow-lg: 0 34px 86px rgba(4, 35, 78, .16);
+  --control-ink: #0a1d34;
+  --control-ink-soft: #5c7088;
+  --control-navy: #062653;
+  --control-navy-2: #07366f;
+  --control-cyan: #147de5;
+  --control-cyan-soft: #e5f1fd;
+  --control-electric: #147de5;
+  --control-line: #c9d9ea;
+  --control-surface: #ffffff;
+  --control-surface-soft: #f4f8fd;
+  --control-shadow: 0 22px 52px rgba(4, 35, 78, .12);
+  --inventory-ink: #0a1d34;
+  --inventory-ink-soft: #5c7088;
+  --inventory-navy: #062653;
+  --inventory-navy-2: #07366f;
+  --inventory-cyan: #147de5;
+  --inventory-cyan-soft: #e5f1fd;
+  --inventory-electric: #147de5;
+  --inventory-line: #c9d9ea;
+  --inventory-surface: #ffffff;
+  --inventory-surface-soft: #f4f8fd;
+  --inventory-shadow: 0 22px 52px rgba(4, 35, 78, .12);
+}
+
+html {
+  background: #f4f8fd !important;
+}
+
+body {
+  color: var(--ink) !important;
+  background:
+    radial-gradient(circle at 94% -4%, rgba(20, 125, 229, .14), transparent 25rem),
+    radial-gradient(circle at 2% 28%, rgba(155, 201, 247, .15), transparent 28rem),
+    linear-gradient(145deg, #f8fbff 0%, #eef4fb 58%, #f8fbff 100%) !important;
+}
+
+body:has(.auth-shell),
+body:has(.app-page-shell),
+body:has(.inventory-shell) {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(20, 125, 229, .13), transparent 28rem),
+    radial-gradient(circle at 0% 42%, rgba(201, 225, 250, .20), transparent 30rem),
+    linear-gradient(145deg, #f8fbff 0%, #edf4fb 57%, #f8fbff 100%) !important;
+}
+
+::selection {
+  background: #c9e1fa !important;
+  color: #062653 !important;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+.primary,
+.primary-action,
+.entry-form-submit,
+.success-button {
+  border-color: #0a4d9c !important;
+  background: linear-gradient(135deg, #062653 0%, #0a4d9c 58%, #147de5 100%) !important;
+  box-shadow: 0 14px 28px rgba(6, 38, 83, .22) !important;
+}
+
+.primary:hover:not(:disabled),
+.primary-action:hover:not(:disabled),
+.entry-form-submit:hover:not(:disabled),
+.success-button:hover:not(:disabled) {
+  box-shadow: 0 18px 36px rgba(6, 38, 83, .30) !important;
+  filter: brightness(1.04);
+}
+
+.secondary,
+.small-button,
+.side-button {
+  border-color: #b7cde5 !important;
+  background: #ffffff !important;
+  color: #07366f !important;
+}
+
+.secondary:hover:not(:disabled),
+.small-button:hover:not(:disabled),
+.side-button:hover:not(:disabled) {
+  border-color: #147de5 !important;
+  background: #eef6ff !important;
+  box-shadow: 0 9px 20px rgba(20, 125, 229, .10) !important;
+}
+
+.text-button,
+.auth-links button,
+.back-link {
+  color: #0a63c7 !important;
+}
+
+input,
+select {
+  border-color: #b7cde5 !important;
+  background: rgba(255, 255, 255, .96) !important;
+  color: #0a1d34 !important;
+}
+
+input:hover,
+select:hover {
+  border-color: #7eafe2 !important;
+}
+
+input:focus,
+select:focus {
+  border-color: #147de5 !important;
+  box-shadow: 0 0 0 4px rgba(20, 125, 229, .13) !important;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(20, 125, 229, .36) !important;
+  outline-offset: 3px;
+}
+
+.card,
+.app-page-content .card,
+.app-page-shell .dashboard-content .card {
+  border-color: #c9d9ea !important;
+  border-radius: 22px !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(246,250,255,.98)) !important;
+  box-shadow: 0 18px 42px rgba(4, 35, 78, .08) !important;
+}
+
+.card:hover,
+.app-page-content .card:hover,
+.app-page-shell .dashboard-content .card:hover {
+  border-color: #9fc4eb !important;
+}
+
+.status-pill,
+.micro-pill,
+.app-page-content .status-pill,
+.app-page-shell .dashboard-content .status-pill {
+  border-color: #b5d1ed !important;
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+}
+
+.micro-pill.good,
+.classification-tag.good,
+.classification-tag.ok,
+.report-summary-item.good,
+.stage-state.good {
+  border-color: #b5d1ed !important;
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+}
+
+.classification-tag.attention,
+.classification-tag.single-piece,
+.classification-tag.multiple-pieces,
+.classification-tag.distributed,
+.classification-tag.review,
+.report-summary-item.attention,
+.report-summary-item.warning {
+  border-color: #b5d1ed !important;
+  background: #eef6ff !important;
+  color: #0a4d9c !important;
+}
+
+.live-dot,
+.ok-dot,
+.alert-dot,
+.inventory-header-topline-dot,
+.stage-state.attention {
+  color: #0a63c7 !important;
+}
+
+.live-dot::before,
+.ok-dot,
+.alert-dot,
+.inventory-header-topline-dot,
+.stage-state.good::before,
+.stage-state.attention::before {
+  background: #147de5 !important;
+  box-shadow: 0 0 0 4px rgba(20, 125, 229, .14) !important;
+}
+
+.notice,
+.success-feedback {
+  border-color: #b5d1ed !important;
+  background: #eaf4ff !important;
+  color: #0a4d9c !important;
+}
+
+.warning,
+.reference-warnings {
+  color: #0a4d9c !important;
+}
+
+.warning {
+  border-color: #b5d1ed !important;
+  background: #eef6ff !important;
+}
+
+code {
+  background: #e5f1fd !important;
+  color: #07366f !important;
+}
+
+/* Acesso: portal operacional com painel editorial e cartão de comando. */
+body:has(.auth-shell) {
+  overflow-x: hidden;
+}
+
+.auth-shell {
+  min-height: 100dvh !important;
+  grid-template-columns: minmax(370px, .92fr) minmax(500px, 1.08fr) !important;
+  background: #061d3d !important;
+}
+
+.auth-aside {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  isolation: isolate;
+  padding: clamp(30px, 6vw, 82px) clamp(28px, 6vw, 86px) clamp(30px, 5vw, 66px) !important;
+  border-right: 1px solid rgba(155, 201, 247, .28) !important;
+  background:
+    linear-gradient(133deg, rgba(2, 17, 43, .99) 0%, rgba(5, 42, 93, .96) 48%, rgba(10, 85, 177, .91) 100%),
+    url("/industrial-yard-hero.jpg") center / cover !important;
+}
+
+.auth-aside::before {
+  content: "LPE / INVENTÁRIO";
+  position: absolute;
+  z-index: -1;
+  top: 18%;
+  right: -18%;
+  color: rgba(155, 201, 247, .075);
+  font-size: clamp(4rem, 10vw, 9rem);
+  font-weight: 950;
+  letter-spacing: -.08em;
+  line-height: .8;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  white-space: nowrap;
+}
+
+.auth-aside::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -170px;
+  bottom: -160px;
+  width: 480px;
+  height: 480px;
+  border: 1px solid rgba(155, 201, 247, .34);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 25px rgba(155, 201, 247, .06),
+    0 0 0 52px rgba(155, 201, 247, .045),
+    0 0 0 104px rgba(20, 125, 229, .06);
+  pointer-events: none;
+}
+
+.auth-aside > * {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-aside .brand-logo {
+  --brand-logo-size: 48px;
+}
+
+.auth-aside .brand-logo-mark {
+  border-color: rgba(201, 225, 250, .75) !important;
+  background: linear-gradient(145deg, #e5f1fd, #9bc9f7 62%, #4b9cf2) !important;
+  box-shadow: 0 14px 32px rgba(0, 14, 42, .30) !important;
+}
+
+.auth-aside .brand-logo-beam {
+  fill: #062653 !important;
+}
+
+.auth-aside .brand-logo-check {
+  stroke: #0a63c7 !important;
+}
+
+.auth-aside .brand-logo-copy strong {
+  color: #ffffff !important;
+}
+
+.auth-aside .brand-logo-copy small {
+  color: #c9e1fa !important;
+}
+
+.auth-aside h1 {
+  max-width: 12ch !important;
+  margin: 14px 0 22px !important;
+  color: #ffffff !important;
+  font-size: clamp(2.65rem, 5.2vw, 5.8rem) !important;
+  line-height: .92 !important;
+  letter-spacing: -.085em !important;
+}
+
+.auth-aside p:not(.eyebrow) {
+  max-width: 47ch !important;
+  color: #c9e1fa !important;
+  font-size: clamp(.96rem, 1.3vw, 1.10rem) !important;
+}
+
+.auth-aside .light-eyebrow {
+  color: #9bc9f7 !important;
+  letter-spacing: .18em !important;
+}
+
+.auth-benefits {
+  display: grid !important;
+  gap: 0 !important;
+  width: min(100%, 510px);
+  margin-top: 34px !important;
+}
+
+.auth-benefits li {
+  padding: 13px 0 !important;
+  border-top: 1px solid rgba(155, 201, 247, .22);
+  color: #e5f1fd !important;
+  font-size: .82rem !important;
+  letter-spacing: .01em;
+}
+
+.auth-benefits li:last-child {
+  border-bottom: 1px solid rgba(155, 201, 247, .22);
+}
+
+.auth-benefits li::before {
+  color: #4b9cf2 !important;
+}
+
+.auth-main {
+  position: relative;
+  overflow: hidden;
+  align-items: center;
+  padding: clamp(28px, 5vw, 72px) clamp(18px, 5vw, 84px) !important;
+  background:
+    linear-gradient(rgba(20, 125, 229, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 125, 229, .045) 1px, transparent 1px),
+    linear-gradient(145deg, #f8fbff 0%, #edf4fb 58%, #f8fbff 100%) !important;
+  background-size: 28px 28px, 28px 28px, auto;
+}
+
+.auth-main::after {
+  content: "OPERATIONAL ACCESS / 01";
+  position: absolute;
+  right: clamp(18px, 5vw, 84px);
+  bottom: 24px;
+  color: #a0b9d3;
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+
+.auth-card {
+  width: min(100%, 540px) !important;
+  padding: clamp(28px, 4vw, 43px) !important;
+  border: 1px solid #c9d9ea !important;
+  border-radius: 28px !important;
+  background: rgba(255, 255, 255, .90) !important;
+  box-shadow: 0 34px 86px rgba(4, 35, 78, .16) !important;
+  backdrop-filter: blur(18px);
+  animation: blueprint-card-in 520ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.auth-card::before {
+  right: 34px !important;
+  left: 34px !important;
+  height: 5px !important;
+  border-radius: 0 0 8px 8px !important;
+  background: linear-gradient(90deg, transparent, #0a4d9c 24%, #147de5 52%, #9bc9f7 78%, transparent) !important;
+}
+
+.auth-card::after {
+  content: "ACESSO CONTROLADO";
+  position: absolute;
+  top: 30px;
+  right: 34px;
+  color: #7f9abb;
+  font-size: .58rem;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+
+.auth-card .eyebrow {
+  margin-top: 36px !important;
+  color: #0a63c7 !important;
+  letter-spacing: .16em !important;
+}
+
+.auth-card h2 {
+  color: #061f43 !important;
+  font-size: clamp(1.85rem, 3.6vw, 2.65rem) !important;
+  letter-spacing: -.065em !important;
+}
+
+.auth-card .auth-description {
+  max-width: 42ch;
+  color: #5c7088 !important;
+}
+
+.auth-card .auth-form {
+  gap: 15px !important;
+  margin-top: 28px !important;
+}
+
+.auth-card label {
+  color: #183454 !important;
+}
+
+.auth-card label small {
+  color: #7188a2;
+  font-size: .75rem;
+  font-weight: 600;
+}
+
+.auth-card .primary {
+  min-height: 56px !important;
+  margin-top: 5px;
+  border-radius: 14px !important;
+  font-size: .94rem;
+  letter-spacing: .02em;
+}
+
+.auth-card .auth-links {
+  margin-top: 24px !important;
+}
+
+.auth-card .auth-links button:hover {
+  color: #062653 !important;
+}
+
+/* Dashboard: navegação de console e hero em blueprint. */
+.app-page-shell,
+.app-page-shell.dashboard-shell {
+  color: #0a1d34 !important;
+}
+
+.app-page-shell .app-rail,
+.inventory-shell .inventory-rail {
+  border-color: rgba(155, 201, 247, .34) !important;
+  border-radius: 28px !important;
+  background:
+    linear-gradient(165deg, #031a3c 0%, #062653 56%, #0a4d9c 100%),
+    radial-gradient(circle at 100% 0%, rgba(155, 201, 247, .18), transparent 18rem) !important;
+  box-shadow: 0 28px 64px rgba(4, 35, 78, .22) !important;
+}
+
+.app-page-shell .app-rail::before,
+.inventory-shell .inventory-rail::before {
+  background-image:
+    linear-gradient(rgba(155, 201, 247, .10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(155, 201, 247, .10) 1px, transparent 1px) !important;
+  opacity: .22 !important;
+}
+
+.app-page-shell .app-rail::after,
+.inventory-shell .inventory-rail::after {
+  border-color: rgba(155, 201, 247, .24) !important;
+  box-shadow:
+    0 0 0 22px rgba(155, 201, 247, .055),
+    0 0 0 44px rgba(20, 125, 229, .06) !important;
+}
+
+.app-page-shell .app-rail .brand-logo-mark,
+.inventory-shell .inventory-rail .brand-logo-mark {
+  border-color: rgba(201, 225, 250, .76) !important;
+  background: linear-gradient(145deg, #e5f1fd, #9bc9f7 60%, #4b9cf2) !important;
+  box-shadow: 0 14px 30px rgba(0, 14, 42, .28) !important;
+}
+
+.app-page-shell .app-rail .brand-logo-beam,
+.inventory-shell .inventory-rail .brand-logo-beam {
+  fill: #062653 !important;
+}
+
+.app-page-shell .app-rail .brand-logo-check,
+.inventory-shell .inventory-rail .brand-logo-check {
+  stroke: #0a63c7 !important;
+}
+
+.app-page-shell .app-rail .brand-logo-copy strong,
+.inventory-shell .inventory-rail .brand-logo-copy strong {
+  color: #ffffff !important;
+}
+
+.app-page-shell .app-rail .brand-logo-copy small,
+.inventory-shell .inventory-rail .brand-logo-copy small {
+  color: #c9e1fa !important;
+}
+
+.app-rail-kicker,
+.inventory-rail-kicker {
+  color: #9bc9f7 !important;
+  letter-spacing: .18em !important;
+}
+
+.app-page-shell .app-rail .dashboard-nav-link,
+.inventory-shell .inventory-rail-step {
+  color: #b8d2ed !important;
+  border-radius: 14px !important;
+}
+
+.app-page-shell .app-rail .dashboard-nav-link span,
+.inventory-shell .inventory-rail-step > b {
+  border-color: rgba(155, 201, 247, .22) !important;
+  background: rgba(155, 201, 247, .10) !important;
+  color: #9bc9f7 !important;
+}
+
+.app-page-shell .app-rail .dashboard-nav-link:hover:not(:disabled),
+.inventory-shell .inventory-rail-step:not(.active):hover {
+  border-color: rgba(155, 201, 247, .34) !important;
+  background: rgba(155, 201, 247, .12) !important;
+  color: #ffffff !important;
+  transform: translateX(3px);
+}
+
+.app-page-shell .app-rail .dashboard-nav-link.active,
+.inventory-shell .inventory-rail-step.active {
+  border-color: rgba(201, 225, 250, .55) !important;
+  background: linear-gradient(100deg, rgba(155, 201, 247, .22), rgba(20, 125, 229, .28)) !important;
+  box-shadow: inset 4px 0 0 #9bc9f7, 0 12px 24px rgba(0, 18, 51, .20) !important;
+  color: #ffffff !important;
+}
+
+.app-page-shell .app-rail .dashboard-nav-link.active span,
+.inventory-shell .inventory-rail-step.active > b {
+  border-color: #c9e1fa !important;
+  background: #c9e1fa !important;
+  color: #062653 !important;
+  box-shadow: 0 0 0 5px rgba(201, 225, 250, .13) !important;
+}
+
+.app-page-shell .app-rail .dashboard-nav-link.active strong,
+.inventory-shell .inventory-rail-step.active strong {
+  color: #ffffff !important;
+}
+
+.app-rail-foot,
+.inventory-rail-foot {
+  border-top-color: rgba(155, 201, 247, .24) !important;
+  color: #c9e1fa !important;
+}
+
+.app-rail-foot-icon,
+.inventory-rail-foot-icon {
+  border-color: rgba(155, 201, 247, .34) !important;
+  background: rgba(155, 201, 247, .11) !important;
+  color: #9bc9f7 !important;
+}
+
+.app-rail-foot strong,
+.inventory-rail-foot strong {
+  color: #ffffff !important;
+}
+
+.app-rail-foot small,
+.inventory-rail-foot small {
+  color: #b8d2ed !important;
+}
+
+.app-page-shell .dashboard-topbar {
+  border-bottom-color: #c9d9ea !important;
+}
+
+.app-page-shell .dashboard-topbar .text-button,
+.app-page-shell .dashboard-content .text-button {
+  color: #0a63c7 !important;
+}
+
+.app-page-shell .dashboard-hero {
+  position: relative;
+  min-height: 218px !important;
+  overflow: hidden;
+  border-color: rgba(155, 201, 247, .56) !important;
+  border-radius: 28px !important;
+  background-image:
+    linear-gradient(105deg, rgba(2, 17, 43, .98), rgba(5, 54, 111, .90) 58%, rgba(10, 99, 199, .76)),
+    repeating-linear-gradient(122deg, transparent 0 30px, rgba(155, 201, 247, .13) 31px 33px, transparent 34px 70px),
+    url("/industrial-yard-hero.jpg") !important;
+  box-shadow: 0 28px 62px rgba(4, 35, 78, .22) !important;
+}
+
+.app-page-shell .dashboard-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: .22;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(201, 225, 250, .12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201, 225, 250, .12) 1px, transparent 1px);
+  background-size: 25px 25px;
+  mask-image: linear-gradient(120deg, black, transparent 76%);
+}
+
+.app-page-shell .dashboard-hero::after {
+  background: linear-gradient(90deg, transparent 12%, rgba(155, 201, 247, .24) 50%, transparent 88%) !important;
+}
+
+.app-page-shell .dashboard-hero h1 {
+  color: #ffffff !important;
+  font-size: clamp(1.95rem, 4vw, 3.2rem) !important;
+}
+
+.app-page-shell .dashboard-hero .eyebrow {
+  color: #9bc9f7 !important;
+  letter-spacing: .18em !important;
+}
+
+.app-page-shell .dashboard-hero p:last-child {
+  color: #c9e1fa !important;
+  opacity: 1 !important;
+}
+
+.app-page-shell .dashboard-status small,
+.app-page-shell .dashboard-status .live-dot {
+  color: #c9e1fa !important;
+}
+
+.app-page-shell .action-grid {
+  gap: 16px !important;
+}
+
+.app-page-shell .action-card {
+  min-height: 132px !important;
+  border-color: #c9d9ea !important;
+  border-radius: 20px !important;
+  background: linear-gradient(145deg, #ffffff, #f2f7fd) !important;
+  box-shadow: 0 16px 32px rgba(4, 35, 78, .08) !important;
+}
+
+.app-page-shell .action-card:hover {
+  border-color: #8fb9e5 !important;
+  box-shadow: 0 21px 38px rgba(4, 35, 78, .14) !important;
+  transform: translateY(-4px);
+}
+
+.app-page-shell .action-card strong {
+  color: #062653 !important;
+}
+
+.app-page-shell .action-card small {
+  color: #5c7088 !important;
+}
+
+.app-page-shell .action-icon {
+  border-color: #b7d2ee !important;
+  background: #e5f1fd !important;
+  color: #0a63c7 !important;
+}
+
+.app-page-shell .primary-action {
+  border-color: rgba(201, 225, 250, .54) !important;
+  background: linear-gradient(145deg, #062653, #0a4d9c 78%, #147de5) !important;
+}
+
+.app-page-shell .primary-action strong,
+.app-page-shell .primary-action small {
+  color: #ffffff !important;
+}
+
+.app-page-shell .primary-action .action-icon {
+  border-color: rgba(201, 225, 250, .36) !important;
+  background: rgba(201, 225, 250, .14) !important;
+  color: #c9e1fa !important;
+}
+
+/* Cabeçalhos, métricas e tabelas com leitura técnica. */
+.app-page-content .page-topbar,
+.inventory-shell .inventory-header {
+  border-color: #c9d9ea !important;
+  border-radius: 28px !important;
+  background:
+    linear-gradient(120deg, rgba(255,255,255,.99), rgba(240,247,254,.97)),
+    repeating-linear-gradient(132deg, transparent 0 34px, rgba(20,125,229,.08) 35px 37px, transparent 38px 72px) !important;
+  box-shadow: 0 24px 56px rgba(4, 35, 78, .12) !important;
+}
+
+.app-page-content .page-topbar::before,
+.inventory-shell .inventory-header::before {
+  background: linear-gradient(105deg, transparent 42%, rgba(20,125,229,.14) 49%, rgba(255,255,255,.66) 53%, transparent 62%) !important;
+}
+
+.app-page-content .page-topbar .eyebrow,
+.inventory-shell .inventory-header .eyebrow,
+.inventory-shell .inventory-header .back-link {
+  color: #0a63c7 !important;
+}
+
+.app-page-content .page-topbar h1,
+.inventory-shell .inventory-header h1 {
+  color: #062653 !important;
+  letter-spacing: -.075em !important;
+}
+
+.app-page-content .page-topbar .muted,
+.inventory-shell .inventory-header .muted {
+  color: #5c7088 !important;
+}
+
+.app-page-content .metric-card,
+.inventory-shell .metric-card {
+  border-color: #c9d9ea !important;
+  border-radius: 20px !important;
+  background: linear-gradient(145deg, #ffffff, #f3f8fe) !important;
+  box-shadow: 0 16px 34px rgba(4, 35, 78, .08) !important;
+}
+
+.app-page-content .metric-card::before,
+.inventory-shell .metric-card::before {
+  background: linear-gradient(90deg, #9bc9f7, #147de5) !important;
+}
+
+.app-page-content .metric-card-icon,
+.inventory-shell .metric-card-icon {
+  border-color: #b7d2ee !important;
+  background: #e5f1fd !important;
+  color: #0a63c7 !important;
+}
+
+.app-page-content .metric-card-kicker,
+.app-page-content .metric-label,
+.inventory-shell .metric-card-kicker,
+.inventory-shell .metric-label {
+  color: #6d829a !important;
+}
+
+.app-page-content .metric-value,
+.inventory-shell .metric-value {
+  color: #062653 !important;
+}
+
+.app-page-content .metric-card--records,
+.inventory-shell .metric-card--records {
+  border-color: rgba(155, 201, 247, .48) !important;
+  background: linear-gradient(145deg, #031a3c, #062653 62%, #0a63c7) !important;
+  box-shadow: 0 20px 40px rgba(4, 35, 78, .22) !important;
+}
+
+.app-page-content .metric-card--records .metric-card-icon,
+.inventory-shell .metric-card--records .metric-card-icon {
+  border-color: rgba(201, 225, 250, .42) !important;
+  background: rgba(201, 225, 250, .14) !important;
+  color: #c9e1fa !important;
+}
+
+.app-page-content .metric-card--records .metric-card-kicker,
+.app-page-content .metric-card--records .metric-label,
+.inventory-shell .metric-card--records .metric-card-kicker,
+.inventory-shell .metric-card--records .metric-label {
+  color: #b8d2ed !important;
+}
+
+.app-page-content .metric-card--records .metric-value,
+.inventory-shell .metric-card--records .metric-value {
+  color: #ffffff !important;
+}
+
+.app-page-content .section-title h2,
+.app-page-shell .dashboard-content .section-title h2,
+.app-page-content .panel-copy h2,
+.inventory-shell .panel-copy h2 {
+  color: #062653 !important;
+}
+
+.app-page-content .section-title .muted,
+.app-page-shell .dashboard-content .section-title .muted,
+.app-page-content .panel-copy .muted,
+.inventory-shell .panel-copy .muted {
+  color: #5c7088 !important;
+}
+
+.app-page-content .inventory-card,
+.app-page-shell .dashboard-content .inventory-card {
+  border-color: #c9d9ea !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(4, 35, 78, .06) !important;
+}
+
+.app-page-content .inventory-card:hover,
+.app-page-shell .dashboard-content .inventory-card:hover {
+  border-color: #8fb9e5 !important;
+  box-shadow: 0 16px 30px rgba(4, 35, 78, .12) !important;
+}
+
+.app-page-content .inventory-card-main strong,
+.app-page-shell .dashboard-content .inventory-card-main strong,
+.app-page-content .history-date span {
+  color: #062653 !important;
+}
+
+.app-page-content .inventory-card-main .muted,
+.app-page-shell .dashboard-content .inventory-card-main .muted,
+.app-page-content .history-date small {
+  color: #5c7088 !important;
+}
+
+.app-page-content .chevron {
+  color: #0a63c7 !important;
+}
+
+.app-page-content .segmented-control {
+  border-color: #b7d2ee !important;
+  background: #e5f1fd !important;
+}
+
+.app-page-content .segmented-control button[aria-selected="true"] {
+  background: linear-gradient(135deg, #062653, #0a63c7) !important;
+  color: #ffffff !important;
+}
+
+.app-page-content .history-row {
+  border-color: #c9d9ea !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+}
+
+.app-page-content .report-summary-item {
+  border-color: #c9d9ea !important;
+  background: #f4f8fd !important;
+}
+
+.app-page-content .report-summary-item span {
+  color: #5c7088 !important;
+}
+
+.app-page-content .report-summary-item strong {
+  color: #062653 !important;
+}
+
+.app-page-content .details-box,
+.app-page-content .report-table-wrap {
+  border-color: #c9d9ea !important;
+  background: #ffffff !important;
+}
+
+.app-page-content .details-box summary,
+.app-page-content .report-table th {
+  color: #062653 !important;
+  background: #eaf4ff !important;
+}
+
+/* Inventário: estação de coleta com trilho azul e controle de alta visibilidade. */
+.inventory-shell .inventory-rail {
+  color: #dcecff !important;
+}
+
+.inventory-shell .inventory-rail-label {
+  color: #b8d2ed !important;
+}
+
+.inventory-shell .inventory-current-step {
+  color: #9bc9f7 !important;
+}
+
+.inventory-shell .inventory-rail-step strong {
+  color: #dcecff !important;
+}
+
+.inventory-shell .inventory-rail-step small {
+  color: #9eb9d7 !important;
+}
+
+.inventory-shell .inventory-header {
+  min-height: 218px !important;
+}
+
+.inventory-shell .inventory-header .status-pill {
+  border-color: #8fb9e5 !important;
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+}
+
+.inventory-shell .entry-workspace > form,
+.inventory-shell .entries-section,
+.inventory-shell .inventory-control-panel,
+.inventory-shell .reference-panel {
+  border-color: #c9d9ea !important;
+  border-radius: 22px !important;
+  box-shadow: 0 22px 52px rgba(4, 35, 78, .10) !important;
+}
+
+.inventory-shell .entry-workspace > form,
+.inventory-shell .entries-section,
+.inventory-shell .reference-panel {
+  background: linear-gradient(145deg, #ffffff, #f5f9fe) !important;
+}
+
+.inventory-shell .entry-workspace > form::after {
+  background: linear-gradient(90deg, transparent, #9bc9f7, #147de5, transparent) !important;
+}
+
+.inventory-shell .entry-workspace > form .panel-index,
+.inventory-shell .entries-section .panel-index {
+  border-color: #b7d2ee !important;
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+  box-shadow: 0 8px 16px rgba(4, 35, 78, .12) !important;
+}
+
+.inventory-shell .side-button[aria-pressed="true"] {
+  border-color: #8fb9e5 !important;
+  background: linear-gradient(135deg, #062653, #0a63c7) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 22px rgba(4, 35, 78, .20) !important;
+}
+
+.inventory-shell .entry-form-submit {
+  min-height: 56px !important;
+  border-radius: 14px !important;
+}
+
+.inventory-shell .entries-section > .card {
+  border-color: #c9d9ea !important;
+  border-radius: 18px !important;
+  background: #f4f8fd !important;
+}
+
+.inventory-shell .side-heading {
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+}
+
+.inventory-shell .entry-row {
+  border-color: #c9d9ea !important;
+  border-radius: 15px !important;
+  background: #ffffff !important;
+  box-shadow: 0 9px 19px rgba(4, 35, 78, .06) !important;
+}
+
+.inventory-shell .entry-title strong {
+  color: #062653 !important;
+}
+
+.inventory-shell .entry-title .muted {
+  color: #5c7088 !important;
+}
+
+.inventory-shell .small-button.delete {
+  border-color: #b7cde5 !important;
+  background: #eef6ff !important;
+  color: #0a4d9c !important;
+}
+
+.inventory-shell .inventory-control-panel {
+  border-color: #0a4d9c !important;
+  background: linear-gradient(145deg, #031a3c 0%, #062653 60%, #0a63c7 100%) !important;
+  box-shadow: 0 28px 62px rgba(4, 35, 78, .24) !important;
+}
+
+.inventory-shell .inventory-control-panel::before {
+  background: linear-gradient(90deg, transparent, #9bc9f7 24%, #e5f1fd 50%, #9bc9f7 76%, transparent) !important;
+}
+
+.inventory-shell .inventory-control-panel::after {
+  background: radial-gradient(circle, rgba(155, 201, 247, .18), transparent 68%) !important;
+}
+
+.inventory-shell .control-panel-header h2 {
+  color: #ffffff !important;
+}
+
+.inventory-shell .control-panel-header .eyebrow {
+  color: #9bc9f7 !important;
+}
+
+.inventory-shell .control-panel-header .muted {
+  color: #c9e1fa !important;
+}
+
+.inventory-shell .control-panel-hint {
+  border-color: rgba(201, 225, 250, .42) !important;
+  background: rgba(201, 225, 250, .12) !important;
+  color: #e5f1fd !important;
+}
+
+.inventory-shell .control-stage-details {
+  border-color: #b7d2ee !important;
+  border-radius: 17px !important;
+  background: #fafdff !important;
+}
+
+.inventory-shell .control-stage-details[open] {
+  border-color: #8fb9e5 !important;
+  box-shadow: 0 16px 30px rgba(4, 35, 78, .17) !important;
+}
+
+.inventory-shell .control-stage-summary:hover {
+  background: #eef6ff !important;
+}
+
+.inventory-shell .control-stage-index {
+  border-color: #b7d2ee !important;
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+}
+
+.inventory-shell .control-stage-summary-copy strong {
+  color: #062653 !important;
+}
+
+.inventory-shell .control-stage-summary-copy small,
+.inventory-shell .control-stage-content > .muted {
+  color: #5c7088 !important;
+}
+
+.inventory-shell .control-stage-summary::after {
+  background: #e5f1fd !important;
+  color: #0a4d9c !important;
+}
+
+.inventory-shell .control-stage-details[open] .control-stage-summary::after {
+  background: #c9e1fa !important;
+}
+
+.inventory-shell .control-stage-content::before {
+  background: #c9d9ea !important;
+}
+
+.inventory-shell .participation-box {
+  border-color: #b7d2ee !important;
+  background: #eaf4ff !important;
+}
+
+/* Movimento discreto, sem comprometer operação ou acessibilidade. */
+@keyframes blueprint-card-in {
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes blueprint-scan {
+  from { transform: translateX(-130%); }
+  to { transform: translateX(130%); }
+}
+
+.auth-card::before,
+.inventory-shell .inventory-control-panel::before {
+  animation: blueprint-scan 1600ms cubic-bezier(.2,.8,.2,1) 500ms both;
+}
+
+@media (max-width: 1179px) {
+  .auth-shell {
+    grid-template-columns: 1fr !important;
+  }
+
+  .auth-aside {
+    min-height: 330px !important;
+    padding: 32px 28px 36px !important;
+  }
+
+  .auth-aside h1 {
+    max-width: 15ch !important;
+    font-size: clamp(2.35rem, 8vw, 4.8rem) !important;
+  }
+
+  .auth-benefits {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px !important;
+    margin-top: 25px !important;
+  }
+
+  .auth-benefits li {
+    border: 1px solid rgba(155, 201, 247, .22);
+    border-radius: 12px;
+    padding: 10px !important;
+    font-size: .72rem !important;
+  }
+
+  .auth-benefits li:last-child {
+    border-bottom: 1px solid rgba(155, 201, 247, .22);
+  }
+
+  .auth-main {
+    min-height: calc(100dvh - 330px);
+  }
+
+  .app-page-shell .app-rail,
+  .inventory-shell .inventory-rail {
+    border-radius: 0 0 22px 22px !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .auth-aside {
+    min-height: 292px !important;
+    padding: 24px 19px 26px !important;
+  }
+
+  .auth-aside .brand-logo {
+    --brand-logo-size: 40px;
+  }
+
+  .auth-aside h1 {
+    max-width: 14ch !important;
+    margin: 12px 0 13px !important;
+    font-size: clamp(2.15rem, 12vw, 3.25rem) !important;
+  }
+
+  .auth-aside p:not(.eyebrow) {
+    max-width: 35ch !important;
+    font-size: .87rem !important;
+  }
+
+  .auth-benefits {
+    display: none !important;
+  }
+
+  .auth-main {
+    min-height: calc(100dvh - 292px);
+    padding: 18px 12px 42px !important;
+  }
+
+  .auth-main::after {
+    right: 14px;
+    bottom: 16px;
+    font-size: .52rem;
+  }
+
+  .auth-card {
+    width: 100% !important;
+    padding: 25px 18px !important;
+    border-radius: 22px !important;
+  }
+
+  .auth-card::after {
+    top: 27px;
+    right: 18px;
+    font-size: .50rem;
+  }
+
+  .auth-card .eyebrow {
+    margin-top: 32px !important;
+  }
+
+  .auth-card h2 {
+    max-width: 10ch;
+    font-size: 2rem !important;
+  }
+
+  .app-page-shell,
+  .app-page-shell.dashboard-shell,
+  .inventory-shell.inventory-shell {
+    padding-inline: 12px !important;
+  }
+
+  .app-page-shell .app-rail,
+  .inventory-shell .inventory-rail {
+    margin-inline: -12px !important;
+    border-radius: 0 0 18px 18px !important;
+  }
+
+  .app-page-shell .dashboard-hero,
+  .inventory-shell .inventory-header,
+  .app-page-content .page-topbar {
+    border-radius: 21px !important;
+  }
+
+  .app-page-shell .dashboard-hero {
+    min-height: 0 !important;
+    padding: 23px 18px !important;
+  }
+
+  .app-page-shell .action-card {
+    min-height: 96px !important;
+    border-radius: 17px !important;
+  }
+
+  .app-page-content .metric-card,
+  .inventory-shell .metric-card {
+    min-height: 110px !important;
+    border-radius: 17px !important;
+  }
+
+  .inventory-shell .inventory-header {
+    min-height: 0 !important;
+    padding: 21px 18px !important;
+  }
+
+  .inventory-shell .inventory-control-panel,
+  .inventory-shell .entry-workspace > form,
+  .inventory-shell .entries-section,
+  .inventory-shell .reference-panel {
+    border-radius: 20px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card,
+  .auth-card::before,
+  .inventory-shell .inventory-control-panel::before {
+    animation: none !important;
   }
 }

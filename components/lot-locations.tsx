@@ -20,7 +20,7 @@ export function LotLocations({ locations, classification, presentation }: LotLoc
   if (locations.length === 0) return <span className="lot-locations-empty">—</span>;
 
   const presentedLocations: PresentationLocation[] = presentation?.locations?.length
-    ? presentation.locations
+    ? presentation.locations.map((location) => ({ ...location, label: formatPresentedSide(location.label), display: formatPresentedSide(location.display), }))
     : locations.map((location) => ({
       label: `${formatSideLabel(location.side)} ${location.bay}${location.layer ? ` · ${location.layer}` : ""}`,
       display: formatLotLocation(location, classification),

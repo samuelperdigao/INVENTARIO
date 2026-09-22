@@ -23,7 +23,7 @@ test("apresenta locais consolidados sem overflow nos viewports móveis", async (
   const duplicateIndexes = new Set([3, 5, 7, 8]);
 
   for (const [index, entry] of entries.entries()) {
-    await page.getByRole("button", { name: entry.side, exact: true }).click();
+    await page.getByRole("button", { name: entry.side === "EF" ? "LE" : "LP", exact: true }).click();
     await page.getByRole("textbox", { name: "Vão", exact: true }).fill(entry.bay);
     await page.getByLabel("Lote", { exact: true }).fill(entry.lot);
     await page.getByLabel("Quantidade de peças", { exact: true }).fill(String(entry.quantity));
@@ -40,7 +40,7 @@ test("apresenta locais consolidados sem overflow nos viewports móveis", async (
   await page.getByRole("button", { name: "Atualizar análise", exact: true }).click();
   await expect(page.getByText("1 PEÇA FORA DO LOCAL PRINCIPAL", { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("5 PEÇAS FORA DO LOCAL PRINCIPAL", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText("LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("LOTE DISTRIBUÍDO EM MAIS LP UM LOCAL", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Finalizar inventário", exact: true }).click();
   await page.getByRole("dialog", { name: "Finalizar inventário?" }).getByRole("button", { name: "Finalizar inventário", exact: true }).click();
   await expect(page.getByText("Inventário finalizado. O relatório e as exportações estão preservados.", { exact: true })).toBeVisible({ timeout: 30_000 });
@@ -56,11 +56,11 @@ test("apresenta locais consolidados sem overflow nos viewports móveis", async (
     await expect(page.getByText("Lotes consolidados", { exact: true })).toBeVisible({ timeout: 30_000 });
 
     const pieceLot = page.locator(".report-table tbody tr").filter({ hasText: "2810000003" });
-    await expect(pieceLot.locator(".lot-location").nth(0)).toHaveAttribute("aria-label", "EF 15 · 19 pç");
-    await expect(pieceLot.locator(".lot-location").nth(1)).toHaveAttribute("aria-label", "DE 21 · 1 pç");
+    await expect(pieceLot.locator(".lot-location").nth(0)).toHaveAttribute("aria-label", "LE 15 · 19 pç");
+    await expect(pieceLot.locator(".lot-location").nth(1)).toHaveAttribute("aria-label", "LP 21 · 1 pç");
 
     const okLot = page.locator(".report-table tbody tr").filter({ hasText: "2810000001" });
-    await expect(okLot.locator(".lot-location")).toHaveAttribute("aria-label", "DE 15");
+    await expect(okLot.locator(".lot-location")).toHaveAttribute("aria-label", "LP 15");
     await expect(okLot.locator(".lot-location")).not.toContainText("pç");
     await expect(okLot.locator(".lot-location")).not.toContainText("20");
 

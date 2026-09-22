@@ -1589,6 +1589,40 @@ body:has(.inventory-shell) {
 .inventory-shell select:focus { border-color: var(--inventory-cyan); box-shadow: 0 0 0 4px rgba(25, 183, 200, .13); }
 .inventory-shell .field { color: #34576a; }
 .inventory-shell .entry-form-submit {
+
+
+
+/* Gerdau blue-only welcome panel */
+.app-page-shell .dashboard-hero {
+  border-color: rgba(193, 221, 239, .68) !important;
+  background: linear-gradient(135deg, #003366 0%, #0f3363 58%, #0578be 100%) !important;
+  box-shadow: 0 24px 55px rgba(0, 51, 102, .22);
+}
+
+.app-page-shell .dashboard-hero::before {
+  background-image:
+    linear-gradient(rgba(193, 221, 239, .10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(193, 221, 239, .10) 1px, transparent 1px);
+  opacity: .18;
+}
+
+.app-page-shell .dashboard-hero::after {
+  background: linear-gradient(90deg, transparent, rgba(193, 221, 239, .20), #0578be, rgba(193, 221, 239, .20), transparent) !important;
+  opacity: .55;
+}
+
+.app-page-shell .dashboard-hero .eyebrow {
+  color: #c1ddef !important;
+}
+
+.app-page-shell .dashboard-status .live-dot {
+  color: #c1ddef;
+}
+
+.app-page-shell .dashboard-status .live-dot::before {
+  background: #0578be;
+  box-shadow: 0 0 0 4px rgba(193, 221, 239, .16);
+}
   min-height: 53px;
   border-radius: 13px;
   background: linear-gradient(105deg, #062d47, #0b6580 57%, #2384ec);

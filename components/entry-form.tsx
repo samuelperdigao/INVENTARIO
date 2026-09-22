@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import styles from "@/components/entry-form.module.css";
 import { DuplicateLotError } from "@/lib/inventory-repository";
 import { isValidLot, LOT_LENGTH, normalizeLot, sanitizeLotInput, validateLot } from "@/lib/lot-rules";
-import { INVENTORY_LAYERS, type EntryDraft, type InventoryEntry, type InventoryLayer, type Side } from "@/lib/models";
+import { formatSideLabel, INVENTORY_LAYERS, type EntryDraft, type InventoryEntry, type InventoryLayer, type Side } from "@/lib/models";
 
 interface EntryFormProps {
   editing?: InventoryEntry;
@@ -217,7 +217,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker, rea
                   <div className={styles.duplicateMeta}>
                     <span>Vão: {entry.bay}</span>
                     <span>Camada: {entry.layer ?? "Sem camada"}</span>
-                    <span>Lado: {entry.side}</span>
+                    <span>Lado: {formatSideLabel(entry.side)}</span>
                     <span>Quantidade: {entry.quantity}</span>
                   </div>
                 </li>

@@ -1,4 +1,4 @@
-import type { AnalysisClassification, AnalysisLocation, LotPresentation, PresentationLocation } from "@/lib/models";
+import { formatSideLabel, type AnalysisClassification, type AnalysisLocation, type LotPresentation, type PresentationLocation } from "@/lib/models";
 
 interface LotLocationsProps {
   locations: AnalysisLocation[];
@@ -6,8 +6,13 @@ interface LotLocationsProps {
   presentation?: LotPresentation;
 }
 
+function formatPresentedSide(value: string): string {
+  const side = value.slice(0, 2);
+  return (side === "EF" || side === "DE") && value[2] === " " ? formatSideLabel(side) + value.slice(2) : value;
+}
+
 export function formatLotLocation(location: AnalysisLocation, classification: AnalysisClassification): string {
-  const name = `${location.side} ${location.bay}${location.layer ? ` · ${location.layer}` : ""}`;
+  const name = `${formatSideLabel(location.side)} ${location.bay}${location.layer ? ` · ${location.layer}` : ""}`;
   return classification === "OK" ? name : `${name} · ${location.quantity} pç`;
 }
 
@@ -17,7 +22,7 @@ export function LotLocations({ locations, classification, presentation }: LotLoc
   const presentedLocations: PresentationLocation[] = presentation?.locations?.length
     ? presentation.locations
     : locations.map((location) => ({
-      label: `${location.side} ${location.bay}${location.layer ? ` · ${location.layer}` : ""}`,
+      label: `${formatSideLabel(location.side)} ${location.bay}${location.layer ? ` · ${location.layer}` : ""}`,
       display: formatLotLocation(location, classification),
       quantity: location.quantity,
       isPrimary: false,

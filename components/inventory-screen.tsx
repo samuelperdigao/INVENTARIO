@@ -15,7 +15,7 @@ import { getCurrentUser } from "@/lib/auth-client";
 import { findRemoteDuplicateLotEntries } from "@/lib/duplicate-client";
 import { formatBrazilianDate } from "@/lib/local-date";
 import { createEntry, DuplicateLotError, findDuplicateLotEntries, getInventory, listActiveEntries, purgeInventory, restoreInventoryAfterDeletionFailure, tombstoneEmptyInventory, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
-import type { EntryDraft, Inventory, InventoryEntry } from "@/lib/models";
+import { formatSideLabel, type EntryDraft, type Inventory, type InventoryEntry } from "@/lib/models";
 import { INVENTORY_POLLING_INTERVAL_MS, SyncHttpError, syncInventory } from "@/lib/sync-client";
 
 function inventoryScreenKey(value?: Inventory): string {
@@ -339,7 +339,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
         open={Boolean(pendingDeletion)}
         variant="danger"
         title="Excluir lançamento?"
-        description={pendingDeletion ? `O lote ${pendingDeletion.lot}, no lado ${pendingDeletion.side}, vão ${pendingDeletion.bay}${pendingDeletion.layer ? `, camada ${pendingDeletion.layer}` : ""}, com ${pendingDeletion.quantity} peça(s), será removido da lista e preservado para sincronização.` : ""}
+        description={pendingDeletion ? `O lote ${pendingDeletion.lot}, no lado ${formatSideLabel(pendingDeletion.side)}, vão ${pendingDeletion.bay}${pendingDeletion.layer ? `, camada ${pendingDeletion.layer}` : ""}, com ${pendingDeletion.quantity} peça(s), será removido da lista e preservado para sincronização.` : ""}
         confirmLabel="Excluir lançamento"
         busyLabel="Excluindo…"
         busy={deleting}

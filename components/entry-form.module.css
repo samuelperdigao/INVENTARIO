@@ -1,4 +1,4 @@
-.positionGrid {
+ .positionGrid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.9rem;
@@ -79,5 +79,52 @@
   .modalActions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+
+/* Gerdau visual system: modal de duplicidade e confirmação de lançamento. */
+.modalBackdrop {
+  background: rgba(0, 51, 102, .66);
+  backdrop-filter: blur(8px);
+}
+
+.modalCard {
+  border-color: rgba(255, 204, 0, .56);
+  border-radius: 20px;
+  background: linear-gradient(145deg, #fff, #f4f8fa);
+  box-shadow: 0 30px 80px rgba(0, 51, 102, .30);
+}
+
+.modalHeader h3 {
+  color: #003366;
+}
+
+.duplicateItem {
+  border-color: #c1ddef;
+  background: #e8f3f9;
+}
+
+.duplicateMeta {
+  color: #607381;
+}
+
+.modalActions button {
+  min-height: 44px;
+  border-radius: 11px;
+}
+
+@media (max-width: 420px) {
+  .modalCard {
+    padding: 1rem;
+  }
+
+  .modalActions {
+    gap: .55rem;
+  }
+
+  .modalActions button {
+    width: 100%;
+    min-height: 46px;
   }
 }

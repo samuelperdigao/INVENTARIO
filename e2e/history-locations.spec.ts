@@ -33,6 +33,7 @@ test("apresenta locais consolidados sem overflow nos viewports móveis", async (
       await expect(dialog).toBeVisible({ timeout: 30_000 });
       await dialog.getByRole("button", { name: "Adicionar mesmo assim", exact: true }).click();
     }
+    await expect(page.getByLabel("Lote", { exact: true })).toHaveValue("", { timeout: 30_000 });
   }
 
   await page.getByRole("button", { name: "Sincronizar agora", exact: true }).click();

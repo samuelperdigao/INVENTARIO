@@ -32,7 +32,7 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
 
   const expectedDuplicates = new Set([1, 3, 5, 7, 8]);
   for (const [index, item] of entries.entries()) {
-    await page.getByRole("button", { name: item.side, exact: true }).click();
+    await page.getByRole("button", { name: item.side === "EF" ? "LE" : "LP", exact: true }).click();
     await page.getByRole("textbox", { name: "Vão", exact: true }).fill(item.bay);
     await page.getByLabel(/Camada/).selectOption(item.layer ?? "");
     await page.getByLabel("Lote", { exact: true }).fill(item.lot);

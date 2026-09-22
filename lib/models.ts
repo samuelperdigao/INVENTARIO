@@ -1,4 +1,10 @@
 export type Side = "EF" | "DE";
+
+export function formatSideLabel(side: Side | string): string {
+  if (side === "EF") return "LE";
+  if (side === "DE") return "LP";
+  return side;
+}
 export const INVENTORY_LAYERS = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"] as const;
 export type InventoryLayer = (typeof INVENTORY_LAYERS)[number];
 export type SyncStatus = "PENDING" | "SYNCED" | "ERROR";

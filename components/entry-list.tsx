@@ -1,7 +1,7 @@
 "use client";
 
 import { groupEntries } from "@/lib/grouping";
-import type { InventoryEntry } from "@/lib/models";
+import { formatSideLabel, type InventoryEntry } from "@/lib/models";
 
 interface EntryListProps {
   entries: InventoryEntry[];
@@ -28,8 +28,8 @@ export function EntryList({ entries, onEdit, onDelete, readOnly = false, highlig
       </div>
       {groups.length === 0 ? <p className="notice">Nenhum lançamento registrado ainda.</p> : null}
       {groups.map((group) => (
-        <section className="card stack" key={group.side} aria-label={`Lado ${group.side}`}>
-          <h3 className="side-heading">Lado {group.side}</h3>
+        <section className="card stack" key={group.side} aria-label={`Lado ${formatSideLabel(group.side)}`}>
+          <h3 className="side-heading">Lado {formatSideLabel(group.side)}</h3>
           {group.bays.map(({ bay, entries: bayEntries }) => (
             <section className="bay-block" key={bay} aria-label={`Vão ${bay}`}>
               <h3>Vão {bay}</h3>

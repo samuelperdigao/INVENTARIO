@@ -4,19 +4,23 @@
   color: #14213d;
 }
 
+
 .referenceNav {
   min-height: 56px;
   padding: 0 4px 8px;
 }
 
+
 .referenceNav :global(.brand-logo) {
   --brand-logo-size: 39px;
 }
+
 
 .referenceNav :global(.compact-button) {
   min-width: 104px;
   border-radius: 10px;
 }
+
 
 .referenceHero {
   display: grid;
@@ -31,6 +35,7 @@
   animation: referenceRise 480ms cubic-bezier(.2, .8, .2, 1) both;
 }
 
+
 .heroIndustrial {
   position: relative;
   display: flex;
@@ -43,6 +48,7 @@
   color: #fff;
 }
 
+
 .heroIndustrialOverlay {
   position: absolute;
   z-index: -1;
@@ -52,15 +58,18 @@
     linear-gradient(180deg, rgba(3, 25, 56, .15), rgba(2, 19, 42, .74));
 }
 
+
 .heroIndustrialContent {
   align-self: center;
   width: min(100%, 650px);
   padding: clamp(38px, 5.2vw, 76px) clamp(30px, 5.2vw, 76px) 112px;
 }
 
+
 .heroIndustrialContent :global(.brand-logo) {
   --brand-logo-size: 55px;
 }
+
 
 .heroKicker {
   margin: 42px 0 10px;
@@ -71,6 +80,7 @@
   text-transform: uppercase;
 }
 
+
 .heroIndustrialContent h1 {
   max-width: 590px;
   margin: 0;
@@ -80,7 +90,9 @@
   letter-spacing: -.066em;
 }
 
+
 .heroIndustrialContent h1 span { color: #39a6ff; }
+
 
 .heroDescription {
   max-width: 490px;
@@ -89,6 +101,7 @@
   font-size: clamp(.98rem, 1.4vw, 1.12rem);
   line-height: 1.58;
 }
+
 
 .heroSignals {
   display: flex;
@@ -100,8 +113,10 @@
   font-weight: 750;
 }
 
+
 .heroSignals span { display: inline-flex; align-items: center; gap: 7px; }
 .heroSignals svg { color: #54b8ff; }
+
 
 .heroFooter {
   position: absolute;
@@ -117,7 +132,9 @@
   font-size: .75rem;
 }
 
+
 .heroFooter :global(.brand-logo) { --brand-logo-size: 30px; }
+
 
 .loginPreview {
   align-self: center;
@@ -131,12 +148,14 @@
   animation: referenceRise 520ms 70ms cubic-bezier(.2, .8, .2, 1) both;
 }
 
+
 .loginPreviewHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .loginPreviewHeader :global(.brand-logo) { --brand-logo-size: 36px; }
 .previewBell { color: #1759ae; font-size: 1.25rem; transform: rotate(20deg); }
 .previewEyebrow { margin: 43px 0 6px; color: #1769e0; font-size: .68rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
 .loginPreview h2 { margin: 0 0 5px; font-size: clamp(1.65rem, 3.1vw, 2.1rem); }
 .loginPreview > p:not(.previewEyebrow) { color: #647b98; font-size: .87rem; }
+
 
 .previewInput {
   display: flex;
@@ -151,6 +170,7 @@
   font-size: .75rem;
 }
 
+
 .previewInput svg { color: #3975bd; }
 .previewInput span { margin-left: auto; color: #7390b3; }
 .previewRemember { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; color: #6a7e97; font-size: .68rem; }
@@ -164,12 +184,14 @@
 .previewRestricted { display: block; margin-top: 24px; color: #8597ab; font-size: .64rem; line-height: 1.45; text-align: center; }
 .previewGerdau { width: fit-content; margin: 18px auto 0; padding: 6px 10px; border: 1px solid #d9e4ef; color: #1d4c87; font-size: .73rem; font-weight: 900; letter-spacing: .09em; }
 
+
 .productSection { padding: 60px 4px 0; }
 .sectionIntroRow { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin: 0 10px 19px; }
 .kicker { margin: 0 0 6px; color: #1769e0; font-size: .7rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
 .sectionIntroRow h2 { margin: 0; font-size: clamp(1.55rem, 3.2vw, 2.45rem); letter-spacing: -.045em; }
 .liveBadge { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid #c7e8d4; border-radius: 999px; background: #f2fbf5; color: #22794b; font-size: .68rem; font-weight: 850; white-space: nowrap; }
 .liveBadge span { width: 7px; height: 7px; border-radius: 50%; background: #1fa660; box-shadow: 0 0 0 4px rgba(31, 166, 96, .11); }
+
 
 .productBoard { display: grid; grid-template-columns: minmax(0, 1fr) 244px; gap: 16px; padding: 16px; border: 1px solid #c9dcef; border-radius: 22px; background: linear-gradient(145deg, #ecf5ff, #f9fcff); box-shadow: 0 22px 58px rgba(19, 72, 137, .09); }
 .desktopPreview { display: grid; grid-template-columns: 154px minmax(0, 1fr); min-width: 0; overflow: hidden; border: 1px solid #d1e1f0; border-radius: 15px; background: #fff; box-shadow: 0 12px 24px rgba(23, 74, 137, .08); }
@@ -213,6 +235,7 @@
 .previewRecentRow em { padding: 3px 6px; border-radius: 999px; background: #e8f1ff; color: #1769e0; font-size: .48rem; font-style: normal; font-weight: 850; }
 .previewStatusDone { background: #e5f8ed !important; color: #1e8751 !important; }
 
+
 .mobilePreview { min-width: 0; display: grid; place-items: center; }
 .phoneFrame { position: relative; width: 205px; min-height: 405px; padding: 27px 13px 14px; overflow: hidden; border: 6px solid #111b2b; border-radius: 27px; background: #fbfdff; box-shadow: 0 17px 27px rgba(15, 44, 80, .22); }
 .phoneNotch { position: absolute; top: 0; left: 50%; width: 76px; height: 17px; transform: translateX(-50%); border-radius: 0 0 12px 12px; background: #111b2b; }
@@ -231,6 +254,7 @@
 .phoneActions > div { display: grid; place-items: center; gap: 5px; min-height: 48px; border: 1px solid #e1eaf4; border-radius: 8px; background: #fff; color: #1769e0; font-size: .49rem; font-weight: 800; text-align: center; }
 .phoneActions span { color: #204472; }
 .phoneQuote { margin: 14px 4px 0; color: #7c8da4; font-size: .49rem; line-height: 1.4; text-align: center; }
+
 
 .workflowPreview { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(225px, .72fr) minmax(200px, .58fr); gap: 12px; margin-top: 16px; }
 .entryPreview, .finishPreview, .successPreview { min-width: 0; overflow: hidden; border: 1px solid #cbddec; border-radius: 16px; background: #fff; box-shadow: 0 13px 30px rgba(19, 72, 137, .08); }
@@ -264,6 +288,7 @@
 .previewTableRow { border-top: 1px solid #eef2f7; color: #385878; }
 .previewTableRow span:last-child { color: #1769e0; white-space: nowrap; }
 
+
 .finishPreview { position: relative; display: grid; place-items: center; min-height: 270px; background: #203a5e; }
 .dimLayer { position: absolute; inset: 0; background: rgba(5, 23, 49, .67); }
 .finishDialog { position: relative; z-index: 1; width: calc(100% - 28px); padding: 21px 17px 16px; border: 1px solid #dbe7f3; border-radius: 11px; background: #fff; text-align: center; box-shadow: 0 16px 35px rgba(3, 19, 43, .28); }
@@ -283,10 +308,12 @@
 .successAction { gap: 5px; background: #0e68db; color: #fff; }
 .successActionMuted { border: 1px solid #d8e6f4; background: #f8fbff; color: #1769e0; }
 
+
 @keyframes referenceRise {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
 
 @media (max-width: 1180px) {
   .referenceHero { grid-template-columns: minmax(0, 1fr) minmax(300px, .76fr); }
@@ -295,6 +322,7 @@
   .successPreview > p { max-width: 280px; }
   .successAction, .successActionMuted { width: min(100%, 320px); }
 }
+
 
 @media (max-width: 900px) {
   .referenceHero { grid-template-columns: 1fr; }
@@ -306,6 +334,7 @@
   .workflowPreview { grid-template-columns: 1fr; }
   .successPreview { grid-column: auto; }
 }
+
 
 @media (max-width: 680px) {
   .referenceLanding { padding: 10px 10px 42px; }
@@ -341,6 +370,7 @@
   .finishPreview, .successPreview { min-height: 300px; }
 }
 
+
 @media (max-width: 430px) {
   .heroIndustrial { min-height: 540px; }
   .heroIndustrialContent h1 { font-size: 2.72rem; }
@@ -353,9 +383,12 @@
   .savedBadge { display: none; }
 }
 
+
 @media (prefers-reduced-motion: reduce) {
   .referenceHero, .loginPreview { animation: none; }
 }
+
+
 
 
 /* Gerdau visual system: landing de acesso, previews e responsividade. */
@@ -363,9 +396,11 @@
   color: #102a3c;
 }
 
+
 .referenceNav {
   align-items: center;
 }
+
 
 .referenceNav :global(.compact-button) {
   border: 1px solid #003366;
@@ -374,15 +409,18 @@
   box-shadow: 0 8px 18px rgba(0, 51, 102, .16);
 }
 
+
 .referenceNav :global(.compact-button:hover) {
-  border-color: #ffcc00;
+  border-color: #c1ddef;
   background: #0578be;
 }
 
+
 .referenceNav :global(.compact-button:focus-visible) {
-  outline: 3px solid rgba(255, 204, 0, .55);
+  outline: 3px solid rgba(193, 221, 239, .55);
   outline-offset: 3px;
 }
+
 
 .referenceHero {
   border-color: #c1ddef;
@@ -390,32 +428,39 @@
   box-shadow: 0 24px 72px rgba(0, 51, 102, .12);
 }
 
+
 .heroIndustrialOverlay {
   background:
     linear-gradient(90deg, rgba(0, 51, 102, .98), rgba(0, 51, 102, .82) 52%, rgba(5, 120, 190, .30) 100%),
     linear-gradient(180deg, rgba(0, 51, 102, .18), rgba(0, 51, 102, .64));
 }
 
+
 .heroKicker {
-  color: #ffcc00;
+  color: #c1ddef;
 }
 
+
 .heroIndustrialContent h1 span {
-  color: #ffcc00;
+  color: #c1ddef;
 }
+
 
 .heroDescription {
   color: #e4f0f6;
 }
 
-.heroSignals svg {
-  color: #ffcc00;
-}
 
-.heroFooter {
-  border-color: rgba(255, 204, 0, .34);
+.heroSignals svg {
   color: #c1ddef;
 }
+
+
+.heroFooter {
+  border-color: rgba(193, 221, 239, .34);
+  color: #c1ddef;
+}
+
 
 .loginPreview {
   border-color: #c1ddef;
@@ -423,11 +468,13 @@
   box-shadow: 0 26px 66px rgba(0, 51, 102, .22);
 }
 
+
 .previewBell,
 .previewEyebrow,
 .previewRemember a {
   color: #0578be;
 }
+
 
 .previewInput {
   border-color: #b8cedc;
@@ -435,14 +482,17 @@
   color: #102a3c;
 }
 
+
 .previewInput:focus-within {
   border-color: #0578be;
-  box-shadow: 0 0 0 3px rgba(255, 204, 0, .28);
+  box-shadow: 0 0 0 3px rgba(193, 221, 239, .28);
 }
+
 
 .previewInput svg {
   color: #003366;
 }
+
 
 .previewLoginButton {
   border: 1px solid #003366;
@@ -451,26 +501,31 @@
   box-shadow: 0 10px 20px rgba(0, 51, 102, .18);
 }
 
+
 .previewRegisterButton {
   border-color: #9ec2d8;
   background: #fff;
   color: #003366;
 }
 
+
 .previewRegisterButton:hover {
   border-color: #0578be;
   background: #e8f3f9;
 }
 
+
 .previewGerdau {
-  border-color: #d0ad00;
-  background: #ffcc00;
+  border-color: #0578be;
+  background: #c1ddef;
   color: #003366;
 }
+
 
 .kicker {
   color: #0578be;
 }
+
 
 .liveBadge {
   border-color: #b8dfc9;
@@ -478,11 +533,13 @@
   color: #1a7048;
 }
 
+
 .productBoard {
   border-color: #c1ddef;
   background: linear-gradient(145deg, #e8f3f9, #fff 72%);
   box-shadow: 0 26px 70px rgba(0, 51, 102, .12);
 }
+
 
 .desktopPreview,
 .entryPreview,
@@ -492,20 +549,24 @@
   box-shadow: 0 18px 46px rgba(0, 51, 102, .12);
 }
 
+
 .previewSidebar {
   border-right-color: #d2e0e8;
   background: linear-gradient(180deg, #fff, #f4f8fa);
 }
+
 
 .previewSidebar nav > span svg,
 .previewRecentRow svg {
   color: #0578be;
 }
 
+
 .previewNavActive {
   background: #e8f3f9;
   color: #003366 !important;
 }
+
 
 .previewImageBanner,
 .phoneBanner {
@@ -514,20 +575,24 @@
     url("/industrial-yard-hero.jpg") center / cover;
 }
 
+
 .previewImageBanner b,
 .phoneBanner span {
-  color: #ffcc00;
+  color: #c1ddef;
 }
+
 
 .previewDate {
   background: linear-gradient(145deg, #f8fbfd, #e8f3f9);
   color: #003366;
 }
 
+
 .previewAction {
   border-color: #d2e0e8;
   color: #0578be;
 }
+
 
 .previewAction strong,
 .previewRecentHeader,
@@ -539,6 +604,7 @@
   color: #003366;
 }
 
+
 .previewActionActive,
 .previewAdd,
 .successAction {
@@ -547,23 +613,28 @@
   color: #fff;
 }
 
+
 .previewActionActive strong,
 .previewActionActive small {
   color: #fff;
 }
 
+
 .previewRecent {
   border-color: #d2e0e8;
 }
+
 
 .previewRecentRow {
   border-top-color: #e4edf3;
 }
 
+
 .previewRecentRow em {
   background: #e8f3f9;
   color: #003366;
 }
+
 
 .phoneFrame {
   border-color: #003366;
@@ -571,89 +642,206 @@
   box-shadow: 0 24px 52px rgba(0, 51, 102, .22);
 }
 
+
 .phoneNotch {
   background: #003366;
 }
+
 
 .phoneTopbar {
   border-bottom-color: #dbe7ee;
   color: #003366;
 }
 
+
 .phoneAvatar {
-  background: #ffcc00;
+  background: #c1ddef;
   color: #003366;
 }
+
 
 .phonePrimary {
   background: linear-gradient(135deg, #003366, #0578be);
   color: #fff;
 }
 
+
 .phoneActions > div {
   border-color: #d2e0e8;
   color: #0578be;
 }
 
+
 .phoneActions span {
   color: #003366;
 }
+
 
 .previewPanelHeader {
   border-bottom-color: #d2e0e8;
 }
 
+
 .panelNumber {
-  background: #ffcc00;
+  background: #c1ddef;
   color: #003366;
 }
+
 
 .previewStepRail .currentStep {
   background: #e8f3f9;
   color: #003366;
 }
 
+
 .previewFieldRow > div {
   border-color: #c1ddef;
   background: #fbfdfe;
 }
 
+
 .previewFieldRow b {
   color: #003366;
 }
+
 
 .previewTable {
   border-color: #d2e0e8;
 }
 
+
 .previewTableTabs {
   background: #e8f3f9;
 }
 
+
 .finishPreview {
   background: #003366;
 }
+
 
 .finishIcon {
   background: #e8f3f9;
   color: #0578be;
 }
 
+
 .finishDialog > div > strong {
   background: linear-gradient(135deg, #003366, #0578be);
   color: #fff;
 }
 
+
 .successIcon {
-  background: #ffcc00;
+  background: #c1ddef;
   color: #003366;
-  box-shadow: 0 0 0 8px #fff4b8;
+  box-shadow: 0 0 0 8px #e8f3f9;
 }
+
 
 .successActionMuted {
   border-color: #c1ddef;
   background: #f4f8fa;
   color: #003366;
+}
+
+
+@media (max-width: 680px) {
+  .referenceLanding {
+    padding-inline: 12px;
+  }
+
+
+  .referenceHero {
+    box-shadow: 0 18px 44px rgba(0, 51, 102, .12);
+  }
+
+
+  .heroIndustrialContent h1 span {
+    display: inline;
+  }
+
+
+  .loginPreview {
+    width: min(100%, 390px);
+  }
+
+
+  .productBoard {
+    box-shadow: 0 18px 46px rgba(0, 51, 102, .11);
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .referenceHero,
+  .loginPreview,
+  .productBoard,
+  .phoneFrame {
+    animation: none;
+  }
+}
+
+
+/* Blue-only visual refinement: access and login surfaces. */
+.referenceLanding {
+  color: #102a3c;
+  background: linear-gradient(180deg, #f8fbfd 0%, #eef4f7 100%);
+}
+
+.referenceNav :global(.brand-logo) {
+  filter: drop-shadow(0 8px 16px rgba(0, 51, 102, .12));
+}
+
+.referenceNav :global(.compact-button) {
+  border-color: #003366;
+  background: linear-gradient(135deg, #003366, #0578be);
+  box-shadow: 0 10px 22px rgba(0, 51, 102, .16);
+}
+
+.referenceHero {
+  border-color: #c1ddef;
+  border-radius: 26px;
+  box-shadow: 0 26px 72px rgba(0, 51, 102, .12);
+}
+
+.heroIndustrialOverlay {
+  background:
+    linear-gradient(90deg, rgba(0, 51, 102, .98), rgba(0, 51, 102, .82) 54%, rgba(5, 120, 190, .30) 100%),
+    linear-gradient(180deg, rgba(0, 51, 102, .18), rgba(0, 51, 102, .64));
+}
+
+.heroKicker,
+.heroSignals svg {
+  color: #c1ddef;
+}
+
+.heroIndustrialContent h1 span {
+  color: #8bd8ff;
+}
+
+.loginPreview {
+  border-color: #c1ddef;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #ffffff, #e8f3f9);
+  box-shadow: 0 28px 70px rgba(0, 51, 102, .18);
+}
+
+.previewLoginButton {
+  border-color: #003366;
+  background: linear-gradient(135deg, #003366, #0578be);
+}
+
+.previewGerdau {
+  border-color: #0578be;
+  background: #c1ddef;
+  color: #003366;
+}
+
+.productBoard {
+  border-color: #c1ddef;
+  background: linear-gradient(145deg, #e8f3f9, #ffffff 72%);
+  box-shadow: 0 28px 72px rgba(0, 51, 102, .11);
 }
 
 @media (max-width: 680px) {
@@ -662,27 +850,14 @@
   }
 
   .referenceHero {
-    box-shadow: 0 18px 44px rgba(0, 51, 102, .12);
+    border-radius: 21px;
   }
 
-  .heroIndustrialContent h1 span {
-    display: inline;
+  .heroIndustrialContent h1 {
+    font-size: clamp(2.25rem, 12vw, 3.35rem);
   }
 
   .loginPreview {
     width: min(100%, 390px);
-  }
-
-  .productBoard {
-    box-shadow: 0 18px 46px rgba(0, 51, 102, .11);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .referenceHero,
-  .loginPreview,
-  .productBoard,
-  .phoneFrame {
-    animation: none;
   }
 }

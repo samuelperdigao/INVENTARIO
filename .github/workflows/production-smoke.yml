@@ -1,9 +1,11 @@
 name: Production Smoke
 
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
 
 jobs:
   smoke:
@@ -16,7 +18,7 @@ jobs:
           set -euo pipefail
 
           API="https://inventory-api-6o8h.onrender.com"
-          APP="https://inventario-lpe.vercel.app"
+          APP="https://inventariolpe.vercel.app"
 
           echo "Waiting for backend..."
           for attempt in {1..24}; do

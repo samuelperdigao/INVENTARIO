@@ -147,7 +147,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker, rea
                 aria-pressed={side === option}
                 onClick={() => { setSide(option); markDirty(); }}
               >
-                {option}
+                {formatSideLabel(option)}
               </button>
             ))}
           </div>

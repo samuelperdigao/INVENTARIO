@@ -7,7 +7,7 @@ test("envia lançamentos ao motor online e identifica o cache quando fica offlin
   await page.getByRole("button", { name: "Iniciar novo inventário" }).click();
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
 
-  await page.getByRole("button", { name: "DE" }).click();
+  await page.getByRole("button", { name: "LP" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("15");
   await page.getByLabel("Camada").selectOption("A1");
   await page.getByLabel("Lote").fill("2712345678");
@@ -15,7 +15,7 @@ test("envia lançamentos ao motor online e identifica o cache quando fica offlin
   await page.getByRole("button", { name: "Adicionar" }).click();
   await expect(page.getByText("Lote 2712345678")).toHaveCount(1, { timeout: 30_000 });
 
-  await page.getByRole("button", { name: "EF" }).click();
+  await page.getByRole("button", { name: "LE" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("21");
   await page.getByLabel("Camada").selectOption("A1");
   await page.getByLabel("Lote").fill("2712345678");

@@ -1,5 +1,24 @@
 # Status do projeto
 
+## Em desenvolvimento: administração global
+
+Branch `feat/admin-inventarios-v1` criada a partir de `main` em 23/09/2026.
+A permissão global, a migration `0009_system_admin`, as rotas administrativas,
+o painel responsivo, os ciclos operacionais, a auditoria e a retenção de
+pendências offline estão implementados. A primeira conta administrativa
+continua sem atribuição, aguardando o e-mail que será informado pelo usuário.
+O procedimento e a ordem segura da publicação estão em `docs/ADMINISTRACAO.md`.
+
+Validação local: lint, TypeScript, Vitest, Pytest, build e migration SQLite
+foram executados com sucesso. O Chromium local não pôde ser instalado:
+o download da CDN retornou conteúdo inválido neste ambiente. O gate Playwright
+deve ser confirmado pelo workflow do Pull Request.
+
+Pendências para integração: revisar os resultados de CI, validar migration
+contra uma cópia do Neon, criar um ponto de recuperação e aplicar a migration
+em produção antes de liberar o backend; depois confirmar Vercel, Render e o
+smoke público. Não integrar antes da migration de produção.
+
 Atualizado em 19/09/2026.
 
 ## Entrega publicada — inventário vazio e compartilhamento moderno

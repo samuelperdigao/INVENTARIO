@@ -47,6 +47,12 @@ Não copie valores reais para Git, documentação, logs, issues ou Pull Requests
 
 ## Ordem de publicação
 
+Para o painel administrativo, leia `docs/ADMINISTRACAO.md`. A revisão
+`0009_system_admin` precisa estar aplicada antes da publicação do backend:
+o login consulta a nova tabela `system_admins`. Valide a migration em uma
+branch de banco, faça snapshot ou backup verificado e use conexão direta para
+o Alembic. Não atribua a primeira permissão sem o endereço indicado pelo usuário.
+
 1. Criar a branch de release a partir da `main` atual.
 2. Executar todos os quality gates locais.
 3. Abrir Pull Request e aguardar o workflow `Quality Gates` concluir com sucesso.

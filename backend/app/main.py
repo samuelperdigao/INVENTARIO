@@ -62,6 +62,7 @@ from app.sync_service import (
     SyncDeletionBlockedError,
     SyncFinalizationRequiredError,
     SyncFinalizedError,
+    SyncGenerationError,
     SyncNotFoundError,
     _entry_record,
     synchronize,
@@ -85,7 +86,7 @@ app.add_middleware(
     allow_origins=list(settings.cors_origins),
     allow_credentials=True,
     allow_methods=["DELETE", "GET", "POST"],
-    allow_headers=["Authorization", "Content-Type", "X-Inventory-Sync-Token"],
+    allow_headers=["Authorization", "Content-Type", "X-Inventory-Sync-Token", "X-Inventory-Generation"],
 )
 
 
@@ -342,6 +343,8 @@ def _valid_inventory_token(session: Session, inventory: InventoryRow, user: User
     token_hash = _hash_token(sync_token)
     if hmac.compare_digest(inventory.sync_token_hash, token_hash):
         return True
+    if inventory.owner_user_id == user.id and inventory.owner_access_hash and hmac.compare_digest(inventory.owner_access_hash, token_hash):
+        return True
     participant_hash = session.scalar(
         select(InventoryParticipantRow.access_token_hash).where(
             InventoryParticipantRow.inventory_id == inventory.id,
@@ -452,16 +455,19 @@ async def import_inventory_reference(
     file: UploadFile = File(...),
     column_index: int | None = Form(default=None, alias="columnIndex"),
     sync_token: str = Header(min_length=32, alias="X-Inventory-Sync-Token"),
+    generation: int = Header(default=1, ge=1, alias="X-Inventory-Generation"),
     user: UserRow = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> dict[str, object]:
-    inventory = _inventory_access(session, inventory_id, user, sync_token, require_token=True)
-    if inventory.status == "FINISHED":
-        raise HTTPException(status_code=409, detail="Inventário finalizado não aceita troca de referência.")
+    _inventory_access(session, inventory_id, user, sync_token, require_token=True)
     filename, content = await _read_reference_upload(file)
     parsed = _parse_reference_upload(content, filename, column_index)
     if not parsed.lots:
         raise HTTPException(status_code=422, detail="Nenhum lote válido foi encontrado na coluna ‘Lotes’.")
+    session.scalar(select(InventoryRow).where(InventoryRow.id == inventory_id).with_for_update().execution_options(populate_existing=True))
+    inventory = _inventory_access(session, inventory_id, user, sync_token, require_token=True)
+    if inventory.status == "FINISHED" or inventory.operational_generation != generation:
+        raise HTTPException(status_code=409, detail="Inventário finalizado ou alterado. Sincronize antes de substituir a referência.")
     try:
         reference = replace_reference(
             session,
@@ -533,12 +539,14 @@ def match_inventory_reference_lot(
 def delete_inventory_reference(
     inventory_id: str,
     sync_token: str = Header(min_length=32, alias="X-Inventory-Sync-Token"),
+    generation: int = Header(default=1, ge=1, alias="X-Inventory-Generation"),
     user: UserRow = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> dict[str, str]:
+    session.scalar(select(InventoryRow).where(InventoryRow.id == inventory_id).with_for_update().execution_options(populate_existing=True))
     inventory = _inventory_access(session, inventory_id, user, sync_token, require_token=True)
-    if inventory.status == "FINISHED":
-        raise HTTPException(status_code=409, detail="Inventário finalizado não aceita remoção de referência.")
+    if inventory.status == "FINISHED" or inventory.operational_generation != generation:
+        raise HTTPException(status_code=409, detail="Inventário finalizado ou alterado. Sincronize antes de remover a referência.")
     try:
         remove_reference(session, inventory.id)
         session.commit()
@@ -639,10 +647,11 @@ def finalize_inventory(
     user: UserRow = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> dict[str, object]:
+    session.scalar(select(InventoryRow).where(InventoryRow.id == inventory_id).with_for_update().execution_options(populate_existing=True))
     inventory = _inventory_access(session, inventory_id, user, sync_token, require_token=True)
     if inventory.status == "FINISHED":
         return _history_item(inventory)
-    if payload.revision != inventory.revision:
+    if payload.revision != inventory.revision or payload.operationalGeneration != inventory.operational_generation:
         raise HTTPException(status_code=409, detail="O inventário central mudou; sincronize antes de finalizar.")
     rows = session.scalars(
         select(InventoryEntryRow).where(
@@ -670,6 +679,8 @@ def finalize_inventory(
     inventory.participation_code = None
     inventory.updated_at = now
     inventory.revision += 1
+    from app.admin_service import preserve_report_version
+    preserve_report_version(session, inventory, now)
     from app.sync_service import _append_event
 
     _append_event(session, inventory.id, "inventory", inventory.id)
@@ -957,9 +968,18 @@ def sync(
     except SyncFinalizedError as error:
         session.rollback()
         raise HTTPException(status_code=409, detail="Inventário finalizado não aceita alterações.") from error
+    except SyncGenerationError as error:
+        session.rollback()
+        raise HTTPException(status_code=409, detail="O inventário mudou de ciclo ou foi excluído. Seus dados locais foram preservados para conferência.") from error
     except SyncFinalizationRequiredError as error:
         session.rollback()
         raise HTTPException(status_code=422, detail="A finalização deve ser feita pelo endpoint protegido.") from error
     except SQLAlchemyError as error:
         session.rollback()
         raise HTTPException(status_code=503, detail="Persistência central indisponível.") from error
+
+
+# Importado após a definição das dependências e dos exportadores compartilhados.
+from app.admin_api import assigned_router, router as admin_router  # noqa: E402
+app.include_router(assigned_router)
+app.include_router(admin_router)

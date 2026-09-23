@@ -70,6 +70,20 @@ essa mesma fonte; sem referência, o contrato histórico permanece inalterado.
 6. Revisões compatíveis são aplicadas; concorrência incompatível gera conflito explícito.
 7. Eventos remotos são recebidos por cursor e atualizam o estado local.
 
+### Administração global
+
+Uma tabela independente `system_admins` autoriza as rotas `/api/v1/admin/*`.
+O painel consulta o banco central e não modifica os direitos dos operadores.
+Cada ação persiste autor, justificativa, antes/depois, revisão e geração em
+`admin_audit`. O inventário é bloqueado na transação, e revisões esperadas
+impedem correções administrativas simultâneas com base desatualizada.
+
+Reabertura cria uma geração operacional nova. O contrato de sincronização
+rejeita escritas das gerações anteriores, preserva conflitos locais e permite
+leitura para atualização. Exclusão administrativa mantém tombstone e impede
+recriação por dispositivos offline. Finalizações e correções guardam snapshots
+imutáveis em `admin_report_versions` para exportação histórica.
+
 ## Identidade e autorização
 
 - Senhas usam `scrypt` com salt individual.

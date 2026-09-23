@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.persistence import SessionRow, TeamMemberRow, TeamRow, UserRow
+from app.persistence import SessionRow, SystemAdminRow, TeamMemberRow, TeamRow, UserRow
 
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -162,5 +162,6 @@ def user_payload(session: Session, user: UserRow) -> dict[str, Any]:
     return {
         "id": user.id, "email": user.email, "displayName": user.display_name,
         "recoveryPinConfigured": user.recovery_pin_hash is not None,
+        "systemAdmin": session.get(SystemAdminRow, user.id) is not None,
         "teams": [{"id": team.id, "name": team.name, "role": member.role} for member, team in memberships],
     }

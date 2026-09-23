@@ -27,6 +27,7 @@ O estado operacional mais recente fica em [`docs/STATUS.md`](docs/STATUS.md).
 - Referência opcional de lotes SAP por planilha `.xlsx`, usando exclusivamente o cabeçalho `Lotes`, com prévia, substituição, remoção e conciliação sem bloquear lançamentos físicos.
 - Exportação Excel compatível `.xls` BIFF8 como opção padrão da equipe, com `.xlsx` moderno preservado.
 - Compartilhamento nativo no celular e links temporários assinados para arquivos de escritório.
+- Área administrativa global em `/admin` para consulta, auditoria, correção, reabertura, transferência, referência SAP e exclusão lógica; detalhes em [`docs/ADMINISTRACAO.md`](docs/ADMINISTRACAO.md).
 
 ## Arquitetura
 
@@ -130,8 +131,9 @@ No Windows, substitua `backend/.venv/bin/python` por `backend/.venv/Scripts/pyth
 
 Toda alteração de schema deve gerar uma nova migration. Não edite migrations já aplicadas em produção.
 
-A revisão `0008_inventory_lot_references` cria o armazenamento separado da referência
-opcional e não altera os lançamentos físicos existentes.
+A revisão `0009_system_admin` acrescenta permissão global, auditoria, gerações
+operacionais e versões de relatórios. Ela preserva como versão 1 os relatórios
+finalizados anteriormente. Aplique-a antes do deploy da API correspondente.
 
 ```bash
 backend/.venv/bin/python -m alembic -c backend/alembic.ini current

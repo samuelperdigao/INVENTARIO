@@ -2,7 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { InventoryScreen } from "@/components/inventory-screen";
-import { createInventory } from "@/lib/inventory-repository";
+import { createInventory, markInventoryFinished } from "@/lib/inventory-repository";
+import { db } from "@/lib/db";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
@@ -53,4 +54,19 @@ it("não consulta enquanto a página está oculta e retoma ao voltar para a tela
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
   document.dispatchEvent(new Event("visibilitychange"));
   await waitFor(() => expect(syncInventoryMock).toHaveBeenCalledWith(inventory.id, { background: true }), { timeout: 500 });
+});
+
+it("recebe reabertura administrativa mesmo com a tela finalizada aberta", async () => {
+  listSyncConflictsMock.mockResolvedValue([]);
+  const inventory = await createInventory("2026-09-23");
+  await markInventoryFinished(inventory.id, 2);
+  syncInventoryMock.mockImplementation(async () => {
+    const current = await db.inventories.get(inventory.id);
+    if (current) await db.inventories.put({ ...current, status: "OPEN", operationalGeneration: 2, revision: 3, syncStatus: "SYNCED" });
+    return { conflicts: 0, received: 1, changed: true, remoteChanged: true, serverStatus: "OPEN" };
+  });
+  render(<InventoryScreen inventoryId={inventory.id} />);
+  await waitFor(() => expect(syncInventoryMock).toHaveBeenCalled(), { timeout: 500 });
+  await screen.findByRole("heading", { name: "Novo registro" });
+  expect((await db.inventories.get(inventory.id))?.operationalGeneration).toBe(2);
 });

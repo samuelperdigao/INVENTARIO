@@ -9,10 +9,11 @@ import { AppRail } from "@/components/app-rail";
 import { BrandLogo } from "@/components/brand-logo";
 import { Icon } from "@/components/icon";
 import { logoutAccount, restoreSession, type AuthUser } from "@/lib/auth-client";
+import { assignedInventories, type AssignedInventory } from "@/lib/admin-client";
 import { createInventory, listOpenInventories, listPendingInventoryDeletions, purgeInventory, restoreInventoryAfterDeletionFailure } from "@/lib/inventory-repository";
 import { formatBrazilianDate } from "@/lib/local-date";
 import type { Inventory } from "@/lib/models";
-import { SyncHttpError, joinInventoryByCode, syncInventory } from "@/lib/sync-client";
+import { SyncHttpError, connectAssignedInventory, joinInventoryByCode, syncInventory } from "@/lib/sync-client";
 
 function visualLabels(inventories: Inventory[]): Map<string, string> {
   const occurrences = new Map<string, number>();
@@ -52,6 +53,8 @@ export function InventoryHome() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser>();
   const [inventories, setInventories] = useState<Inventory[]>([]);
+  const [assigned, setAssigned] = useState<AssignedInventory[]>([]);
+  const [openingAssigned, setOpeningAssigned] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -68,6 +71,7 @@ export function InventoryHome() {
         const items = await listOpenInventories();
         if (!active) return;
         setUser(restored); setInventories(items);
+        void assignedInventories().then((data) => { if (active) setAssigned(data.filter((item) => item.status === "OPEN")); }).catch(() => undefined);
       } catch {
         if (active) setError("Não foi possível carregar o painel.");
       } finally {
@@ -103,11 +107,22 @@ export function InventoryHome() {
     router.replace("/acesso");
   }
 
+  async function openAssigned(item: AssignedInventory): Promise<void> {
+    setOpeningAssigned(item.inventoryId); setError(undefined);
+    try {
+      await connectAssignedInventory(item.inventoryId, item.accessToken);
+      router.push(`/inventarios/${item.inventoryId}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível abrir o inventário atribuído.");
+      setOpeningAssigned(undefined);
+    }
+  }
+
   if (loading || !user) return <main className="shell"><div className="dashboard-loading" role="status" aria-label="Carregando seu painel"><span /><span /><span /></div></main>;
 
   return (
     <main className={`shell app-page-shell dashboard-shell ${styles.dashboardShell}`}>
-      <AppRail active="home" onCreate={() => void handleCreate()} creating={creating} showTeam={isTeamAdmin} />
+      <AppRail active="home" onCreate={() => void handleCreate()} creating={creating} showTeam={isTeamAdmin} showAdmin={user.systemAdmin} />
       <div className="dashboard-content">
       <header className="dashboard-topbar">
         <Link className="brand-link mobile-dashboard-brand" href="/dashboard" aria-label="INVENTÁRIO, painel"><BrandLogo compact subtitle="Beam Blanks e Blocos" /></Link>
@@ -124,6 +139,14 @@ export function InventoryHome() {
       </section>
 
       {error ? <p className="error" role="alert">{error}</p> : null}
+      {assigned.length > 0 ? <section className="card section-card stack" aria-label="Inventários atribuídos">
+        <div className="section-header"><div><p className="eyebrow">Responsabilidade atribuída</p><h2>Inventários recebidos</h2>
+          <p className="muted">Abra o inventário para sincronizar os dados centrais neste dispositivo.</p></div></div>
+        {assigned.map((item) => <div className="card inventory-card" key={item.inventoryId}>
+          <strong>Inventário de {formatBrazilianDate(item.date)}</strong>
+          <button className="secondary" type="button" disabled={openingAssigned === item.inventoryId} onClick={() => void openAssigned(item)}>
+            {openingAssigned === item.inventoryId ? "Abrindo…" : "Abrir inventário"}</button></div>)}
+      </section> : null}
 
       <section className="quick-actions" aria-labelledby="quick-actions-title">
         <div className="section-header"><div><p className="eyebrow">Acesso rápido</p><h2 id="quick-actions-title">O que você precisa fazer?</h2></div></div>

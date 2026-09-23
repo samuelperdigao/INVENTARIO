@@ -14,6 +14,7 @@ export interface AuthUser {
   displayName: string;
   recoveryPinConfigured: boolean;
   teams: AuthTeam[];
+  systemAdmin?: boolean;
 }
 
 interface AuthResponse {
@@ -140,6 +141,18 @@ export async function getAuthenticatedSession(): Promise<{ accessToken: string; 
   if (!accessToken || !currentUser) await restoreSession();
   if (!accessToken || !currentUser) throw new Error("Entre na sua conta antes de sincronizar. Seus dados locais continuam preservados.");
   return { accessToken, user: currentUser };
+}
+
+export async function refreshCurrentUser(): Promise<AuthUser> {
+  const session = await getAuthenticatedSession();
+  const response = await fetch(`${apiBaseUrl}/api/v1/auth/me`, {
+    credentials: "include", headers: { Authorization: `Bearer ${session.accessToken}` },
+  });
+  if (!response.ok) throw new Error("Não foi possível verificar as permissões da conta.");
+  const user = await response.json() as AuthUser;
+  currentUser = user;
+  cacheUser(user);
+  return user;
 }
 
 export function getCurrentUser(): AuthUser | undefined {

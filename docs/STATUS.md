@@ -1,13 +1,40 @@
 # Status do projeto
 
-Atualizado em 19/09/2026.
+## Em desenvolvimento: administração global
+
+Branch `feat/admin-inventarios-v1`, Pull Request `#18` em rascunho, criada a partir de `main` em 23/09/2026.
+A permissão global, a migration `0009_system_admin`, as rotas administrativas,
+o painel responsivo, os ciclos operacionais, a auditoria e a retenção de
+pendências offline estão implementados. A primeira conta administrativa
+continua sem atribuição, aguardando o e-mail que será informado pelo usuário.
+O procedimento e a ordem segura da publicação estão em `docs/ADMINISTRACAO.md`.
+
+Quality Gates #98 (`35825125628`, commit `772d6d6`) passaram: lint, TypeScript,
+build, Vitest (`72 testes`), Pytest (`63 testes`, 4 avisos de dependências),
+Alembic `upgrade head` e Playwright (`12 testes`). Quality Gates #99
+(`35836592928`, commit `5b2e0d7`) também passaram. O preview Vercel está
+`Ready`; o smoke manual ainda não foi feito.
+
+A conexão com o Neon foi restaurada, um ponto de recuperação foi confirmado e
+a revision `0009_system_admin` foi aplicada ao PostgreSQL de produção pelo
+fluxo de migration preparado do Neon, usando o SQL correspondente à revision
+Alembic. O estado final foi verificado: versão `0009_system_admin`, 22
+inventários, 122 itens, 7 relatórios finalizados preservados em 7 versões
+históricas, 7 inventários com versão de relatório 1, e as tabelas de
+administração/auditoria vazias. Todas as gerações operacionais estão em 1.
+
+A migration também passou antes em uma cópia isolada derivada de produção. O
+banco está pronto para a integração do código; a publicação automática no
+Render e na Vercel e os smokes pós-deploy ainda estão pendentes. Não há conta
+administrativa atribuída; o e-mail será informado pelo usuário após a
+publicação.
+
+Atualizado em 23/09/2026.
 
 ## Entrega publicada — inventário vazio e compartilhamento moderno
 
-Commit integrado: `2766981` em `main` e `origin/main`. O push foi concluído e a
-Vercel publicou o frontend automaticamente; o smoke de produção confirmou as
+Commit integrado: `2766981` em `main` e `origin/main`. O push foi concluído e aVercel publicou o frontend automaticamente; o smoke de produção confirmou as
 superfícies públicas da Vercel e do Render.
-
 Inventários sem lançamentos agora podem ser finalizados. O fluxo sincroniza
 antes da finalização, recarrega a revisão e o token locais atuais e bloqueia a
 operação quando há conflito ou quando outro dispositivo já finalizou o
@@ -80,9 +107,7 @@ O servidor de teste do Playwright passou a compilar o frontend apontando para a 
 - Rewrite Vercel `/backend-api/healthz`: HTTP 200 com `{"status":"ok"}`.
 - API Render `/healthz`: HTTP 200 com `{"status":"ok"}`.
 - Não houve alteração de schema, Render ou Neon nesta rodada.
-
 ## Entrega em integração — identidade visual transversal
-
 Commits integrados: `caabac0 feat: unificar identidade visual do aplicativo` e `bc46847 docs: registrar identidade visual transversal`.
 
 A direção visual premium agora é compartilhada pelo aplicativo inteiro: dashboard, equipe, histórico, detalhe de relatório e acesso usam o mesmo rail de navegação, tokens navy/ciano, textura de grid, superfícies elevadas, gradientes, estados de foco e tratamento responsivo. O fluxo de inventário mantém o rail específico de cinco etapas por ser uma tela operacional mais profunda, mas passa a compartilhar a mesma identidade, cores, elevação e linguagem visual.
@@ -120,88 +145,7 @@ A tela operacional recebeu uma direção visual mais ousada e profissional, sem 
 - Build de produção com proxy local: aprovado.
 - Playwright visual: `2 cenários aprovados` nos viewports 390, 430, 768, 1024, 1366, 1440 e 1920px, sem overflow horizontal.
 - Playwright completo: `8 cenários aprovados`.
-- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
-- `git diff --check`: aprovado.
-- Conferência manual local: nova composição visível em mobile e operação sem console com erro.
-
-### Limitações reais
-
-- A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses dispositivos.
-- Publicação confirmada após a integração na `main`: a Vercel respondeu HTTP 200 e o CSS público contém `inventory-header-topline`, `inventory-navy` e `metric-card--records`.
-- O health check `/backend-api/healthz` da Vercel e `/healthz` do Render responderam `{"status":"ok"}`; Render e Neon não foram alterados nesta rodada.
-
-## Entrega integrada — refinamento visual operacional
-
-Commit integrado: `0a5a5db` na `main` e enviado para `origin/main`.
-
-O fluxo de inventário recebeu refinamento responsivo para mobile, tablet e desktop, com referência SAP posicionada antes do primeiro lançamento, painel único para sincronização/análise/finalização, estados de carregamento e feedback de salvamento, tela segura para inventário indisponível e cobertura visual operacional. IndexedDB, contratos de API, autenticação, sincronização, finalização irreversível e exportações foram preservados.
-
-### Gates locais desta rodada
-
-- ESLint: aprovado.
-- TypeScript: aprovado.
-- Vitest: `13 arquivos, 61 testes aprovados`.
-- Build de produção local com proxy da API: aprovado.
-- Playwright afetado: `5 cenários aprovados`.
-- Playwright completo: `8 cenários aprovados`, incluindo offline e 100 lançamentos/exportações.
-- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
-- Verificação manual em `pnpm start`: `/acesso` e rota de inventário indisponível sem erros ou avisos no console.
-- `git diff --check`: aprovado.
-
-### Publicação e limitações
-
-- Frontend público na Vercel respondeu HTTP 200 em `/acesso`; a folha pública contém o painel operacional e os estados do refinamento.
-- A rewrite `/backend-api/healthz` e a API pública no Render responderam `{"status":"ok"}`.
-- Não houve alteração de backend; Render e Neon não foram modificados nesta rodada.
-- A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses gates.
-
-## Entrega integrada — segunda passada visual e microinterações
-
-Commit integrado: `ac95ae5` na `main` e enviado para `origin/main`.
-
-A tela operacional recebeu uma segunda camada visual, sem mudança de fluxo ou contrato: entrada escalonada dos blocos, etapa ativa mais evidente, linha de progresso no rail, barras de acento nos indicadores, estados com pontos de status, abertura animada dos painéis de controle, elevação nos cartões e brilho pontual no cabeçalho. A animação continua condicionada à preferência do navegador; `prefers-reduced-motion: reduce` desliga o movimento e mantém os sinais visuais estáticos.
-
-### Gates locais desta rodada
-
-- ESLint: aprovado.
-- TypeScript: aprovado.
-- Vitest: `13 arquivos, 61 testes aprovados`.
-- Build de produção local com proxy da API: aprovado.
-- Playwright afetado: `5 cenários aprovados`.
-- Playwright completo: `8 cenários aprovados`.
-- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
-- `git diff --check`: aprovado.
-- Verificação visual no navegador local e no site público: rail, painel único, acentos de cartão e indicadores de status presentes; o navegador usado na conferência sinalizou movimento reduzido.
-
-### Publicação e limites
-
-- O CSS público da Vercel contém `inventory-rail-enter`, `inventory-header-sheen` e `inventory-stage-reveal`.
-- O frontend público respondeu e exibiu a nova camada visual no inventário aberto; Render e Neon não foram alterados nesta rodada.
-- A validação física em Android real e iPhone/Safari continua pendente; Chromium local e navegador desktop não substituem esses gates.
-
-## Entrega integrada — regra oficial de lotes e importação SAP
-
-Commit integrado: `cbc55dd` na `main`.
-
-- A regra vigente é exatamente 10 dígitos ASCII com prefixo `27` ou `28`, centralizada em `backend/app/lot_rules.py` e `lib/lot-rules.ts`.
-- A planilha SAP só alimenta a referência pela coluna com cabeçalho `Lotes`, aceitando apenas trim e diferença de maiúsculas/minúsculas. Cabeçalho ausente, duplicado ou seleção de outra coluna não são aceitos.
-- O parser trabalha em memória, limita tamanho/linhas, trata texto, número, formato, notação científica, vazios, inválidos e duplicidades, e persiste somente lotes deduplicados e metadados mínimos.
-- A referência continua opcional e informativa: lote físico válido fora do SAP permanece permitido, e falha de importação não altera os lançamentos físicos.
-- O campo manual filtra entrada não numérica, limita 10 posições e apresenta a regra imediatamente; a API valida novamente.
-
-### Gates locais desta alteração
-
-- ESLint: aprovado.
-- TypeScript: aprovado.
-- Vitest: `13 arquivos, 61 testes aprovados`.
-- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
-- `compileall` do backend: aprovado.
-- Alembic SQLite temporário: `upgrade head`, `downgrade 0007_recovery_pin`, novo `upgrade head` e `current` em `0008_inventory_lot_references (head)` aprovados; nenhuma migration nova foi necessária.
-- Build de produção local: aprovado.
-- Playwright: `6 cenários aprovados` com backend local, incluindo offline, sincronização, histórico móvel e 100 lançamentos/exportações.
-
-O commit foi integrado e enviado para `origin/main`. Os gates de CI foram
-aprovados. Android/iPhone Safari continuam sendo gates físicos pendentes.
+- Pytest: `56 testes aprovados`, c…1425 tokens truncated…droid/iPhone Safari continuam sendo gates físicos pendentes.
 
 ## Produção
 
@@ -237,9 +181,7 @@ O commit foi publicado no GitHub, validado pelos workflows `Quality Gates` e
 - `compileall` do backend: aprovado.
 - Alembic SQLite temporário: `upgrade head`, `downgrade 0007_recovery_pin`, novo `upgrade head` e `current` em `0008_inventory_lot_references (head)` aprovados.
 - Build de produção local: aprovado.
-- Playwright: `6 cenários aprovados` com `BACKEND_PROXY_URL=http://127.0.0.1:8000`; os cenários cobrem login, análise, dashboard, histórico, offline, sincronização e exportações.
-- Teste backend específico da referência validou parser, normalização, preview, importação, substituição, remoção, IDOR e conciliação nos quatro formatos.
-
+- Playwright: `6 cenários aprovados` com `BACKEND_PROXY_URL=http://127.0.0.1:8000`; os cenários cobrem login, análise, dashboard, histórico, offline, sincronização e exportações.- Teste backend específico da referência validou parser, normalização, preview, importação, substituição, remoção, IDOR e conciliação nos quatro formatos.
 ### Limitações e prontidão
 
 - A execução local de `pnpm e2e` deve definir `BACKEND_PROXY_URL` antes do build; o workflow de CI já fornece essa variável.
@@ -313,9 +255,7 @@ Branch: `feat/fluxo-acesso-compartilhamento-v1`.
 
 - `xlwt` gera `.xls` diretamente em BIFF8/OLE, sem conversão no navegador ou dependência do LibreOffice.
 - `openpyxl` mantém o `.xlsx` moderno.
-- O endpoint `/api/v1/inventories/{id}/export/excel` usa `.xls` por padrão e aceita `?format=xlsx`.
-- O teste de volume local cobre 100 registros, 95 lotes, 1.269 peças, 91 lotes OK e 4 lotes para conferência nos quatro formatos.
-- Os testes verificam assinatura OLE, ZIP, abas, ausência de filtros e linhas de grade, MIME, `Content-Disposition`, `Content-Length`, totais iguais e download como Blob.
+- O endpoint `/api/v1/inventories/{id}/export/excel` usa `.xls` por padrão e aceita `?format=xlsx`.- O teste de volume local cobre 100 registros, 95 lotes, 1.269 peças, 91 lotes OK e 4 lotes para conferência nos quatro formatos.- Os testes verificam assinatura OLE, ZIP, abas, ausência de filtros e linhas de grade, MIME, `Content-Disposition`, `Content-Length`, totais iguais e download como Blob.
 - Word permanece em `.docx`; uma variante `.rtf` ou `.doc` ficou fora desta entrega por não haver geração legada segura na estrutura atual.
 
 ## Validação desta entrega

@@ -67,6 +67,7 @@ export async function createInventory(date = localDateIso()): Promise<Inventory>
     id: uuidv7(),
     date,
     status: "OPEN",
+    operationalGeneration: 1,
     createdAt: now,
     updatedAt: now,
     revision: 1,
@@ -134,6 +135,7 @@ export async function createEntry(inventoryId: string, draft: EntryDraft, option
   await db.transaction("rw", db.inventories, db.entries, async () => {
     const inventory = await db.inventories.get(inventoryId);
     if (!inventory || inventory.tombstone) throw new Error("Inventário não encontrado.");
+    entry.operationalGeneration = inventory.operationalGeneration ?? 1;
     if (!options.allowDuplicate) {
       const duplicates = await findDuplicateLotEntries(inventoryId, normalizedLot);
       if (duplicates.length > 0) throw new DuplicateLotError(duplicates);
@@ -178,6 +180,7 @@ export async function updateEntry(entryId: string, draft: EntryDraft, options: E
     }
     updatedEntry = {
       ...entry,
+      operationalGeneration: inventory.operationalGeneration ?? 1,
       side: draft.side,
       bay: normalizeText(draft.bay),
       layer: draft.layer || undefined,

@@ -25,10 +25,13 @@ class InventoryRow(Base):
     sync_token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     team_id: Mapped[str | None] = mapped_column(ForeignKey("teams.id", ondelete="RESTRICT"), index=True)
     owner_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    owner_access_hash: Mapped[str | None] = mapped_column(String(64))
     finalized_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
     participation_code: Mapped[str | None] = mapped_column(String(6), unique=True, index=True)
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     report_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    operational_generation: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    report_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class UserRow(Base):
@@ -43,6 +46,13 @@ class UserRow(Base):
     recovery_pin_locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class SystemAdminRow(Base):
+    __tablename__ = "system_admins"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class TeamRow(Base):
@@ -126,6 +136,37 @@ class InventoryEntryRow(Base):
     revision: Mapped[int] = mapped_column(Integer, nullable=False)
     tombstone: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    operational_generation: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class AdminReportVersionRow(Base):
+    __tablename__ = "admin_report_versions"
+    __table_args__ = (UniqueConstraint("inventory_id", "version", name="uq_admin_report_version"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    inventory_id: Mapped[str] = mapped_column(ForeignKey("inventories.id", ondelete="RESTRICT"), index=True, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    operational_generation: Mapped[int] = mapped_column(Integer, nullable=False)
+    inventory_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AdminAuditRow(Base):
+    __tablename__ = "admin_audit"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    inventory_id: Mapped[str] = mapped_column(ForeignKey("inventories.id", ondelete="RESTRICT"), index=True, nullable=False)
+    entry_id: Mapped[str | None] = mapped_column(String(36))
+    actor_user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    action: Mapped[str] = mapped_column(String(48), nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(1000))
+    before: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    after: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    inventory_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    operational_generation: Mapped[int] = mapped_column(Integer, nullable=False)
+    report_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class InventoryReferenceRow(Base):

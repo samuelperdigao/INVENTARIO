@@ -61,7 +61,7 @@ export function FinalizationPanel({ inventory, onFinished, embedded = false, rea
       if (!currentInventory || currentInventory.tombstone) throw new Error("Inventário não encontrado neste dispositivo.");
       if (currentInventory.status !== "OPEN") throw new Error("Este inventário já foi finalizado.");
       if (currentInventory.syncStatus !== "SYNCED") throw new Error("Não foi possível confirmar a sincronização antes da finalização.");
-      const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${currentInventory.id}/finalize`, { method: "POST", credentials: "include", headers: await headers(currentInventory.syncToken), body: JSON.stringify({ revision: currentInventory.revision }) });
+      const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${currentInventory.id}/finalize`, { method: "POST", credentials: "include", headers: await headers(currentInventory.syncToken), body: JSON.stringify({ revision: currentInventory.revision, operationalGeneration: currentInventory.operationalGeneration ?? 1 }) });
       const body = await response.json().catch(() => undefined) as { detail?: string; revision?: number } | undefined;
       if (!response.ok || !body?.revision) throw new Error(body?.detail ?? "Não foi possível finalizar o inventário.");
       await markInventoryFinished(inventory.id, body.revision);

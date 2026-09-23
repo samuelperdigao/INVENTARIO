@@ -49,6 +49,10 @@ class SyncDeletionBlockedError(Exception):
     pass
 
 
+class SyncGenerationError(Exception):
+    pass
+
+
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -76,6 +80,7 @@ def _inventory_record(row: InventoryRow) -> dict[str, Any]:
         "syncBaseRevision": row.revision,
         "tombstone": row.tombstone,
         "deletedAt": _timestamp(row.deleted_at),
+        "operationalGeneration": row.operational_generation,
     }
 
 
@@ -98,6 +103,7 @@ def _entry_record(session: Session, row: InventoryEntryRow) -> dict[str, Any]:
         "syncBaseRevision": row.revision,
         "tombstone": row.tombstone,
         "deletedAt": _timestamp(row.deleted_at),
+        "operationalGeneration": row.operational_generation,
     }
 
 
@@ -107,6 +113,7 @@ def _inventory_matches(row: InventoryRow, incoming: SyncInventory) -> bool:
         and row.status == incoming.status
         and row.tombstone == incoming.tombstone
         and _timestamp(row.deleted_at) == _timestamp(incoming.deletedAt)
+        and row.operational_generation == incoming.operationalGeneration
     )
 
 
@@ -122,6 +129,7 @@ def _entry_matches(row: InventoryEntryRow, incoming: SyncEntry) -> bool:
         and row.tombstone == incoming.tombstone
         and _timestamp(row.deleted_at) == _timestamp(incoming.deletedAt)
         and row.revision == incoming.revision
+        and row.operational_generation == incoming.operationalGeneration
     )
 
 
@@ -176,6 +184,9 @@ def _create_inventory(
         owner_user_id=owner_user_id,
         participation_code=_new_participation_code(session),
         finalized_by_user_id=None,
+        owner_access_hash=None,
+        operational_generation=1,
+        report_version=0,
     )
     session.add(row)
     session.flush()
@@ -198,6 +209,7 @@ def _apply_inventory(
         row.revision = incoming.revision
         row.tombstone = incoming.tombstone
         row.deleted_at = incoming.deletedAt
+        row.operational_generation = incoming.operationalGeneration
         if incoming.tombstone:
             row.participation_code = None
         _append_event(session, row.id, "inventory", row.id)
@@ -229,6 +241,7 @@ def _create_entry(session: Session, incoming: SyncEntry, actor_user_id: str) -> 
         revision=incoming.revision,
         tombstone=incoming.tombstone,
         deleted_at=incoming.deletedAt,
+        operational_generation=incoming.operationalGeneration,
     )
     session.add(row)
     session.flush()
@@ -255,6 +268,7 @@ def _apply_entry(
         row.revision = incoming.revision
         row.tombstone = incoming.tombstone
         row.deleted_at = incoming.deletedAt
+        row.operational_generation = incoming.operationalGeneration
         _append_event(session, row.inventory_id, "entry", row.id)
         return True, None
     return False, _record_conflict(
@@ -278,12 +292,16 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
     inventory_id = str(payload.inventoryId)
     if payload.inventory is not None and payload.inventory.status != "OPEN":
         raise SyncFinalizationRequiredError()
-    inventory = session.get(InventoryRow, inventory_id)
+    inventory = session.scalar(
+        select(InventoryRow).where(InventoryRow.id == inventory_id).with_for_update()
+    )
     if inventory is None:
         if payload.inventory is None:
             raise SyncNotFoundError()
         if payload.inventory.tombstone:
             raise SyncNotFoundError()
+        if payload.operationalGeneration != 1 or payload.inventory.operationalGeneration != 1:
+            raise SyncGenerationError()
         inventory = _create_inventory(session, payload.inventory, sync_token, team_id, actor_user_id)
         acknowledged_inventory = True
     else:
@@ -298,8 +316,17 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
         participant_access = participant is not None and hmac.compare_digest(participant.access_token_hash, _hash_token(sync_token))
         if not owner_access and not team_access and not participant_access:
             raise SyncNotFoundError()
-        if (owner_access or team_access) and not hmac.compare_digest(inventory.sync_token_hash, _hash_token(sync_token)):
+        owner_grant = bool(owner_access and inventory.owner_access_hash and hmac.compare_digest(inventory.owner_access_hash, _hash_token(sync_token)))
+        shared_grant = hmac.compare_digest(inventory.sync_token_hash, _hash_token(sync_token))
+        if not participant_access and not owner_grant and not shared_grant:
             raise SyncAuthorizationError()
+        # Uma leitura pode receber uma geração nova. Escritas da geração
+        # anterior nunca entram automaticamente no ciclo reaberto.
+        if payload.inventory is not None or payload.entries:
+            if inventory.tombstone or payload.operationalGeneration != inventory.operational_generation:
+                raise SyncGenerationError()
+            if payload.inventory is not None and payload.inventory.operationalGeneration != inventory.operational_generation:
+                raise SyncGenerationError()
         if participant_access and participant is not None:
             participant.last_accessed_at = datetime.now(timezone.utc)
         if inventory.status == "OPEN" and inventory.participation_code is None:
@@ -320,6 +347,8 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
 
     if inventory.status == "FINISHED" and (payload.inventory is not None or payload.entries):
         raise SyncFinalizedError()
+    if inventory.tombstone and (payload.inventory is not None or payload.entries):
+        raise SyncGenerationError()
 
     acknowledged_entry_ids: list[str] = []
     conflicts: list[dict[str, Any]] = []
@@ -329,6 +358,14 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
             conflicts.append(conflict)
 
     for incoming in payload.entries:
+        if incoming.operationalGeneration != inventory.operational_generation:
+            server_row = session.get(InventoryEntryRow, str(incoming.id))
+            conflicts.append(_record_conflict(
+                session, inventory_id=inventory.id, entity_type="entry",
+                entity_id=str(incoming.id), device_id=str(payload.deviceId),
+                incoming=incoming, server_record=_entry_record(session, server_row) if server_row else {},
+            ))
+            continue
         row = session.get(InventoryEntryRow, str(incoming.id))
         if row is None:
             if incoming.syncBaseRevision != 0:

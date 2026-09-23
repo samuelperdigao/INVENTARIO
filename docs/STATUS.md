@@ -1,5 +1,34 @@
 # Status do projeto
 
+# Em validação — refinamento do dashboard desktop
+
+Branch de trabalho: `feat/dashboard-desktop-redesign`, baseada na `main` em
+`e9783ac`.
+
+O desktop recebe um cabeçalho mais compacto, ação principal para iniciar
+inventário, navegação lateral dimensionada para a altura da tela, inventários
+abertos como foco da página e estado vazio compacto. Os quatro atalhos e o
+estado vazio anterior continuam nos breakpoints menores; os estilos novos
+entram a partir de 1200 px. A participação por código, o histórico, a equipe,
+as pendências e a Administração mantêm os mesmos fluxos e acessos.
+
+### Validação local
+
+- ESLint: aprovado.
+- TypeScript: aprovado.
+- Vitest: 72 testes aprovados.
+- Pytest: 63 testes aprovados, com 3 avisos já emitidos pelas dependências e
+  configuração Alembic.
+- Build de produção: aprovado.
+- `git diff --check`: aprovado.
+- Playwright local: bloqueado na inicialização do navegador. Os 12 cenários
+  falharam antes de executar porque o Chromium não estava instalado; a
+  instalação oficial recebeu um arquivo ZIP inválido de 0 MiB. Revalidar pelo
+  workflow do GitHub Actions.
+
+Nenhuma alteração foi feita em backend, banco de dados, autenticação,
+permissões ou regras operacionais.
+
 ## Publicado: administração global
 
 Pull Request `#18` integrado à `main` no commit `641f03d`, em 23/09/2026.

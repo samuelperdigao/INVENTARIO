@@ -125,6 +125,10 @@ export function InventoryHome() {
       <AppRail active="home" onCreate={() => void handleCreate()} creating={creating} showTeam={isTeamAdmin} showAdmin={user.systemAdmin} />
       <div className="dashboard-content">
       <header className="dashboard-topbar">
+        <div className={styles.topbarContext}>
+          <span>ÁREA DE TRABALHO</span>
+          <strong>Painel operacional</strong>
+        </div>
         <Link className="brand-link mobile-dashboard-brand" href="/dashboard" aria-label="INVENTÁRIO, painel"><BrandLogo compact subtitle="Beam Blanks e Blocos" /></Link>
         <div className="account-actions">
           {isTeamAdmin ? <Link className="text-button" href="/equipe">Equipe</Link> : null}
@@ -133,19 +137,31 @@ export function InventoryHome() {
         </div>
       </header>
 
-      <section className="dashboard-hero">
-        <div><p className="eyebrow">Painel operacional</p><h1>Bem-vindo(a), {firstName(user.displayName)}!</h1><p>Aplicativo de Inventário de Beam Blanks e Blocos</p></div>
-        <div className="dashboard-status"><span className="live-dot">Conta verificada</span><small>{user.email}</small></div>
+      <section className={`dashboard-hero ${styles.hero}`}>
+        <div className={styles.heroIntro}>
+          <p className="eyebrow"><span className={styles.heroMobileCopy}>Painel operacional</span><span className={styles.heroDesktopCopy}>Beam Blanks e Blocos</span></p>
+          <h1>Bem-vindo(a), {firstName(user.displayName)}!</h1>
+          <p><span className={styles.heroMobileCopy}>Aplicativo de Inventário de Beam Blanks e Blocos</span><span className={styles.heroDesktopCopy}>Aplicativo de Inventário da Laminação de Perfis</span></p>
+        </div>
+        <div className={styles.heroActions}>
+          <div className="dashboard-status"><span className="live-dot">Conta verificada</span><small>{user.email}</small></div>
+          <button className={`primary ${styles.heroAction}`} type="button" onClick={() => void handleCreate()} disabled={creating}>
+            <Icon name="plus" size={18} />
+            <span>{creating ? "Criando inventário…" : "Iniciar novo inventário"}</span>
+          </button>
+        </div>
       </section>
 
       {error ? <p className="error" role="alert">{error}</p> : null}
-      {assigned.length > 0 ? <section className="card section-card stack" aria-label="Inventários atribuídos">
+      {assigned.length > 0 ? <section className={`card section-card stack ${styles.assignedSection}`} aria-label="Inventários atribuídos">
         <div className="section-header"><div><p className="eyebrow">Responsabilidade atribuída</p><h2>Inventários recebidos</h2>
           <p className="muted">Abra o inventário para sincronizar os dados centrais neste dispositivo.</p></div></div>
-        {assigned.map((item) => <div className="card inventory-card" key={item.inventoryId}>
-          <strong>Inventário de {formatBrazilianDate(item.date)}</strong>
-          <button className="secondary" type="button" disabled={openingAssigned === item.inventoryId} onClick={() => void openAssigned(item)}>
-            {openingAssigned === item.inventoryId ? "Abrindo…" : "Abrir inventário"}</button></div>)}
+        <div className={`stack ${styles.assignedList}`}>
+          {assigned.map((item) => <div className="card inventory-card" key={item.inventoryId}>
+            <strong>Inventário de {formatBrazilianDate(item.date)}</strong>
+            <button className="secondary" type="button" disabled={openingAssigned === item.inventoryId} onClick={() => void openAssigned(item)}>
+              {openingAssigned === item.inventoryId ? "Abrindo…" : "Abrir inventário"}</button></div>)}
+        </div>
       </section> : null}
 
       <section className="quick-actions" aria-labelledby="quick-actions-title">
@@ -159,14 +175,26 @@ export function InventoryHome() {
       </section>
 
       <div className="dashboard-grid">
-        <section className="card section-card stack" id="em-andamento" aria-label="Inventários locais abertos">
-          <div className="section-header"><div className="section-title"><p className="eyebrow">Em andamento</p><h2>Inventários neste dispositivo</h2><p className="muted">Continue do ponto em que parou. Alterações sem rede permanecem preservadas localmente.</p></div><span className="status-pill">{inventories.length} aberto(s)</span></div>
-          {inventories.length === 0 ? <p className="empty-state">Nenhum inventário aberto. Inicie uma nova conferência ou participe com um código.</p> : null}
-          <div className="stack">{[...inventories].reverse().map((inventory) => <Link className="card inventory-link inventory-card" href={`/inventarios/${inventory.id}`} key={inventory.id}><div className="inventory-card-main"><strong>{labels.get(inventory.id)}</strong><span className="muted">Atualizado em {new Date(inventory.updatedAt).toLocaleString("pt-BR")}</span><div className="inventory-card-meta"><span className="micro-pill">Aberto</span><span className={`micro-pill ${inventory.syncStatus === "SYNCED" ? "good" : ""}`}>{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span></div></div><span className="chevron" aria-hidden="true">›</span></Link>)}</div>
+        <section className={`card section-card stack ${styles.recordsPanel}`} id="em-andamento" aria-label="Inventários locais abertos">
+          <div className="section-header"><div className="section-title"><p className="eyebrow">Em andamento</p><h2>Inventários neste dispositivo</h2><p className="muted">Continue do ponto em que parou. Alterações sem rede permanecem preservadas localmente.</p></div><span className="status-pill"><span className={styles.mobileCount}>{inventories.length} aberto(s)</span><span className={styles.desktopCount}>{inventories.length} {inventories.length === 1 ? "aberto" : "abertos"}</span></span></div>
+          {inventories.length === 0 ? <>
+            <p className={`empty-state ${styles.emptyMobile}`}>Nenhum inventário aberto. Inicie uma nova conferência ou participe com um código.</p>
+            <div className={styles.emptyWorkspace}>
+              <span className={styles.emptyIcon} aria-hidden="true"><Icon name="boxes" size={21} /></span>
+              <div className={styles.emptyCopy}>
+                <strong>Nenhum inventário em andamento</strong>
+                <p>Quando você criar ou abrir uma conferência, ela aparecerá aqui.</p>
+              </div>
+              <button className={`secondary ${styles.emptyAction}`} type="button" onClick={() => void handleCreate()} disabled={creating}>
+                {creating ? "Criando…" : "Criar inventário"}
+              </button>
+            </div>
+          </> : null}
+          <div className={`stack ${styles.inventoryList}`}>{[...inventories].reverse().map((inventory) => <Link className="card inventory-link inventory-card" href={`/inventarios/${inventory.id}`} key={inventory.id}><div className="inventory-card-main"><strong>{labels.get(inventory.id)}</strong><span className="muted">Atualizado em {new Date(inventory.updatedAt).toLocaleString("pt-BR")}</span><div className="inventory-card-meta"><span className="micro-pill">Aberto</span><span className={`micro-pill ${inventory.syncStatus === "SYNCED" ? "good" : ""}`}>{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span></div></div><span className="chevron" aria-hidden="true">›</span></Link>)}</div>
         </section>
 
-        <aside className="stack">
-          <section className="card section-card panel-card stack" id="participar" aria-labelledby="join-title">
+        <aside className={`stack ${styles.supportColumn}`}>
+          <section className={`card section-card panel-card stack ${styles.participationPanel}`} id="participar" aria-labelledby="join-title">
             <div className="panel-heading"><span className="panel-index" aria-hidden="true">06</span><div className="panel-copy"><p className="eyebrow">Trabalho em equipe</p><h2 id="join-title">Participar de inventário</h2><p className="muted">Digite somente o código exibido no dispositivo que iniciou a conferência.</p></div></div>
             <form className="stack" onSubmit={(event) => void handleJoin(event)}><label>Código de participação<input className="code-input" value={participationCode} onChange={(event) => setParticipationCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required placeholder="000000" /></label><button className="primary" type="submit" disabled={joining || participationCode.length !== 6}>{joining ? "Entrando…" : "Participar agora"}</button></form>
             <p className="security-note">O código identifica o inventário aberto. O acesso continua protegido pela sua conta.</p>

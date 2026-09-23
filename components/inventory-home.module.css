@@ -1,65 +1,479 @@
 .dashboardShell.dashboardShell {
-  width: min(100%, 1480px);
+  width: min(100%, 1680px);
 }
 
-@media (min-width: 1180px) {
-  .dashboardShell {
-    padding-inline: 32px;
+.topbarContext,
+.heroAction,
+.emptyWorkspace,
+.heroDesktopCopy,
+.desktopCount {
+  display: none;
+}
+
+.heroMobileCopy,
+.mobileCount {
+  display: inline;
+}
+
+@media (min-width: 1200px) {
+  .dashboardShell.dashboardShell {
+    box-sizing: border-box;
+    width: min(100%, 1680px);
+    grid-template-columns: clamp(236px, 18vw, 272px) minmax(0, 1fr);
+    align-items: start;
+    gap: clamp(24px, 2vw, 36px);
+    padding: 22px clamp(20px, 2.5vw, 44px) 40px;
+  }
+
+  .dashboardShell :global(.app-rail) {
+    position: sticky;
+    top: 22px;
+    box-sizing: border-box;
+    height: calc(100dvh - 44px);
+    min-height: 560px;
+    grid-template-rows: auto auto 1fr auto;
+    gap: 22px;
+    padding: 22px 15px 16px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .dashboardShell :global(.app-rail-kicker) {
+    margin: 0 6px;
+    font-size: 0.63rem;
+    letter-spacing: 0.1em;
+  }
+
+  .dashboardShell :global(.dashboard-nav) {
+    align-content: start;
+    gap: 7px;
+  }
+
+  .dashboardShell :global(.dashboard-nav-link) {
+    min-height: 46px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 0.84rem;
+    font-weight: 760;
+  }
+
+  .dashboardShell :global(.app-rail-foot) {
+    margin: 0;
+    padding-top: 14px;
+  }
+
+  .dashboardShell :global(.dashboard-content) {
+    min-width: 0;
+  }
+
+  .topbarContext {
+    display: grid;
+    gap: 2px;
+    margin-right: auto;
+  }
+
+  .topbarContext span {
+    color: #71859f;
+    font-size: 0.62rem;
+    font-weight: 850;
+    letter-spacing: 0.12em;
+  }
+
+  .topbarContext strong {
+    color: #143a68;
+    font-size: 0.9rem;
+    font-weight: 850;
   }
 
   .dashboardShell :global(.dashboard-topbar) {
-    margin-bottom: 24px;
+    min-height: 48px;
+    margin-bottom: 18px;
+    padding: 0 2px 13px;
+    border-bottom: 1px solid #d9e5f3;
+  }
+
+  .dashboardShell :global(.account-actions) {
+    gap: 16px;
+  }
+
+  .dashboardShell :global(.user-chip) {
+    color: #2b4565;
+    font-size: 0.76rem;
   }
 
   .dashboardShell :global(.dashboard-hero) {
-    min-height: 184px;
-    padding: 32px 36px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 28px;
+    min-height: 158px;
+    margin-bottom: 0;
+    padding: 27px clamp(26px, 3vw, 40px);
+    border-radius: 20px;
+  }
+
+  .hero {
+    isolation: isolate;
+  }
+
+  .heroMobileCopy,
+  .mobileCount {
+    display: none;
+  }
+
+  .heroDesktopCopy,
+  .desktopCount {
+    display: inline;
+  }
+
+  .heroIntro {
+    min-width: 0;
+    max-width: 650px;
+  }
+
+  .heroIntro :global(.eyebrow) {
+    margin-bottom: 8px;
+    color: #b9d9ff;
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
   }
 
   .dashboardShell :global(.dashboard-hero h1) {
-    font-size: clamp(2rem, 2.35vw, 2.8rem);
+    margin: 0 0 7px;
+    font-size: clamp(1.8rem, 2.4vw, 2.65rem);
+    line-height: 1.08;
+    letter-spacing: -0.035em;
+  }
+
+  .heroIntro > p:last-child {
+    margin: 0;
+    color: #d2e5fb;
+    font-size: 0.88rem;
+    letter-spacing: 0.01em;
+  }
+
+  .heroActions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .dashboardShell :global(.dashboard-status) {
+    justify-items: start;
+    gap: 6px;
+    padding-left: 20px;
+    border-left: 1px solid rgb(202 228 255 / 30%);
+    text-align: left;
+  }
+
+  .dashboardShell :global(.dashboard-status .live-dot) {
+    color: #d7edff;
+    font-size: 0.7rem;
+  }
+
+  .dashboardShell :global(.dashboard-status .live-dot::before) {
+    background: #8bd6ff;
+    box-shadow: 0 0 0 4px rgb(139 214 255 / 14%);
+    animation: none;
+  }
+
+  .dashboardShell :global(.dashboard-status small) {
+    color: #d0e5fa;
+    font-size: 0.72rem;
+  }
+
+  .heroAction {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-width: 218px;
+    min-height: 52px;
+    padding: 12px 16px;
+    border: 1px solid rgb(203 229 255 / 36%);
+    border-radius: 12px;
+    background: linear-gradient(125deg, #0a60c5, #1685ec);
+    box-shadow: 0 12px 24px rgb(0 17 49 / 24%);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 850;
+    white-space: nowrap;
+    transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+  }
+
+  .heroAction:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 30px rgb(0 17 49 / 32%);
+    filter: brightness(1.06);
+  }
+
+  .heroAction:disabled {
+    cursor: wait;
+    opacity: 0.72;
   }
 
   .dashboardShell :global(.quick-actions) {
-    margin: 30px 0 24px;
-  }
-
-  .dashboardShell :global(.action-grid) {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 14px;
-  }
-
-  .dashboardShell :global(.action-card) {
-    min-height: 124px;
-    padding: 20px;
-    align-items: flex-start;
+    display: none;
   }
 
   .dashboardShell :global(.dashboard-grid) {
-    grid-template-columns: minmax(0, 1.55fr) minmax(360px, .75fr);
+    grid-template-columns: minmax(0, 1.68fr) minmax(310px, 0.82fr);
+    align-items: start;
     gap: 22px;
+    margin-top: 20px;
   }
 
-  .dashboardShell :global(.section-card) {
+  .recordsPanel {
     min-width: 0;
+    min-height: 288px;
+    align-content: start;
+    padding: 24px;
+  }
+
+  .recordsPanel :global(.section-header) {
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 17px;
+  }
+
+  .recordsPanel :global(.section-title h2) {
+    color: #122f53;
+    font-size: 1.16rem;
+    letter-spacing: -0.02em;
+  }
+
+  .recordsPanel :global(.section-title .muted) {
+    max-width: 54ch;
+    margin-top: 8px;
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .recordsPanel :global(.status-pill) {
+    flex: 0 0 auto;
+    margin-top: 3px;
+    white-space: nowrap;
+  }
+
+  .emptyMobile {
+    display: none;
+  }
+
+  .emptyWorkspace {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 15px;
+    min-width: 0;
+    padding: 17px;
+    border: 1px solid #d8e7f7;
+    border-radius: 15px;
+    background: linear-gradient(112deg, #f8fbff, #eff6ff);
+  }
+
+  .emptyIcon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border: 1px solid #cfe2f8;
+    border-radius: 14px;
+    background: #e7f2ff;
+    color: #155eb6;
+  }
+
+  .emptyCopy {
+    min-width: 0;
+  }
+
+  .emptyCopy strong {
+    display: block;
+    color: #17395f;
+    font-size: 0.9rem;
+    font-weight: 850;
+  }
+
+  .emptyCopy p {
+    margin: 5px 0 0;
+    color: #71849c;
+    font-size: 0.77rem;
+    line-height: 1.45;
+  }
+
+  .emptyAction {
+    min-height: 42px;
+    padding: 9px 13px;
+    border-radius: 11px;
+    font-size: 0.77rem;
+    font-weight: 820;
+    white-space: nowrap;
+  }
+
+  .inventoryList {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+    align-content: start;
+    gap: 11px;
+  }
+
+  .inventoryList :global(.inventory-link) {
+    min-height: 128px;
+    padding: 17px;
+    border-color: #dbe7f5;
+    border-radius: 15px;
+    background: #fff;
+    box-shadow: 0 8px 20px rgb(22 63 111 / 6%);
+  }
+
+  .inventoryList :global(.inventory-link:hover) {
+    border-color: #a8c9ed;
+    box-shadow: 0 13px 26px rgb(22 63 111 / 10%);
+  }
+
+  .inventoryList :global(.micro-pill.good) {
+    border-color: #d2e4f7;
+    background: #e8f3ff;
+    color: #155eb6;
+  }
+
+  .assignedSection {
+    gap: 12px;
+    padding: 20px 24px;
+  }
+
+  .assignedSection :global(.section-header) {
+    margin-bottom: 2px;
+  }
+
+  .assignedList {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+    gap: 10px;
+  }
+
+  .assignedList :global(.inventory-card) {
+    min-height: 66px;
+    padding: 12px 14px;
+    border-color: #dce8f5;
+    border-radius: 13px;
+    box-shadow: none;
+  }
+
+  .assignedList :global(.inventory-card strong) {
+    color: #24496f;
+    font-size: 0.84rem;
+  }
+
+  .assignedList :global(.secondary) {
+    min-height: 40px;
+    white-space: nowrap;
+  }
+
+  .supportColumn {
+    min-width: 0;
+    gap: 14px;
+  }
+
+  .participationPanel {
+    gap: 18px;
+    padding: 24px;
+  }
+
+  .participationPanel :global(.panel-heading) {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .participationPanel :global(.panel-index) {
+    display: none;
+  }
+
+  .participationPanel :global(.panel-copy h2) {
+    color: #15375f;
+    font-size: 1.08rem;
+    line-height: 1.25;
+  }
+
+  .participationPanel :global(.panel-copy .muted) {
+    margin-top: 8px;
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  .participationPanel form {
+    gap: 14px;
+  }
+
+  .participationPanel :global(label) {
+    gap: 8px;
+    color: #31506f;
+    font-size: 0.8rem;
+  }
+
+  .participationPanel :global(.code-input) {
+    min-height: 52px;
+    border-color: #cadcf0;
+    border-radius: 12px;
+    background: #f8fbff;
+    font-size: 1.28rem;
+    letter-spacing: 0.42em;
+  }
+
+  .participationPanel :global(.primary) {
+    min-height: 49px;
+    border-radius: 12px;
+  }
+
+  .participationPanel :global(.security-note) {
+    margin: 0;
+    color: #7186a0;
+    font-size: 0.72rem;
+    line-height: 1.5;
   }
 }
 
 @media (min-width: 1600px) {
+  .dashboardShell :global(.dashboard-grid) {
+    grid-template-columns: minmax(0, 1.8fr) minmax(340px, 0.75fr);
+  }
+
+  .recordsPanel {
+    padding: 27px;
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1380px) {
   .dashboardShell.dashboardShell {
-    width: min(100%, 1540px);
-  }
-
-  .dashboardShell {
-    padding-inline: 40px;
-  }
-
-  .dashboardShell :global(.action-grid) {
-    gap: 18px;
+    grid-template-columns: 230px minmax(0, 1fr);
+    gap: 20px;
+    padding-inline: 18px;
   }
 
   .dashboardShell :global(.dashboard-grid) {
-    gap: 26px;
+    grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.8fr);
+    gap: 18px;
+  }
+
+  .heroActions {
+    gap: 14px;
+  }
+
+  .heroAction {
+    min-width: 205px;
+  }
+
+  .recordsPanel,
+  .participationPanel {
+    padding: 20px;
+  }
+
+  .emptyWorkspace {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    gap: 11px;
+    padding: 13px;
+  }
+
+  .emptyIcon {
+    width: 42px;
+    height: 42px;
   }
 }
 

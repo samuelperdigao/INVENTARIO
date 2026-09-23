@@ -78,6 +78,7 @@ async function authorizedHeaders(inventory: Inventory): Promise<Record<string, s
   return {
     Authorization: `Bearer ${session.accessToken}`,
     "X-Inventory-Sync-Token": inventory.syncToken,
+    "X-Inventory-Generation": String(inventory.operationalGeneration ?? 1),
   };
 }
 

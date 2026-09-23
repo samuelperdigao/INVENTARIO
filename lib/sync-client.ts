@@ -72,7 +72,7 @@ function pendingEntries(entries: InventoryEntry[]): InventoryEntry[] {
 async function requestSync(
   inventoryId: string,
   syncToken: string,
-  payload: { inventory: Inventory | null; entries: InventoryEntry[]; cursor: number },
+  payload: { inventory: Inventory | null; entries: InventoryEntry[]; cursor: number; generation: number },
 ): Promise<SyncResponse> {
   const auth = await getAuthenticatedContext();
   const response = await fetch(`${apiBaseUrl}/api/v1/sync`, {
@@ -88,6 +88,7 @@ async function requestSync(
       inventoryId,
       teamId: auth.teamId || null,
       cursor: payload.cursor,
+      operationalGeneration: payload.generation,
       inventory: payload.inventory ? serializeInventory(payload.inventory) : null,
       entries: payload.entries.map(serializeEntry),
     }),
@@ -101,7 +102,7 @@ async function requestSync(
 
 function serializeInventory(inventory: Inventory) {
   const { id, date, status, createdAt, updatedAt, revision, syncBaseRevision, tombstone, deletedAt } = inventory;
-  return { id, date, status, createdAt, updatedAt, revision, syncBaseRevision, tombstone, deletedAt };
+  return { id, date, status, createdAt, updatedAt, revision, syncBaseRevision, tombstone, deletedAt, operationalGeneration: inventory.operationalGeneration ?? 1 };
 }
 
 function serializeEntry(entry: InventoryEntry) {
@@ -120,6 +121,7 @@ function serializeEntry(entry: InventoryEntry) {
     syncBaseRevision,
     tombstone,
     deletedAt,
+    operationalGeneration,
   } = entry;
   return {
     id,
@@ -136,6 +138,7 @@ function serializeEntry(entry: InventoryEntry) {
     syncBaseRevision,
     tombstone,
     deletedAt,
+    operationalGeneration: operationalGeneration ?? 1,
   };
 }
 
@@ -173,6 +176,7 @@ function inventoryContentKey(record: {
   revision: number;
   tombstone: boolean;
   deletedAt?: string;
+  operationalGeneration?: number;
 }): string {
   return JSON.stringify([
     record.id,
@@ -183,6 +187,7 @@ function inventoryContentKey(record: {
     record.revision,
     record.tombstone,
     record.deletedAt ?? null,
+    record.operationalGeneration ?? 1,
   ]);
 }
 
@@ -209,6 +214,7 @@ function entryContentKey(record: {
   revision: number;
   tombstone: boolean;
   deletedAt?: string;
+  operationalGeneration?: number;
 }): string {
   return JSON.stringify([
     record.id,
@@ -224,6 +230,7 @@ function entryContentKey(record: {
     record.revision,
     record.tombstone,
     record.deletedAt ?? null,
+    record.operationalGeneration ?? 1,
   ]);
 }
 
@@ -232,6 +239,7 @@ function entryStateKey(record: InventoryEntry): string {
     entryContentKey(record),
     record.syncStatus,
     record.syncBaseRevision,
+    record.operationalGeneration ?? 1,
   ]);
 }
 
@@ -310,7 +318,7 @@ async function applyResponse(
           changed = true;
           remoteChanged = true;
         }
-      } else if (remote.status === "FINISHED" && local.status !== "FINISHED") {
+      } else if ((remote.status === "FINISHED" && local.status !== "FINISHED") || remote.tombstone || (remote.operationalGeneration ?? 1) !== (local.operationalGeneration ?? 1)) {
         await recordConflict(inventoryId, "inventory", local, remote);
         if (local.syncStatus !== "ERROR") {
           await db.inventories.put({ ...local, syncStatus: "ERROR" });
@@ -320,6 +328,17 @@ async function applyResponse(
         await recordConflict(inventoryId, "inventory", local, remote);
         if (local.syncStatus !== "ERROR") {
           await db.inventories.put({ ...local, syncStatus: "ERROR" });
+          changed = true;
+        }
+      }
+      if (remote.tombstone || (remote.operationalGeneration ?? 1) > (snapshot.inventory?.operationalGeneration ?? 1)) {
+        const pending = await db.entries.where("inventoryId").equals(inventoryId).filter((item) =>
+          item.syncStatus === "PENDING" && (remote.tombstone || (item.operationalGeneration ?? 1) < (remote.operationalGeneration ?? 1)),
+        ).toArray();
+        for (const item of pending) {
+          const serverRecord = response.entries.find((candidate) => candidate.id === item.id);
+          await recordConflict(inventoryId, "entry", item, serverRecord ? remoteEntry(serverRecord) : { ...item, operationalGeneration: remote.operationalGeneration, revision: 0 });
+          await db.entries.put({ ...item, syncStatus: "ERROR" });
           changed = true;
         }
       }
@@ -346,7 +365,7 @@ async function applyResponse(
           remoteChanged = true;
           receivedRemoteEntry = true;
         }
-      } else if (local.revision !== remote.revision) {
+      } else if (local.revision !== remote.revision || (local.operationalGeneration ?? 1) !== (remote.operationalGeneration ?? 1)) {
         await recordConflict(inventoryId, "entry", local, remote);
         if (local.syncStatus !== "ERROR") {
           await db.entries.put({ ...local, syncStatus: "ERROR" });
@@ -360,7 +379,8 @@ async function applyResponse(
       if (current) {
         const nextInventory: Inventory = {
           ...current,
-          revision: current.revision + 1,
+          revision: response.inventory && response.inventory.revision > (snapshot.inventory?.revision ?? 0)
+            ? current.revision : current.revision + 1,
         };
         if (current.syncStatus === "SYNCED" && sameInventorySnapshot(current, snapshot.inventory)) {
           nextInventory.syncBaseRevision = nextInventory.revision;
@@ -379,7 +399,9 @@ async function applyResponse(
       if (!local) continue;
       const remote = conflict.entityType === "inventory"
         ? remoteInventory(conflict.serverRecord as NonNullable<SyncResponse["inventory"]>, syncToken, response.participationCode)
-        : remoteEntry(conflict.serverRecord as SyncResponse["entries"][number]);
+        : "id" in conflict.serverRecord
+          ? remoteEntry(conflict.serverRecord as SyncResponse["entries"][number])
+          : { ...local as InventoryEntry, revision: 0, operationalGeneration: response.inventory?.operationalGeneration ?? 1 };
       await recordConflict(inventoryId, conflict.entityType, local, remote);
       if (isEntry(local)) {
         if (local.syncStatus !== "ERROR") {
@@ -413,12 +435,13 @@ async function performSync(inventoryId: string, background: boolean, pullOnly = 
   try {
     const response = await requestSync(inventoryId, inventory.syncToken, {
       cursor,
+      generation: inventory.operationalGeneration ?? 1,
       inventory: pullOnly ? null : inventory.syncStatus === "PENDING" ? inventory : null,
       entries: pullOnly || inventory.tombstone ? [] : pendingEntries(entries),
     });
     return applyResponse(inventoryId, inventory.syncToken, response, snapshot);
   } catch (cause) {
-    if (background && !pullOnly && cause instanceof SyncHttpError && cause.status === 409) {
+    if (!pullOnly && cause instanceof SyncHttpError && cause.status === 409) {
       return performSync(inventoryId, background, true);
     }
     throw cause;
@@ -437,9 +460,18 @@ export function syncInventory(inventoryId: string, options: SyncOptions = {}): P
 }
 
 export async function connectRemoteInventory(inventoryId: string, syncToken: string): Promise<SyncResult> {
-  const response = await requestSync(inventoryId, syncToken, { inventory: null, entries: [], cursor: 0 });
+  const response = await requestSync(inventoryId, syncToken, { inventory: null, entries: [], cursor: 0, generation: 1 });
   if (!response.inventory) throw new Error("Inventário não encontrado no servidor.");
   return applyResponse(inventoryId, syncToken, response, { entries: new Map() });
+}
+
+export async function connectAssignedInventory(inventoryId: string, syncToken: string): Promise<SyncResult> {
+  const result = await connectRemoteInventory(inventoryId, syncToken);
+  await db.transaction("rw", db.inventories, async () => {
+    const inventory = await db.inventories.get(inventoryId);
+    if (inventory) await db.inventories.put({ ...inventory, syncToken, isOwner: true });
+  });
+  return result;
 }
 
 export async function joinInventoryByCode(code: string): Promise<{ inventoryId: string; result: SyncResult }> {
@@ -456,7 +488,7 @@ export async function joinInventoryByCode(code: string): Promise<{ inventoryId: 
   }
   const joinedInventoryId = body.inventoryId;
   const accessToken = body.accessToken;
-  const syncResponse = await requestSync(joinedInventoryId, accessToken, { inventory: null, entries: [], cursor: 0 });
+  const syncResponse = await requestSync(joinedInventoryId, accessToken, { inventory: null, entries: [], cursor: 0, generation: 1 });
   const result = await applyResponse(joinedInventoryId, accessToken, syncResponse, { entries: new Map() });
   await db.transaction("rw", db.inventories, async () => {
     const inventory = await db.inventories.get(joinedInventoryId);
@@ -475,12 +507,25 @@ export async function resolveConflict(inventoryId: string, conflictId: string, c
     if (!conflict || conflict.inventoryId !== inventoryId) throw new Error("Conflito não encontrado.");
     if (conflict.entityType === "entry") {
       const chosen = choice === "local" ? conflict.localRecord as InventoryEntry : conflict.serverRecord as InventoryEntry;
+      const inventory = await db.inventories.get(inventoryId);
+      if (choice === "local" && (!inventory || inventory.status !== "OPEN" || inventory.tombstone
+        || (inventory.operationalGeneration ?? 1) !== (conflict.serverRecord.operationalGeneration ?? 1))) {
+        throw new Error("Atualize o inventário central antes de incorporar este lançamento.");
+      }
+      if (choice === "server" && conflict.serverRecord.revision === 0) {
+        await db.entries.delete(conflict.entityId);
+        await db.syncConflicts.delete(conflictId);
+        return;
+      }
       await db.entries.put(choice === "local"
-        ? { ...chosen, revision: conflict.serverRecord.revision + 1, syncBaseRevision: conflict.serverRecord.revision, syncStatus: "PENDING" }
+        ? { ...chosen, operationalGeneration: inventory?.operationalGeneration ?? 1, revision: (conflict.serverRecord.revision ?? 0) + 1, syncBaseRevision: conflict.serverRecord.revision ?? 0, syncStatus: "PENDING" }
         : { ...chosen, syncStatus: "SYNCED", syncBaseRevision: chosen.revision });
     } else {
       const current = await db.inventories.get(inventoryId);
       const chosen = choice === "local" ? conflict.localRecord as Inventory : conflict.serverRecord as Inventory;
+      if (choice === "local" && ((current?.operationalGeneration ?? 1) !== (conflict.serverRecord.operationalGeneration ?? 1) || conflict.serverRecord.tombstone)) {
+        throw new Error("Esta geração foi encerrada. Mantenha a versão central e confira os lançamentos locais separadamente.");
+      }
       await db.inventories.put(choice === "local"
         ? { ...chosen, syncToken: current?.syncToken ?? chosen.syncToken, revision: conflict.serverRecord.revision + 1, syncBaseRevision: conflict.serverRecord.revision, syncStatus: "PENDING" }
         : { ...chosen, syncToken: current?.syncToken ?? chosen.syncToken, syncStatus: "SYNCED", syncBaseRevision: chosen.revision });

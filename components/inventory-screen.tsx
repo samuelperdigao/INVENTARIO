@@ -118,17 +118,18 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     try {
       const result = await syncInventory(inventoryId, { background: true });
-      if (result.serverStatus === "FINISHED") setRemoteFinalized(true);
+      if (result.serverDeleted) { router.replace("/pendencias"); return; }
+      setRemoteFinalized(result.serverStatus === "FINISHED" && latestInventoryRef.current?.status === "OPEN");
       if (result.changed) await refreshIfChanged();
     } catch {
       // Local writes stay available when the network or authentication is unavailable.
     }
-  }, [inventoryId, refreshIfChanged]);
+  }, [inventoryId, refreshIfChanged, router]);
 
   const inventoryStatus = inventory?.status;
 
   useEffect(() => {
-    if (inventoryStatus !== "OPEN" || remoteFinalized) return;
+    if (inventoryStatus !== "OPEN" && inventoryStatus !== "FINISHED") return;
     let active = true;
     let busy = false;
     let lastTriggerAt = 0;
@@ -143,7 +144,8 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       try {
         const result = await syncInventory(inventoryId, { background: true });
         if (!active) return;
-        if (result.serverStatus === "FINISHED") setRemoteFinalized(true);
+        if (result.serverDeleted) { router.replace("/pendencias"); return; }
+        setRemoteFinalized(result.serverStatus === "FINISHED" && latestInventoryRef.current?.status === "OPEN");
         if (result.changed) await refreshIfChanged();
       } catch {
         // Polling is intentionally silent; manual sync remains available for visible errors.
@@ -163,7 +165,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("online", handleOnline);
     };
-  }, [inventoryId, inventoryStatus, refreshIfChanged, remoteFinalized]);
+  }, [inventoryId, inventoryStatus, refreshIfChanged, router]);
 
   const totalPieces = useMemo(() => entries.reduce((sum, entry) => sum + entry.quantity, 0), [entries]);
   const distinctLots = useMemo(() => new Set(entries.map((entry) => entry.lot.trim())).size, [entries]);

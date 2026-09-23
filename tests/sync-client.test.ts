@@ -167,3 +167,52 @@ it("faz somente uma leitura quando o servidor já finalizou durante um polling",
   expect((await db.inventories.get(inventory.id))?.syncStatus).toBe("ERROR");
   expect(await listSyncConflicts(inventory.id)).toHaveLength(1);
 });
+
+it("preserva lançamento de ciclo anterior e só o incorpora após decisão explícita", async () => {
+  const inventory = await createInventory("2026-09-23");
+  const pending = await createEntry(inventory.id, { side: "DE", bay: "15", lot: "2712345690", quantity: 3 });
+  const reopened = {
+    ...response(inventory.id, pending.id),
+    inventory: { ...response(inventory.id, pending.id).inventory, operationalGeneration: 2, revision: 4 },
+    entries: [],
+    acknowledged: { inventory: false, entryIds: [] },
+  };
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response(null, { status: 409 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify(reopened), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+  await syncInventory(inventory.id);
+
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  const firstBody = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as { operationalGeneration: number };
+  expect(firstBody.operationalGeneration).toBe(1);
+  expect((await db.entries.get(pending.id))).toMatchObject({ lot: "2712345690", syncStatus: "ERROR", operationalGeneration: 1 });
+  const conflicts = await listSyncConflicts(inventory.id);
+  const inventoryConflict = conflicts.find((item) => item.entityType === "inventory");
+  const entryConflict = conflicts.find((item) => item.entityType === "entry");
+  expect(inventoryConflict).toBeDefined();
+  expect(entryConflict).toBeDefined();
+  await expect(resolveConflict(inventory.id, inventoryConflict!.id, "local")).rejects.toThrow("geração");
+  await resolveConflict(inventory.id, inventoryConflict!.id, "server");
+  await resolveConflict(inventory.id, entryConflict!.id, "local");
+  expect((await db.entries.get(pending.id))).toMatchObject({ operationalGeneration: 2, syncStatus: "PENDING", syncBaseRevision: 0 });
+});
+
+it("mantém lançamentos locais mesmo depois da exclusão administrativa central", async () => {
+  const inventory = await createInventory("2026-09-23");
+  const pending = await createEntry(inventory.id, { side: "EF", bay: "21", lot: "2812345690", quantity: 1 });
+  const deleted = {
+    ...response(inventory.id, pending.id),
+    inventory: { ...response(inventory.id, pending.id).inventory, tombstone: true, deletedAt: "2026-09-23T15:00:00Z", revision: 4 },
+    entries: [],
+    acknowledged: { inventory: false, entryIds: [] },
+  };
+  vi.stubGlobal("fetch", vi.fn()
+    .mockResolvedValueOnce(new Response(null, { status: 409 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify(deleted), { status: 200 })));
+  const result = await syncInventory(inventory.id);
+  expect(result.serverDeleted).toBe(true);
+  expect((await db.entries.get(pending.id))?.lot).toBe("2812345690");
+  expect((await db.entries.get(pending.id))?.syncStatus).toBe("ERROR");
+  expect((await listSyncConflicts(inventory.id)).some((item) => item.entityType === "entry")).toBe(true);
+});

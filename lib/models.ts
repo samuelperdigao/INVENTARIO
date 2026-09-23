@@ -30,6 +30,7 @@ export interface LocalRecord {
 }
 
 export interface Inventory extends LocalRecord {
+  operationalGeneration?: number;
   date: string;
   status: "OPEN" | "FINISHED";
   /** Segredo de capacidade local para acessar o inventário central. */
@@ -121,6 +122,7 @@ export interface ReferenceImportSummary {
 }
 
 export interface InventoryEntry extends LocalRecord {
+  operationalGeneration?: number;
   inventoryId: string;
   side: Side;
   bay: string;

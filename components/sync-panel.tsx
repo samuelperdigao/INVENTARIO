@@ -56,10 +56,14 @@ export function SyncPanel({ inventory, onSynced, embedded = false }: SyncPanelPr
   }
 
   async function choose(conflict: SyncConflict, choice: "local" | "server"): Promise<void> {
-    await resolveConflict(inventory.id, conflict.id, choice);
-    await onSynced();
-    await refreshConflicts();
-    setMessage(choice === "local" ? "Sua versão será enviada na próxima sincronização." : "A versão central foi aplicada neste dispositivo.");
+    try {
+      await resolveConflict(inventory.id, conflict.id, choice);
+      await onSynced();
+      await refreshConflicts();
+      setMessage(choice === "local" ? "Sua versão será enviada na próxima sincronização." : "A versão central foi aplicada neste dispositivo.");
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "Não foi possível resolver este conflito.");
+    }
   }
 
   async function copyCode(): Promise<void> {

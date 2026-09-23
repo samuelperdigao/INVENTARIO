@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 6425)
-Total output lines: 376
-
 # Status do projeto
 
 ## Em desenvolvimento: administração global
@@ -12,18 +9,24 @@ pendências offline estão implementados. A primeira conta administrativa
 continua sem atribuição, aguardando o e-mail que será informado pelo usuário.
 O procedimento e a ordem segura da publicação estão em `docs/ADMINISTRACAO.md`.
 
-Quality Gates do GitHub Actions `35824724479`, no commit `e71d49c`: aprovados.
+Quality Gates do GitHub Actions `#98` (`35825125628`, commit `772d6d6`): aprovados.
 Lint, TypeScript, build de produção, Vitest (`72 testes`), Pytest (`63 testes`,
 4 avisos de dependências), upgrade Alembic e Playwright (`12 testes`) passaram.
 O preview Vercel foi marcado como `Ready`; o smoke manual do preview ainda não
-foi feito. O Chromium local não pôde ser instalado porque a CDN retornou
-conteúdo inválido, mas o gate de navegador passou no runner do GitHub.
+foi feito.
 
-Pendência para integração: validar a migration contra uma cópia do Neon,
-confirmar um ponto de recuperação e aplicar a migration em produção antes de
-integrar, pois o Render executa Alembic ao iniciar a nova API. O conector Neon
-não forneceu o `project_id` necessário para inspecionar ou preparar o banco.
-Não integrar antes da migration de produção.
+A conexão com o Neon foi restaurada e um ponto de recuperação foi confirmado.
+A migration foi executada em uma cópia isolada do banco de produção e validada:
+a versão Alembic avançou para `0009_system_admin`, os 22 inventários e 122 itens
+permaneceram iguais, e os 7 relatórios finalizados foram preservados como 7
+versões históricas. As tabelas de administração e auditoria foram criadas sem
+registros iniciais.
+
+O banco de produção permanece em `0008_inventory_lot_references`; nenhuma
+alteração de schema foi aplicada nele. A aplicação da migration em produção e a
+validação posterior continuam pendentes de confirmação explícita. Não integrar
+antes de concluir essa etapa. A primeira conta administrativa também continua
+aguardando o e-mail que será informado pelo usuário.
 
 Atualizado em 23/09/2026.
 
@@ -32,7 +35,6 @@ Atualizado em 23/09/2026.
 Commit integrado: `2766981` em `main` e `origin/main`. O push foi concluído e a
 Vercel publicou o frontend automaticamente; o smoke de produção confirmou as
 superfícies públicas da Vercel e do Render.
-
 Inventários sem lançamentos agora podem ser finalizados. O fluxo sincroniza
 antes da finalização, recarrega a revisão e o token locais atuais e bloqueia a
 operação quando há conflito ou quando outro dispositivo já finalizou o
@@ -107,7 +109,6 @@ O servidor de teste do Playwright passou a compilar o frontend apontando para a 
 - Não houve alteração de schema, Render ou Neon nesta rodada.
 
 ## Entrega em integração — identidade visual transversal
-
 Commits integrados: `caabac0 feat: unificar identidade visual do aplicativo` e `bc46847 docs: registrar identidade visual transversal`.
 
 A direção visual premium agora é compartilhada pelo aplicativo inteiro: dashboard, equipe, histórico, detalhe de relatório e acesso usam o mesmo rail de navegação, tokens navy/ciano, textura de grid, superfícies elevadas, gradientes, estados de foco e tratamento responsivo. O fluxo de inventário mantém o rail específico de cinco etapas por ser uma tela operacional mais profunda, mas passa a compartilhar a mesma identidade, cores, elevação e linguagem visual.
@@ -183,7 +184,6 @@ O commit foi publicado no GitHub, validado pelos workflows `Quality Gates` e
 - Build de produção local: aprovado.
 - Playwright: `6 cenários aprovados` com `BACKEND_PROXY_URL=http://127.0.0.1:8000`; os cenários cobrem login, análise, dashboard, histórico, offline, sincronização e exportações.
 - Teste backend específico da referência validou parser, normalização, preview, importação, substituição, remoção, IDOR e conciliação nos quatro formatos.
-
 ### Limitações e prontidão
 
 - A execução local de `pnpm e2e` deve definir `BACKEND_PROXY_URL` antes do build; o workflow de CI já fornece essa variável.
@@ -257,8 +257,7 @@ Branch: `feat/fluxo-acesso-compartilhamento-v1`.
 
 - `xlwt` gera `.xls` diretamente em BIFF8/OLE, sem conversão no navegador ou dependência do LibreOffice.
 - `openpyxl` mantém o `.xlsx` moderno.
-- O endpoint `/api/v1/inventories/{id}/export/excel` usa `.xls` por padrão e aceita `?format=xlsx`.
-- O teste de volume local cobre 100 registros, 95 lotes, 1.269 peças, 91 lotes OK e 4 lotes para conferência nos quatro formatos.
+- O endpoint `/api/v1/inventories/{id}/export/excel` usa `.xls` por padrão e aceita `?format=xlsx`.- O teste de volume local cobre 100 registros, 95 lotes, 1.269 peças, 91 lotes OK e 4 lotes para conferência nos quatro formatos.
 - Os testes verificam assinatura OLE, ZIP, abas, ausência de filtros e linhas de grade, MIME, `Content-Disposition`, `Content-Length`, totais iguais e download como Blob.
 - Word permanece em `.docx`; uma variante `.rtf` ou `.doc` ficou fora desta entrega por não haver geração legada segura na estrutura atual.
 

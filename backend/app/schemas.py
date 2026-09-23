@@ -200,6 +200,7 @@ class SyncInventory(ApiModel):
     syncBaseRevision: StrictInt = Field(ge=0)
     tombstone: bool
     deletedAt: datetime | None = None
+    operationalGeneration: StrictInt = Field(default=1, ge=1)
 
 
 class SyncEntry(ApiModel):
@@ -219,6 +220,7 @@ class SyncEntry(ApiModel):
     syncBaseRevision: StrictInt = Field(ge=0)
     tombstone: bool
     deletedAt: datetime | None = None
+    operationalGeneration: StrictInt = Field(default=1, ge=1)
 
 
 class SyncRequest(ApiModel):
@@ -226,6 +228,7 @@ class SyncRequest(ApiModel):
     inventoryId: UUID
     teamId: UUID | None = None
     cursor: StrictInt = Field(ge=0)
+    operationalGeneration: StrictInt = Field(default=1, ge=1)
     inventory: SyncInventory | None = None
     entries: list[SyncEntry] = Field(default_factory=list, max_length=1_000)
 
@@ -322,6 +325,7 @@ class AuthenticatedUser(ApiModel):
     displayName: str
     recoveryPinConfigured: bool
     teams: list[TeamMember]
+    systemAdmin: bool = False
 
 
 class AuthResponse(ApiModel):
@@ -340,6 +344,7 @@ class AddTeamMemberRequest(ApiModel):
 
 class FinalizeInventoryRequest(ApiModel):
     revision: StrictInt = Field(ge=1)
+    operationalGeneration: StrictInt = Field(default=1, ge=1)
 
 
 class InventoryHistoryItem(ApiModel):

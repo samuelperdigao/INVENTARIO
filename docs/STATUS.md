@@ -1,38 +1,37 @@
 # Status do projeto
 
-## Em desenvolvimento: administração global
+## Publicado: administração global
 
-Branch `feat/admin-inventarios-v1`, Pull Request `#18` em rascunho, criada a partir de `main` em 23/09/2026.
-A permissão global, a migration `0009_system_admin`, as rotas administrativas,
-o painel responsivo, os ciclos operacionais, a auditoria e a retenção de
-pendências offline estão implementados. A primeira conta administrativa
-continua sem atribuição, aguardando o e-mail que será informado pelo usuário.
-O procedimento e a ordem segura da publicação estão em `docs/ADMINISTRACAO.md`.
+Pull Request `#18` integrado à `main` no commit `641f03d`, em 23/09/2026.
+A permissão global, as rotas administrativas, o painel responsivo, os ciclos
+operacionais, a auditoria, as versões oficiais de relatórios e a proteção de
+pendências offline estão publicados. O procedimento da primeira conta está em
+`docs/ADMINISTRACAO.md`.
 
-Quality Gates #98 (`35825125628`, commit `772d6d6`) passaram: lint, TypeScript,
-build, Vitest (`72 testes`), Pytest (`63 testes`, 4 avisos de dependências),
-Alembic `upgrade head` e Playwright (`12 testes`). Quality Gates #99
-(`35836592928`, commit `5b2e0d7`) também passaram. O preview Vercel está
-`Ready`; o smoke manual ainda não foi feito.
+Quality Gates #98, #99 e #100 passaram. O run #100 foi concluído após repetir
+o job de navegador: lint, TypeScript, build, Vitest (`72 testes`), Pytest
+(`63 testes`, 3 avisos de dependências), Alembic e Playwright (`12 testes`).
+O deploy da Vercel está concluído. A API Render está `live` no commit integrado.
 
-A conexão com o Neon foi restaurada, um ponto de recuperação foi confirmado e
-a revision `0009_system_admin` foi aplicada ao PostgreSQL de produção pelo
-fluxo de migration preparado do Neon, usando o SQL correspondente à revision
-Alembic. O estado final foi verificado: versão `0009_system_admin`, 22
-inventários, 122 itens, 7 relatórios finalizados preservados em 7 versões
-históricas, 7 inventários com versão de relatório 1, e as tabelas de
-administração/auditoria vazias. Todas as gerações operacionais estão em 1.
+A conexão com o Neon foi restaurada. Um ponto de recuperação foi confirmado
+antes da migration, e a revision `0009_system_admin` foi aplicada pelo fluxo
+preparado do Neon com o SQL correspondente à migration Alembic. Estado final:
+22 inventários, 122 itens e 7 versões de relatórios preservados; tabelas de
+administração e auditoria vazias.
 
-A migration também passou antes em uma cópia isolada derivada de produção. O
-banco está pronto para a integração do código; a publicação automática no
-Render e na Vercel e os smokes pós-deploy ainda estão pendentes. Não há conta
-administrativa atribuída; o e-mail será informado pelo usuário após a
-publicação.
+Smoke de produção: Render `/healthz` respondeu HTTP 200 e a rewrite da Vercel
+`/backend-api/healthz` retornou `{"status":"ok"}`. A conta atual recebe
+“Acesso não autorizado” em `/admin`, conforme esperado enquanto não houver
+uma primeira conta administrativa. A concessão continua aguardando o e-mail
+da conta já cadastrada.
+
+Durante o rollout, uma instância em substituição registrou erro de resolução
+Alembic para a revision `0009_system_admin`. A instância nova concluiu o
+startup e o deploy ficou `live`; não houve novos logs de erro após a publicação.
 
 Atualizado em 23/09/2026.
 
 ## Entrega publicada — inventário vazio e compartilhamento moderno
-
 Commit integrado: `2766981` em `main` e `origin/main`. O push foi concluído e aVercel publicou o frontend automaticamente; o smoke de produção confirmou as
 superfícies públicas da Vercel e do Render.
 Inventários sem lançamentos agora podem ser finalizados. O fluxo sincroniza
@@ -107,8 +106,7 @@ O servidor de teste do Playwright passou a compilar o frontend apontando para a 
 - Rewrite Vercel `/backend-api/healthz`: HTTP 200 com `{"status":"ok"}`.
 - API Render `/healthz`: HTTP 200 com `{"status":"ok"}`.
 - Não houve alteração de schema, Render ou Neon nesta rodada.
-## Entrega em integração — identidade visual transversal
-Commits integrados: `caabac0 feat: unificar identidade visual do aplicativo` e `bc46847 docs: registrar identidade visual transversal`.
+## Entrega em integração — identidade visual transversalCommits integrados: `caabac0 feat: unificar identidade visual do aplicativo` e `bc46847 docs: registrar identidade visual transversal`.
 
 A direção visual premium agora é compartilhada pelo aplicativo inteiro: dashboard, equipe, histórico, detalhe de relatório e acesso usam o mesmo rail de navegação, tokens navy/ciano, textura de grid, superfícies elevadas, gradientes, estados de foco e tratamento responsivo. O fluxo de inventário mantém o rail específico de cinco etapas por ser uma tela operacional mais profunda, mas passa a compartilhar a mesma identidade, cores, elevação e linguagem visual.
 
@@ -183,7 +181,6 @@ O commit foi publicado no GitHub, validado pelos workflows `Quality Gates` e
 - Build de produção local: aprovado.
 - Playwright: `6 cenários aprovados` com `BACKEND_PROXY_URL=http://127.0.0.1:8000`; os cenários cobrem login, análise, dashboard, histórico, offline, sincronização e exportações.- Teste backend específico da referência validou parser, normalização, preview, importação, substituição, remoção, IDOR e conciliação nos quatro formatos.
 ### Limitações e prontidão
-
 - A execução local de `pnpm e2e` deve definir `BACKEND_PROXY_URL` antes do build; o workflow de CI já fornece essa variável.
 - A migration foi aplicada no PostgreSQL/Neon durante o deploy; concorrência de produção ainda não foi exercitada nesta etapa.
 - Nenhuma validação física nova foi feita em Android ou Safari/iPhone. Chromium local não substitui esses gates.
@@ -257,7 +254,6 @@ Branch: `feat/fluxo-acesso-compartilhamento-v1`.
 - `openpyxl` mantém o `.xlsx` moderno.
 - O endpoint `/api/v1/inventories/{id}/export/excel` usa `.xls` por padrão e aceita `?format=xlsx`.- O teste de volume local cobre 100 registros, 95 lotes, 1.269 peças, 91 lotes OK e 4 lotes para conferência nos quatro formatos.- Os testes verificam assinatura OLE, ZIP, abas, ausência de filtros e linhas de grade, MIME, `Content-Disposition`, `Content-Length`, totais iguais e download como Blob.
 - Word permanece em `.docx`; uma variante `.rtf` ou `.doc` ficou fora desta entrega por não haver geração legada segura na estrutura atual.
-
 ## Validação desta entrega
 
 Branch de trabalho: `feat/fluxo-acesso-compartilhamento-v1`.

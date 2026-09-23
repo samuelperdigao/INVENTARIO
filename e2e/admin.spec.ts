@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
+// As rotas simuladas precisam receber as requisições sem interceptação do service worker.
+test.use({ serviceWorkers: "block" });
+
 const inventoryId = "00000000-0000-4000-8000-000000000521";
 const entryId = "00000000-0000-4000-8000-000000000522";
 

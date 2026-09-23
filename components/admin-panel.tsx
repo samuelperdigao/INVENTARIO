@@ -234,7 +234,10 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
   if (denied) return <main className={styles.denied}><BrandLogo /><h1>Acesso não autorizado</h1>
     <p>Esta conta não tem permissão para acessar a administração global.</p>
     <Link href="/dashboard">Voltar ao painel operacional</Link></main>;
-  if (!user) return <main className={styles.denied} role="status">Carregando acesso administrativo…</main>;
+  if (!user) return <main className={styles.denied}>
+    {error ? <><h1>Não foi possível verificar o acesso</h1><p role="alert">{error}</p>
+      <Link href="/acesso">Entrar novamente</Link></> : <p role="status">Carregando acesso administrativo…</p>}
+  </main>;
 
   return <main className={styles.shell}>
     <aside className={styles.sidebar}><Link href="/admin" className={styles.logo}><BrandLogo light compact subtitle="Administração" /></Link>

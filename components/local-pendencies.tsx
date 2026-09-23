@@ -13,7 +13,7 @@ import { formatSideLabel, type Inventory, type InventoryEntry } from "@/lib/mode
 interface PendingRow { inventory?: Inventory; entry: InventoryEntry }
 
 function csvCell(value: string): string {
-  const safe = /^[=+@-]/.test(value) ? `'${value}` : value;
+  const safe = /^[\s\u0000-\u001f]*[=+@-]/.test(value) ? `'${value}` : value;
   return `"${safe.replaceAll('"', '""')}"`;
 }
 

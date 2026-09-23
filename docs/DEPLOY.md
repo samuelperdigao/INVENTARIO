@@ -56,7 +56,7 @@ o Alembic. Não atribua a primeira permissão sem o endereço indicado pelo usu�
 1. Criar a branch de release a partir da `main` atual.
 2. Executar todos os quality gates locais.
 3. Abrir Pull Request e aguardar o workflow `Quality Gates` concluir com sucesso.
-4. Para a referência SAP, confirmar a revisão `0008_inventory_lot_references`, fazer backup lógico e executar `alembic upgrade head` contra o Neon em terminal confiável.
+4. Confirmar a revisão atual `0008_inventory_lot_references`, criar e verificar um ponto de recuperação, e aplicar `0009_system_admin` no Neon antes do merge. Consultar `docs/ADMINISTRACAO.md`.
 5. Confirmar `alembic current` na revisão esperada.
 6. Integrar o Pull Request sem force push.
 7. Aguardar os deploys automáticos de Render e Vercel.

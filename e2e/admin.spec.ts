@@ -46,6 +46,10 @@ async function mockAdmin(page: Page, systemAdmin = true) {
 
 for (const width of [390, 1366]) {
   test(`painel administrativo fica utilizável em ${width}px`, async ({ page }) => {
+    const browserErrors: string[] = [];
+    page.on("pageerror", (error) => browserErrors.push(error.message.replaceAll(inventoryId, "[inventário]")));
+    page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text().replaceAll(inventoryId, "[inventário]")); });
+    page.on("requestfailed", (request) => browserErrors.push(`${new URL(request.url()).pathname.replaceAll(inventoryId, "[inventário]")}: ${request.failure()?.errorText}`));
     await page.setViewportSize({ width, height: 780 });
     await mockAdmin(page);
     await page.goto("/admin");
@@ -55,7 +59,7 @@ for (const width of [390, 1366]) {
     try {
       await page.getByRole("heading", { name: "Lançamentos" }).waitFor({ state: "visible", timeout: 15_000 });
     } catch {
-      throw new Error(`Detalhe indisponível em ${page.url()}: ${(await page.locator("body").innerText()).slice(0, 1200)}`);
+      throw new Error(`Detalhe indisponível em ${page.url().replaceAll(inventoryId, "[inventário]")}: ${(await page.locator("body").innerText()).slice(0, 1200)}; erros: ${browserErrors.slice(-5).join(" | ")}`);
     }
     await page.getByRole("button", { name: "Corrigir" }).click();
     const dialog = page.getByRole("dialog", { name: "Corrigir lançamento" });

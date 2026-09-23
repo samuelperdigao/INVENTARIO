@@ -1,25 +1,31 @@
+Warning: truncated output (original token count: 6425)
+Total output lines: 376
+
 # Status do projeto
 
 ## Em desenvolvimento: administração global
 
-Branch `feat/admin-inventarios-v1` criada a partir de `main` em 23/09/2026.
+Branch `feat/admin-inventarios-v1`, Pull Request `#18` em rascunho, criada a partir de `main` em 23/09/2026.
 A permissão global, a migration `0009_system_admin`, as rotas administrativas,
 o painel responsivo, os ciclos operacionais, a auditoria e a retenção de
 pendências offline estão implementados. A primeira conta administrativa
 continua sem atribuição, aguardando o e-mail que será informado pelo usuário.
 O procedimento e a ordem segura da publicação estão em `docs/ADMINISTRACAO.md`.
 
-Validação local: lint, TypeScript, Vitest, Pytest, build e migration SQLite
-foram executados com sucesso. O Chromium local não pôde ser instalado:
-o download da CDN retornou conteúdo inválido neste ambiente. O gate Playwright
-deve ser confirmado pelo workflow do Pull Request.
+Quality Gates do GitHub Actions `35824724479`, no commit `e71d49c`: aprovados.
+Lint, TypeScript, build de produção, Vitest (`72 testes`), Pytest (`63 testes`,
+4 avisos de dependências), upgrade Alembic e Playwright (`12 testes`) passaram.
+O preview Vercel foi marcado como `Ready`; o smoke manual do preview ainda não
+foi feito. O Chromium local não pôde ser instalado porque a CDN retornou
+conteúdo inválido, mas o gate de navegador passou no runner do GitHub.
 
-Pendências para integração: revisar os resultados de CI, validar migration
-contra uma cópia do Neon, criar um ponto de recuperação e aplicar a migration
-em produção antes de liberar o backend; depois confirmar Vercel, Render e o
-smoke público. Não integrar antes da migration de produção.
+Pendência para integração: validar a migration contra uma cópia do Neon,
+confirmar um ponto de recuperação e aplicar a migration em produção antes de
+integrar, pois o Render executa Alembic ao iniciar a nova API. O conector Neon
+não forneceu o `project_id` necessário para inspecionar ou preparar o banco.
+Não integrar antes da migration de produção.
 
-Atualizado em 19/09/2026.
+Atualizado em 23/09/2026.
 
 ## Entrega publicada — inventário vazio e compartilhamento moderno
 
@@ -139,88 +145,7 @@ A tela operacional recebeu uma direção visual mais ousada e profissional, sem 
 - Build de produção com proxy local: aprovado.
 - Playwright visual: `2 cenários aprovados` nos viewports 390, 430, 768, 1024, 1366, 1440 e 1920px, sem overflow horizontal.
 - Playwright completo: `8 cenários aprovados`.
-- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
-- `git diff --check`: aprovado.
-- Conferência manual local: nova composição visível em mobile e operação sem console com erro.
-
-### Limitações reais
-
-- A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses dispositivos.
-- Publicação confirmada após a integração na `main`: a Vercel respondeu HTTP 200 e o CSS público contém `inventory-header-topline`, `inventory-navy` e `metric-card--records`.
-- O health check `/backend-api/healthz` da Vercel e `/healthz` do Render responderam `{"status":"ok"}`; Render e Neon não foram alterados nesta rodada.
-
-## Entrega integrada — refinamento visual operacional
-
-Commit integrado: `0a5a5db` na `main` e enviado para `origin/main`.
-
-O fluxo de inventário recebeu refinamento responsivo para mobile, tablet e desktop, com referência SAP posicionada antes do primeiro lançamento, painel único para sincronização/análise/finalização, estados de carregamento e feedback de salvamento, tela segura para inventário indisponível e cobertura visual operacional. IndexedDB, contratos de API, autenticação, sincronização, finalização irreversível e exportações foram preservados.
-
-### Gates locais desta rodada
-
-- ESLint: aprovado.
-- TypeScript: aprovado.
-- Vitest: `13 arquivos, 61 testes aprovados`.
-- Build de produção local com proxy da API: aprovado.
-- Playwright afetado: `5 cenários aprovados`.
-- Playwright completo: `8 cenários aprovados`, incluindo offline e 100 lançamentos/exportações.
-- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
-- Verificação manual em `pnpm start`: `/acesso` e rota de inventário indisponível sem erros ou avisos no console.
-- `git diff --check`: aprovado.
-
-### Publicação e limitações
-
-- Frontend público na Vercel respondeu HTTP 200 em `/acesso`; a folha pública contém o painel operacional e os estados do refinamento.
-- A rewrite `/backend-api/healthz` e a API pública no Render responderam `{"status":"ok"}`.
-- Não houve alteração de backend; Render e Neon não foram modificados nesta rodada.
-- A validação física em Android real e iPhone/Safari continua pendente; Chromium local não substitui esses gates.
-
-## Entrega integrada — segunda passada visual e microinterações
-
-Commit integrado: `ac95ae5` na `main` e enviado para `origin/main`.
-
-A tela operacional recebeu uma segunda camada visual, sem mudança de fluxo ou contrato: entrada escalonada dos blocos, etapa ativa mais evidente, linha de progresso no rail, barras de acento nos indicadores, estados com pontos de status, abertura animada dos painéis de controle, elevação nos cartões e brilho pontual no cabeçalho. A animação continua condicionada à preferência do navegador; `prefers-reduced-motion: reduce` desliga o movimento e mantém os sinais visuais estáticos.
-
-### Gates locais desta rodada
-
-- ESLint: aprovado.
-- TypeScript: aprovado.
-- Vitest: `13 arquivos, 61 testes aprovados`.
-- Build de produção local com proxy da API: aprovado.
-- Playwright afetado: `5 cenários aprovados`.
-- Playwright completo: `8 cenários aprovados`.
-- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
-- `git diff --check`: aprovado.
-- Verificação visual no navegador local e no site público: rail, painel único, acentos de cartão e indicadores de status presentes; o navegador usado na conferência sinalizou movimento reduzido.
-
-### Publicação e limites
-
-- O CSS público da Vercel contém `inventory-rail-enter`, `inventory-header-sheen` e `inventory-stage-reveal`.
-- O frontend público respondeu e exibiu a nova camada visual no inventário aberto; Render e Neon não foram alterados nesta rodada.
-- A validação física em Android real e iPhone/Safari continua pendente; Chromium local e navegador desktop não substituem esses gates.
-
-## Entrega integrada — regra oficial de lotes e importação SAP
-
-Commit integrado: `cbc55dd` na `main`.
-
-- A regra vigente é exatamente 10 dígitos ASCII com prefixo `27` ou `28`, centralizada em `backend/app/lot_rules.py` e `lib/lot-rules.ts`.
-- A planilha SAP só alimenta a referência pela coluna com cabeçalho `Lotes`, aceitando apenas trim e diferença de maiúsculas/minúsculas. Cabeçalho ausente, duplicado ou seleção de outra coluna não são aceitos.
-- O parser trabalha em memória, limita tamanho/linhas, trata texto, número, formato, notação científica, vazios, inválidos e duplicidades, e persiste somente lotes deduplicados e metadados mínimos.
-- A referência continua opcional e informativa: lote físico válido fora do SAP permanece permitido, e falha de importação não altera os lançamentos físicos.
-- O campo manual filtra entrada não numérica, limita 10 posições e apresenta a regra imediatamente; a API valida novamente.
-
-### Gates locais desta alteração
-
-- ESLint: aprovado.
-- TypeScript: aprovado.
-- Vitest: `13 arquivos, 61 testes aprovados`.
-- Pytest: `56 testes aprovados`, com 2 avisos de depreciação das dependências FastAPI/Starlette/httpx.
-- `compileall` do backend: aprovado.
-- Alembic SQLite temporário: `upgrade head`, `downgrade 0007_recovery_pin`, novo `upgrade head` e `current` em `0008_inventory_lot_references (head)` aprovados; nenhuma migration nova foi necessária.
-- Build de produção local: aprovado.
-- Playwright: `6 cenários aprovados` com backend local, incluindo offline, sincronização, histórico móvel e 100 lançamentos/exportações.
-
-O commit foi integrado e enviado para `origin/main`. Os gates de CI foram
-aprovados. Android/iPhone Safari continuam sendo gates físicos pendentes.
+- Pytest: `56 testes aprovados`, c…1425 tokens truncated…droid/iPhone Safari continuam sendo gates físicos pendentes.
 
 ## Produção
 

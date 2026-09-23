@@ -82,6 +82,7 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
   const [layer, setLayer] = useState("");
   const [lot, setLot] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [duplicateConfirmed, setDuplicateConfirmed] = useState(false);
   const [reason, setReason] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [newOwner, setNewOwner] = useState("");
@@ -177,6 +178,7 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
     setSelectedEntry(entry);
     setSide(entry?.side ?? "DE"); setBay(entry?.bay ?? ""); setLayer(entry?.layer ?? "");
     setLot(entry?.lot ?? ""); setQuantity(entry?.quantity ?? 1);
+    setDuplicateConfirmed(Boolean(entry?.duplicateConfirmed));
     setReason(""); setConfirmation(""); setNewOwner(""); setFile(undefined); setPreview(undefined);
     setError(""); setAction(next);
   }
@@ -197,7 +199,7 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
     const common = { expectedRevision: detail.revision, expectedGeneration: detail.operationalGeneration, reason: reason.trim() || null };
     try {
       if (action === "create" || action === "edit") {
-        const body = { ...common, side, bay: bay.trim(), layer: layer || null, lot: lot.trim(), quantity, duplicateConfirmed: true };
+        const body = { ...common, side, bay: bay.trim(), layer: layer || null, lot: lot.trim(), quantity, duplicateConfirmed };
         await adminPost(action === "create" ? `${path}/entries` : `${path}/entries/${selectedEntry?.id}`, body);
       } else if (action === "remove") {
         await adminPost(`${path}/entries/${selectedEntry?.id}/remove`, common);
@@ -367,6 +369,7 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
             <label>Camada <select value={layer} onChange={(event) => setLayer(event.target.value)}><option value="">Sem camada</option>{INVENTORY_LAYERS.map((item) => <option key={item}>{item}</option>)}</select></label>
             <label>Lote <input required inputMode="numeric" minLength={10} maxLength={10} pattern="(27|28)[0-9]{8}" value={lot} onChange={(event) => setLot(event.target.value)} /></label>
             <label>Quantidade de peças <input required type="number" min={1} step={1} value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} /></label>
+            <label className={styles.checkbox}><input type="checkbox" checked={duplicateConfirmed} onChange={(event) => setDuplicateConfirmed(event.target.checked)} /> Confirmo este lançamento mesmo se o lote já estiver registrado</label>
           </div> : null}
           {action === "transfer" ? <><label>Buscar novo responsável <input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Nome ou e-mail" /></label>
             <button className={styles.secondary} type="button" onClick={() => void searchUsers()}>Buscar contas</button>

@@ -84,6 +84,15 @@ def test_admin_full_cycle_versions_reference_transfer_offline_and_delete() -> No
     assert detail["entries"][0]["lot"] == "2712345678"
     assert client.get("/api/v1/admin/inventories?query=2712345678", headers=auth_admin).json()["total"] == 1
 
+    duplicated = client.post(f"{path}/entries", headers=auth_admin, json={
+        **revision(detail), "side": "DE", "bay": "15", "lot": "2712345678", "quantity": 1,
+    })
+    assert duplicated.status_code == 409
+    blank_bay = client.post(f"{path}/entries", headers=auth_admin, json={
+        **revision(detail), "side": "DE", "bay": "   ", "lot": "2812345678", "quantity": 1,
+    })
+    assert blank_bay.status_code == 422
+
     created = client.post(f"{path}/entries", headers=auth_admin, json={
         **revision(detail), "side": "EF", "bay": "21", "lot": "2812345678", "quantity": 2,
     })

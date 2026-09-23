@@ -101,6 +101,8 @@
 .modalHead h2 { margin: 0; color: #0d3764; }
 .modalHead button { background: #edf5ff; border: 0; width: 34px; height: 34px; border-radius: 7px; font-size: 1.5rem; cursor: pointer; color: #175b97; }
 .formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.modal .checkbox { grid-column: 1 / -1; display: flex; align-items: center; gap: 9px; font-weight: 600; }
+.modal .checkbox input { width: 18px; height: 18px; min-height: 0; flex: 0 0 auto; }
 .modalActions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 8px; }
 .denied { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 14px; text-align: center; padding: 22px; background: #f4f9ff; }
 .denied h1 { margin: 0; color: #10345d; }.denied p { margin: 0; color: #57738e; }.denied a { color: #0c64ad; font-weight: 750; }

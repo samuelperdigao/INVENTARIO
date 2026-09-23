@@ -32,8 +32,7 @@ export function LocalPendencies() {
       const entries = await db.entries.filter((entry) => entry.syncStatus === "ERROR" || entry.syncStatus === "PENDING").toArray();
       const inventories = await db.inventories.bulkGet(entries.map((entry) => entry.inventoryId));
       if (!active) return;
-      setRows(entries.map((entry, index) => ({ entry, inventory: inventories[index] }))
-        .filter(({ entry, inventory }) => entry.syncStatus === "ERROR" || inventory?.tombstone));
+      setRows(entries.map((entry, index) => ({ entry, inventory: inventories[index] })));
     }).catch((cause: unknown) => { if (active) setError(cause instanceof Error ? cause.message : "Falha ao consultar dados locais."); });
     return () => { active = false; };
   }, [router]);
@@ -43,7 +42,8 @@ export function LocalPendencies() {
       ["Data", "Lado", "Vão", "Camada", "Lote", "Quantidade", "Estado"].join(","),
       ...rows.map(({ inventory, entry }) => [
         inventory?.date ?? "", formatSideLabel(entry.side), entry.bay, entry.layer ?? "",
-        entry.lot, String(entry.quantity), inventory?.tombstone ? "Inventário excluído" : "Conflito",
+        entry.lot, String(entry.quantity), inventory?.tombstone ? "Inventário excluído"
+          : entry.syncStatus === "ERROR" ? "Conflito" : "Pendente de sincronização",
       ].map(csvCell).join(",")),
     ];
     const blob = new Blob(["\ufeff", lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
@@ -65,7 +65,8 @@ export function LocalPendencies() {
           <div><strong>Lote {entry.lot}: {entry.quantity} peça(s)</strong>
             <p className="muted">{formatSideLabel(entry.side)} · Vão {entry.bay}{entry.layer ? ` · Camada ${entry.layer}` : ""}
               {inventory?.date ? ` · ${formatBrazilianDate(inventory.date)}` : ""}</p>
-            <span className="micro-pill">{inventory?.tombstone ? "Inventário excluído" : "Conflito de sincronização"}</span></div>
+            <span className="micro-pill">{inventory?.tombstone ? "Inventário excluído"
+              : entry.syncStatus === "ERROR" ? "Conflito de sincronização" : "Pendente de sincronização"}</span></div>
           {!inventory?.tombstone && inventory ? <Link href={`/inventarios/${inventory.id}`} className="secondary">Revisar no inventário</Link> : null}
         </div>)}
       </section></div></main>;

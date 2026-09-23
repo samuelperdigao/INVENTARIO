@@ -335,6 +335,19 @@ def _entry_change(
     session: Session, inventory: InventoryRow, actor: UserRow, payload: EntryInput,
     entry: InventoryEntryRow | None = None,
 ) -> InventoryEntryRow:
+    bay = payload.bay.strip()
+    if not bay:
+        raise HTTPException(status_code=422, detail="Informe o vão.")
+    if not payload.duplicateConfirmed:
+        duplicate = select(InventoryEntryRow.id).where(
+            InventoryEntryRow.inventory_id == inventory.id,
+            InventoryEntryRow.lot == str(payload.lot),
+            InventoryEntryRow.tombstone.is_(False),
+        )
+        if entry is not None:
+            duplicate = duplicate.where(InventoryEntryRow.id != entry.id)
+        if session.scalar(duplicate) is not None:
+            raise HTTPException(status_code=409, detail="Este lote já possui lançamento neste inventário. Confirme a duplicidade para continuar.")
     when = now_utc()
     previous = entry_snapshot(session, entry) if entry else None
     if entry is None:
@@ -346,7 +359,7 @@ def _entry_change(
         session.add(entry)
     else:
         entry.revision += 1
-    entry.side, entry.bay, entry.layer = payload.side, payload.bay, payload.layer
+    entry.side, entry.bay, entry.layer = payload.side, bay, payload.layer
     entry.lot, entry.quantity = str(payload.lot), payload.quantity
     entry.duplicate_confirmed = payload.duplicateConfirmed
     entry.updated_at = when

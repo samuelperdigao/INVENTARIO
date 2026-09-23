@@ -52,7 +52,11 @@ for (const width of [390, 1366]) {
     await expect(page.getByRole("heading", { name: "Visão geral" })).toBeVisible();
     await expect(page.getByText("Inventários recentes")).toBeVisible();
     await page.getByRole("link", { name: /Operador A.*1 lotes/ }).click();
-    await expect(page.getByRole("heading", { name: "Lançamentos" })).toBeVisible();
+    try {
+      await page.getByRole("heading", { name: "Lançamentos" }).waitFor({ state: "visible", timeout: 15_000 });
+    } catch {
+      throw new Error(`Detalhe indisponível em ${page.url()}: ${(await page.locator("body").innerText()).slice(0, 1200)}`);
+    }
     await page.getByRole("button", { name: "Corrigir" }).click();
     const dialog = page.getByRole("dialog", { name: "Corrigir lançamento" });
     await expect(dialog.getByLabel("Lote")).toHaveValue("2712345678");

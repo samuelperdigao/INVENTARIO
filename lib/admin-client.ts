@@ -98,7 +98,7 @@ export async function adminDownload(inventoryId: string, format: string, version
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `Inventario_${inventoryId.slice(0, 8)}_v${version ?? "atual"}.${format}`;
+  anchor.download = `Inventario_v${version ?? "atual"}.${format}`;
   document.body.append(anchor);
   anchor.click();
   anchor.remove();

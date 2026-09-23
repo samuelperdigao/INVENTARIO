@@ -12,7 +12,7 @@
 - Cada escrita administrativa informa revisão e geração esperadas. O servidor bloqueia a linha do inventário na transação e devolve HTTP 409 se houve alteração concorrente.
 - A geração operacional começa em 1. Reabrir incrementa a geração e publica eventos para o inventário e seus lançamentos. Um dispositivo antigo pode ler a geração nova, mas escritas com geração anterior não são aplicadas.
 - Pendências locais antigas viram conflitos no IndexedDB. O usuário pode usar a versão central e, depois, incorporar explicitamente lançamentos da versão local. Inventários excluídos são distribuídos como tombstones; nenhuma escrita posterior os recria.
-- O painel `/pendencias` permite consultar e exportar em CSV lançamentos locais retidos, inclusive quando o inventário foi excluído centralmente.
+- O painel `/pendencias` permite consultar e exportar em CSV lançamentos locais pendentes ou em conflito, inclusive após transferência de responsável ou exclusão central do inventário.
 - Correções de inventários finalizados não liberam edição operacional. Cada correção recalcula o relatório oficial e grava uma nova versão imutável em `admin_report_versions`. A migration copia os snapshots finalizados preexistentes para a versão 1.
 - Finalizações após reabertura criam outra versão. Versões anteriores podem ser consultadas e exportadas nos quatro formatos pela interface administrativa.
 - A transferência muda somente o responsável daquele inventário. Os autores dos lançamentos continuam registrados. O novo responsável vê o inventário no dashboard e recebe uma credencial de acesso específica da própria conta, sem expor o token anterior.

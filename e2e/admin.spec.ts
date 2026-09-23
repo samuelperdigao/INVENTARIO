@@ -66,7 +66,7 @@ for (const width of [390, 1366]) {
     }
     await page.getByRole("button", { name: "Corrigir" }).click();
     const dialog = page.getByRole("dialog", { name: "Corrigir lançamento" });
-    await expect(dialog.getByLabel("Lote")).toHaveValue("2712345678");
+    await expect(dialog.getByRole("textbox", { name: "Lote" })).toHaveValue("2712345678");
     const confirm = dialog.getByRole("button", { name: "Confirmar alteração" });
     await confirm.scrollIntoViewIfNeeded();
     await expect(confirm).toBeInViewport();

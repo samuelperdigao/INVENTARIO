@@ -1,5 +1,13 @@
 # Status do projeto
 
+## Ajuste de leitura dos lotes consolidados no celular
+
+- Inventários finalizados mostram lote, total de peças, localização e situação em cartões com rótulos próprios nas telas pequenas; a tabela permanece no desktop.
+- O cenário Playwright de histórico móvel verifica os quatro campos, os locais, a ausência de texto sobreposto e a volta à tabela no desktop.
+- A alteração é de apresentação no frontend, sem mudar dados, regras de classificação, exportações ou backend.
+
+Atualizado em 24/09/2026.
+
 ## Entrega validada — conteúdo da tela de acesso
 
 Pull Request [#22](https://github.com/samuelperdigao/INVENTARIO/pull/22), branch `fix/remove-auth-benefits`, commit de implementação `1bb38f6`.

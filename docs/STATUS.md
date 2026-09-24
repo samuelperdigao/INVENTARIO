@@ -1,5 +1,17 @@
 # Status do projeto
 
+## Entrega validada — conteúdo da tela de acesso
+
+Pull Request [#22](https://github.com/samuelperdigao/INVENTARIO/pull/22), branch `fix/remove-auth-benefits`, commit de implementação `1bb38f6`.
+
+- Removidos do painel esquerdo os textos sobre liberação após cadastro, proteção do NP e renovação/revogação de sessões.
+- Espaçamento ajustado para manter a marca e a apresentação agrupadas.
+- Prévia da Vercel conferida em `/acesso`: lista ausente e apresentação junto à marca.
+- Quality Gates do GitHub Actions, run #109: lint, TypeScript, testes frontend, build, testes backend, Alembic, Chromium e Playwright aprovados.
+- Alteração somente visual; autenticação e backend não foram alterados.
+
+Atualizado em 24/09/2026.
+
 ## Entrega validada — animação de carregamento no login
 
 Pull Request [#21](https://github.com/samuelperdigao/INVENTARIO/pull/21), branch

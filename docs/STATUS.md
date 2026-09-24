@@ -4,7 +4,7 @@
 
 Pull Request [#22](https://github.com/samuelperdigao/INVENTARIO/pull/22), branch `fix/remove-auth-benefits`, commit de implementação `1bb38f6`.
 
-- Removidos do painel esquerdo os textos sobre liberação após cadastro, proteção do NP e renovação/revogação de sessões.
+- Removidos do painel de acesso os três textos: “Acesso liberado após o cadastro”, “NP pessoal protegido por hash” e “Sessões renováveis e revogáveis”.
 - Espaçamento ajustado para manter a marca e a apresentação agrupadas.
 - Prévia da Vercel conferida em `/acesso`: lista ausente e apresentação junto à marca.
 - Quality Gates do GitHub Actions, run #109: lint, TypeScript, testes frontend, build, testes backend, Alembic, Chromium e Playwright aprovados.

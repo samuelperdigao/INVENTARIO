@@ -56,16 +56,36 @@ test("apresenta locais consolidados sem overflow nos viewports móveis", async (
     await page.goto(reportPath!);
     await expect(page.getByText("Lotes consolidados", { exact: true })).toBeVisible({ timeout: 30_000 });
 
-    const pieceLot = page.locator(".report-table tbody tr").filter({ hasText: "2810000003" });
+    const lots = page.locator(".consolidated-lot-card");
+    await expect(page.locator(".consolidated-table-wrap")).toBeHidden();
+    await expect(lots).toHaveCount(5);
+
+    const pieceLot = lots.filter({ hasText: "2810000003" });
+    await expect(pieceLot.locator(".consolidated-lot-quantity")).toHaveText("20");
     await expect(pieceLot.locator(".lot-location").nth(0)).toHaveAttribute("aria-label", "LE 15 · 19 pç");
     await expect(pieceLot.locator(".lot-location").nth(1)).toHaveAttribute("aria-label", "LP 21 · 1 pç");
+    await expect(pieceLot.locator(".classification-tag")).toContainText("LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL");
 
-    const okLot = page.locator(".report-table tbody tr").filter({ hasText: "2810000001" });
+    const okLot = lots.filter({ hasText: "2810000001" });
+    await expect(okLot.locator(".consolidated-lot-quantity")).toHaveText("20");
     await expect(okLot.locator(".lot-location")).toHaveAttribute("aria-label", "LP 15");
     await expect(okLot.locator(".lot-location")).not.toContainText("pç");
     await expect(okLot.locator(".lot-location")).not.toContainText("20");
+    await expect(okLot.locator(".classification-tag")).toHaveText("OK");
+    for (const label of ["Lote", "Total de peças", "Localização", "Situação"]) {
+      await expect(okLot.locator("dt", { hasText: label })).toBeVisible();
+    }
+
+    const fieldsFit = await lots.evaluateAll((cards) => cards.every((card) =>
+      Array.from(card.querySelectorAll("dt, dd")).every((field) => field.scrollWidth <= field.clientWidth + 1)
+    ));
+    expect(fieldsFit, `texto dos lotes sobreposto em ${width}px`).toBe(true);
 
     const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
     expect(hasHorizontalOverflow, `overflow horizontal em ${width}px`).toBe(false);
   }
+
+  await page.setViewportSize({ width: 1280, height: 844 });
+  await expect(page.locator(".consolidated-table-wrap")).toBeVisible();
+  await expect(page.locator(".consolidated-lot-list")).toBeHidden();
 });

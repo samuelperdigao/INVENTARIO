@@ -84,7 +84,7 @@ export function AuthFlow() {
       <section className="auth-aside" aria-label="Apresentação do sistema">
         <Link className="brand-link light-brand" href="/" aria-label="INVENTÁRIO, início"><BrandLogo light subtitle="Beam Blanks e Blocos" /></Link>
         <div><p className="eyebrow light-eyebrow">Acesso ao sistema</p><h1>Inventário de Beam Blanks e Blocos.</h1><p>Registro local, sincronização protegida e relatórios oficiais para a operação.</p></div>
-        <ul className="auth-benefits"><li>Acesso liberado após o cadastro</li><li>NP pessoal protegido por hash</li><li>Sessões renováveis e revogáveis</li></ul>
+        
       </section>
 
       <section className="auth-main">

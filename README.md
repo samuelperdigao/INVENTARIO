@@ -24,7 +24,7 @@ O estado operacional mais recente fica em [`docs/STATUS.md`](docs/STATUS.md).
 - Sincronização incremental com cursor, revisões, idempotência, tombstones e resolução de conflitos.
 - Análise determinística de lotes, com apresentação operacional de lotes OK e lotes para conferência.
 - Finalização irreversível na V1, histórico e exportações Excel, PDF e Word.
-- Referência opcional de lotes SAP por planilha `.xlsx`, usando exclusivamente o cabeçalho `Lotes`, com prévia, substituição, remoção e conciliação sem bloquear lançamentos físicos.
+- Referência opcional de lotes SAP por planilha `.xlsx`, usando exclusivamente a coluna com cabeçalho `Lote` ou `Lotes`, com prévia, substituição, remoção e conciliação sem bloquear lançamentos físicos.
 - Exportação Excel compatível `.xls` BIFF8 como opção padrão da equipe, com `.xlsx` moderno preservado.
 - Compartilhamento nativo no celular e links temporários assinados para arquivos de escritório.
 - Área administrativa global em `/admin` para consulta, auditoria, correção, reabertura, transferência, referência SAP e exclusão lógica; detalhes em [`docs/ADMINISTRACAO.md`](docs/ADMINISTRACAO.md).

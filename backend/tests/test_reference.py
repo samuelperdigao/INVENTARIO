@@ -143,18 +143,19 @@ def test_parser_normalizes_text_numbers_scientific_values_and_duplicates() -> No
     assert any("repetida" in warning for warning in parsed.warnings)
 
 
-def test_parser_requires_exact_lotes_header_and_never_accepts_another_column() -> None:
-    content = _xlsx([["Lotes", "Peso"], ["2712345678", "2812345678"]])
+@pytest.mark.parametrize("header", ["Lote", "Lotes"])
+def test_parser_requires_exact_lote_or_lotes_header_and_never_accepts_another_column(header: str) -> None:
+    content = _xlsx([[header, "Peso"], ["2712345678", "2812345678"]])
 
     preview = parse_xlsx_reference(content, "sap.xlsx", max_bytes=2 * 1024 * 1024, max_rows=100)
     assert preview.requires_column_selection is False
     assert preview.selected_column == 1
-    assert preview.selected_column_label == "Lotes"
+    assert preview.selected_column_label == header
     assert preview.lots == ("2712345678",)
 
     with pytest.raises(ReferenceImportError, match="localizar a coluna"):
         parse_xlsx_reference(
-            _xlsx([["Lote", "Peso"], ["2712345678", "2812345678"]]),
+            _xlsx([["Lotes SAP", "Peso"], ["2712345678", "2812345678"]]),
             "sap.xlsx",
             max_bytes=2 * 1024 * 1024,
             max_rows=100,
@@ -169,9 +170,10 @@ def test_parser_requires_exact_lotes_header_and_never_accepts_another_column() -
         )
 
 
-def test_parser_accepts_case_and_outer_spacing_only_for_lotes_header() -> None:
+@pytest.mark.parametrize("header", ["  LOTES  ", "  LOTE  "])
+def test_parser_accepts_case_and_outer_spacing_only_for_lot_header(header: str) -> None:
     parsed = parse_xlsx_reference(
-        _xlsx([["  LOTES  ", "Lotes SAP"], [2812345678, 2898765432]]),
+        _xlsx([[header, "Lotes SAP"], [2812345678, 2898765432]]),
         "sap.xlsx",
         max_bytes=2 * 1024 * 1024,
         max_rows=100,
@@ -179,6 +181,16 @@ def test_parser_accepts_case_and_outer_spacing_only_for_lotes_header() -> None:
 
     assert parsed.selected_column == 1
     assert parsed.lots == ("2812345678",)
+
+
+def test_parser_rejects_lote_and_lotes_in_different_columns() -> None:
+    with pytest.raises(ReferenceImportError, match="uma única coluna"):
+        parse_xlsx_reference(
+            _xlsx([["Lote", "Lotes"], ["2712345678", "2812345678"]]),
+            "sap.xlsx",
+            max_bytes=2 * 1024 * 1024,
+            max_rows=100,
+        )
 
 
 def test_parser_ignores_invalid_empty_and_other_column_values_without_false_positives() -> None:
@@ -201,9 +213,10 @@ def test_parser_ignores_invalid_empty_and_other_column_values_without_false_posi
     assert any("10 números" in warning for warning in parsed.warnings)
 
 
-def test_parser_returns_preview_with_warnings_when_lotes_has_no_valid_values() -> None:
+@pytest.mark.parametrize("header", ["Lote", "Lotes"])
+def test_parser_returns_preview_with_warnings_when_lot_column_has_no_valid_values(header: str) -> None:
     parsed = parse_xlsx_reference(
-        _xlsx([["Lotes"], ["2612345678"], [None]]),
+        _xlsx([[header], ["2612345678"], [None]]),
         "sap.xlsx",
         max_bytes=2 * 1024 * 1024,
         max_rows=100,
@@ -211,7 +224,7 @@ def test_parser_returns_preview_with_warnings_when_lotes_has_no_valid_values() -
 
     assert parsed.lots == ()
     assert parsed.unique_lots == 0
-    assert any("Nenhum lote válido" in warning for warning in parsed.warnings)
+    assert any(f"Nenhum lote válido foi encontrado na coluna ‘{header}’" in warning for warning in parsed.warnings)
 
 
 def test_parser_rejects_zip_path_traversal() -> None:
@@ -309,6 +322,32 @@ def test_reference_preview_import_replace_remove_and_match() -> None:
         dependency.close()
 
 
+def test_reference_preview_and_import_lote_header_in_new_inventory() -> None:
+    inventory_id, sync_token, auth = _create_inventory("referencia.singular@example.com")
+    headers = {**auth, "X-Inventory-Sync-Token": sync_token}
+    content = _xlsx([["Material", "Lote"], ["Beam blank", "2712345678"]])
+
+    preview = client.post(
+        f"/api/v1/inventories/{inventory_id}/reference/preview",
+        files=_upload(content),
+        headers=headers,
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["selectedColumn"] == 2
+    assert preview.json()["selectedColumnLabel"] == "Lote"
+    assert preview.json()["sample"] == ["2712345678"]
+
+    imported = client.post(
+        f"/api/v1/inventories/{inventory_id}/reference",
+        files=_upload(content),
+        data={"columnIndex": "2"},
+        headers=headers,
+    )
+    assert imported.status_code == 200, imported.text
+    assert imported.json()["lotNumbers"] == ["2712345678"]
+    assert imported.json()["reference"]["totalLots"] == 1
+
+
 def test_reference_rejects_invalid_file_without_touching_physical_inventory() -> None:
     inventory_id, sync_token, auth = _create_inventory(
         "referencia.invalid-file@example.com",
@@ -318,7 +357,7 @@ def test_reference_rejects_invalid_file_without_touching_physical_inventory() ->
 
     missing_header = client.post(
         f"/api/v1/inventories/{inventory_id}/reference",
-        files=_upload(_xlsx([["Lote"], ["2712345678"]]), "sem-cabecalho.xlsx"),
+        files=_upload(_xlsx([["Lotes SAP"], ["2712345678"]]), "sem-cabecalho.xlsx"),
         headers=headers,
     )
     assert missing_header.status_code == 422

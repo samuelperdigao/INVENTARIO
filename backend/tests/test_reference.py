@@ -211,6 +211,21 @@ def test_parser_ignores_invalid_empty_and_other_column_values_without_false_posi
     assert parsed.duplicate_rows == 0
     assert parsed.ignored_rows == 2
     assert any("10 números" in warning for warning in parsed.warnings)
+    assert not any("zeros à esquerda" in warning for warning in parsed.warnings)
+
+
+def test_parser_omits_generic_numeric_warning_but_keeps_precision_warning() -> None:
+    parsed = parse_xlsx_reference(
+        _xlsx([["Lotes"], [2712345678], [1e16]]),
+        "sap.xlsx",
+        max_bytes=2 * 1024 * 1024,
+        max_rows=100,
+    )
+
+    assert parsed.lots == ("2712345678",)
+    assert not any("zeros à esquerda" in warning for warning in parsed.warnings)
+    assert any("pode ter perdido precisão" in warning for warning in parsed.warnings)
+    assert any("10 números" in warning for warning in parsed.warnings)
 
 
 @pytest.mark.parametrize("header", ["Lote", "Lotes"])

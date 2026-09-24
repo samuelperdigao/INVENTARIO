@@ -219,6 +219,7 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
           {preview && selectedPreviewReady ? <div className="reference-preview" aria-label="Prévia da importação">
             <div className="reference-preview-heading"><strong>Coluna identificada: {preview.selectedColumnLabel ?? "Lotes"}</strong><span>{summaryLabel(preview.uniqueLots)} lotes válidos</span></div>
             <div className="reference-summary">
+              <span>{summaryLabel(preview.totalRows)} linhas verificadas</span>
               <span>{summaryLabel(preview.duplicateRows)} duplicados</span>
               <span>{summaryLabel(preview.ignoredRows)} linhas ignoradas</span>
               <span>{summaryLabel(preview.validLotOccurrences)} valores válidos</span>

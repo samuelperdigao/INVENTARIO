@@ -77,6 +77,7 @@ export function AuthFlow() {
 
   const title = view === "login" ? "Acesse sua conta" : view === "register" ? "Crie seu acesso" : view === "reset" ? "Defina uma nova senha" : "Proteja sua recuperação";
   const description = view === "login" ? "Entre com o e-mail usado no seu cadastro para acessar os inventários." : view === "register" ? "Cadastre seu e-mail, uma senha e o NP pessoal de 8 dígitos usado somente para recuperação." : view === "reset" ? "Informe seu e-mail, o NP pessoal e escolha uma nova senha." : "Sua conta já existia antes deste recurso. Informe e confirme seu NP pessoal para continuar.";
+  const loginLoading = view === "login" && busy;
 
   return (
     <main className="auth-shell">
@@ -92,7 +93,7 @@ export function AuthFlow() {
           <p className="eyebrow">Conta INVENTARIO</p>
           <h2>{title}</h2>
           <p className="muted auth-description">{description}</p>
-          <form className="stack auth-form" onSubmit={(event) => void submit(event)}>
+          <form className="stack auth-form" aria-busy={busy} onSubmit={(event) => void submit(event)}>
             {view === "register" ? <label>Nome completo<input name="displayName" autoComplete="name" required maxLength={120} placeholder="Como você quer ser chamado" /></label> : null}
             {view !== "setup-pin" ? <label>E-mail<input name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" placeholder="seuemail@exemplo.com" /></label> : null}
             {view === "login" || view === "register" ? <label>Senha<input name="password" type="password" required minLength={view === "register" ? 12 : 1} autoComplete={view === "register" ? "new-password" : "current-password"} placeholder={view === "register" ? "Mínimo de 12 caracteres" : "Sua senha"} /></label> : null}
@@ -110,6 +111,25 @@ export function AuthFlow() {
           </div>
         </div>
       </section>
+      {loginLoading ? (
+        <div className="auth-loading-overlay" role="status" aria-live="polite" aria-atomic="true">
+          <div className="auth-loading-card">
+            <div className="auth-loading-visual" aria-hidden="true">
+              <span className="auth-loading-halo" />
+              <span className="auth-loading-ring auth-loading-ring--outer" />
+              <span className="auth-loading-ring auth-loading-ring--inner" />
+              <span className="auth-loading-beacon auth-loading-beacon--one" />
+              <span className="auth-loading-beacon auth-loading-beacon--two" />
+              <BrandLogo compact markOnly className="auth-loading-logo" />
+            </div>
+            <p className="auth-loading-kicker">Acesso seguro</p>
+            <h2 className="auth-loading-title">Liberando seu acesso</h2>
+            <p className="auth-loading-message">Aguarde um instante enquanto validamos seus dados e preparamos sua entrada no sistema.</p>
+            <div className="auth-loading-progress" aria-hidden="true"><span /></div>
+            <p className="auth-loading-note">A primeira conexão após um período sem uso pode demorar um pouco mais.</p>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -6898,3 +6898,10 @@ body:has(.auth-shell) {
     width: 38%;
   }
 }
+
+
+/* Mantém marca e apresentação agrupadas após remover a lista de benefícios. */
+.auth-aside {
+  justify-content: flex-start;
+  gap: 18px;
+}

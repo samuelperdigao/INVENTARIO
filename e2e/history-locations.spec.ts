@@ -64,7 +64,7 @@ test("apresenta locais consolidados sem overflow nos viewports móveis", async (
     await expect(pieceLot.locator(".consolidated-lot-quantity")).toHaveText("20");
     await expect(pieceLot.locator(".lot-location").nth(0)).toHaveAttribute("aria-label", "LE 15 · 19 pç");
     await expect(pieceLot.locator(".lot-location").nth(1)).toHaveAttribute("aria-label", "LP 21 · 1 pç");
-    await expect(pieceLot.locator(".classification-tag")).toContainText("LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL");
+    await expect(pieceLot.locator(".classification-tag")).toHaveText("1 PEÇA FORA DO LOCAL PRINCIPAL");
 
     const okLot = lots.filter({ hasText: "2810000001" });
     await expect(okLot.locator(".consolidated-lot-quantity")).toHaveText("20");

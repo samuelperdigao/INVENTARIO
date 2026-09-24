@@ -30,7 +30,7 @@
 ## Referência opcional de lotes SAP
 
 - A planilha SAP é uma referência de reconciliação, não uma fonte do inventário físico. O operador pode continuar sem ela e pode lançar, editar e excluir registros offline.
-- A importação aceita `.xlsx` e oferece prévia antes da confirmação. A única coluna elegível é a que possui o cabeçalho `Lotes`, comparado após trim e sem diferenciar maiúsculas de minúsculas. Cabeçalho ausente ou duplicado encerra somente aquela importação; não existe seleção manual de outra coluna nem varredura aproximada.
+- A importação aceita `.xlsx` e oferece prévia antes da confirmação. A única coluna elegível é a que possui o cabeçalho `Lote` ou `Lotes`, comparado após trim e sem diferenciar maiúsculas de minúsculas. Cabeçalho ausente ou duas colunas elegíveis encerram somente aquela importação; não existe seleção manual de outra coluna nem varredura aproximada.
 - O parser normaliza números de lote como texto, preserva zeros à esquerda quando o formato do Excel os informa, remove formatação invisível segura e informa duplicados, vazios e valores inválidos. Linhas inválidas são ignoradas e reportadas quando ainda houver lotes válidos; sem nenhum lote válido, a confirmação é recusada. O backend armazena somente os números normalizados e metadados mínimos do arquivo.
 - Cada inventário possui no máximo uma referência ativa. Substituir ou remover exige autorização e inventário `OPEN`; a finalização impede novas alterações. Remover a referência não remove lançamentos, quantidades, locais ou tombstones.
 - A consulta no formulário é não bloqueante. Lote previsto, fora da referência ou indisponibilidade da consulta servem apenas como feedback operacional; nenhum lançamento físico é recusado por essa comparação.

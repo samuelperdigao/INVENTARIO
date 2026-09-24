@@ -1,5 +1,14 @@
 # Status do projeto
 
+## Correção da importação da referência SAP: cabeçalho Lote ou Lotes
+
+- O parser aceita os cabeçalhos exatos `Lote` e `Lotes`, sem diferenciar maiúsculas de minúsculas nem espaços externos. Duas colunas elegíveis continuam gerando erro de ambiguidade; `Lotes SAP` não passa a ser aceito.
+- A prévia e a importação utilizam a mesma regra; a mensagem de ausência e os avisos de coluna foram atualizados. Nenhum dado ou schema de banco foi alterado.
+- Validação local: Pytest 68 testes, Vitest 72 testes, ESLint, TypeScript, build de produção e Alembic SQLite passaram. `git diff --check` passou.
+- Playwright local: 12 cenários não iniciaram porque a instalação do Chromium recebeu um ZIP de 0 MiB. A execução no GitHub Actions é necessária antes de integrar.
+
+Atualizado em 24/09/2026.
+
 ## Ajuste de leitura dos lotes consolidados no celular
 
 - Inventários finalizados mostram lote, total de peças, localização e situação em cartões com rótulos próprios nas telas pequenas; a tabela permanece no desktop.

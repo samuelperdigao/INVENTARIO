@@ -33,8 +33,8 @@ REMOVED_STATUS = "REMOVED"
 MAX_COLUMNS = 256
 HEADER_SCAN_ROWS = 25
 WARNING_LIMIT = 20
-LOT_HEADER = "lotes"
-MISSING_LOT_HEADER_MESSAGE = "Não foi possível localizar a coluna ‘Lotes’ na planilha do SAP. Confira o arquivo selecionado."
+LOT_HEADERS = frozenset({"lote", "lotes"})
+MISSING_LOT_HEADER_MESSAGE = "Não foi possível localizar a coluna ‘Lote’ ou ‘Lotes’ na planilha do SAP. Confira o arquivo selecionado."
 
 
 class ReferenceImportError(ValueError):
@@ -182,14 +182,14 @@ def _detect_columns(preview_rows: list[list[Any]]) -> tuple[tuple[ReferenceColum
     header_candidates: list[tuple[int, int]] = []
     for row_index, row in enumerate(preview_rows, start=1):
         for column_index, value in enumerate(row, start=1):
-            if _normalized_header(value) == LOT_HEADER:
+            if _normalized_header(value) in LOT_HEADERS:
                 header_candidates.append((row_index, column_index))
 
     if not header_candidates:
         raise ReferenceImportError(MISSING_LOT_HEADER_MESSAGE)
     candidate_columns = {candidate[1] for candidate in header_candidates}
     if len(candidate_columns) != 1:
-        raise ReferenceImportError("A planilha deve conter uma única coluna com cabeçalho ‘Lotes’.")
+        raise ReferenceImportError("A planilha deve conter uma única coluna com cabeçalho ‘Lote’ ou ‘Lotes’.")
     header_row, automatic_column = min(header_candidates)
 
     columns = tuple(
@@ -287,7 +287,7 @@ def parse_xlsx_reference(
         if selected is not None and (selected < 1 or selected > MAX_COLUMNS or selected not in available_columns):
             raise ReferenceImportError("Selecione uma coluna disponível na prévia da planilha.")
         if selected != automatic_column:
-            raise ReferenceImportError("A importação da referência SAP utiliza exclusivamente a coluna com cabeçalho ‘Lotes’.")
+            raise ReferenceImportError("A importação da referência SAP utiliza exclusivamente a coluna com cabeçalho ‘Lote’ ou ‘Lotes’.")
         selected_label = available_columns.get(selected) if selected is not None else None
         first_data_row = header_row + 1 if header_row else 1
         total_rows = 0
@@ -320,7 +320,7 @@ def parse_xlsx_reference(
             seen.add(lot)
             unique_lots.append(lot)
         if not unique_lots:
-            warnings.append("Nenhum lote válido foi encontrado na coluna ‘Lotes’. A referência não pode ser confirmada.")
+            warnings.append(f"Nenhum lote válido foi encontrado na coluna ‘{selected_label}’. A referência não pode ser confirmada.")
         if duplicate_rows and len(warnings) < WARNING_LIMIT:
             warnings.append(f"{duplicate_rows} ocorrência(s) repetida(s) foram mantidas apenas uma vez.")
         return ParsedReference(

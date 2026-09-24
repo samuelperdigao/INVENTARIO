@@ -197,7 +197,7 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
 
       <section className="card section-card stack" aria-label="Lotes consolidados">
         <div><p className="eyebrow">Conferência</p><h2>Lotes consolidados</h2><p className="muted">Cada lote aparece uma única vez, com o total de peças e os locais encontrados.</p></div>
-        <div className="report-table-wrap">
+        <div className="report-table-wrap consolidated-table-wrap">
           <table className="report-table">
             <thead><tr><th>Lote</th><th>Total de peças</th><th>Localização</th><th>Situação</th></tr></thead>
             <tbody>{report.lots.map((lot) => <tr key={lot.lot}>
@@ -208,6 +208,18 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
             </tr>)}</tbody>
           </table>
         </div>
+        <ul className="consolidated-lot-list">
+          {report.lots.map((lot) => (
+            <li className="consolidated-lot-card" key={lot.lot}>
+              <dl className="consolidated-lot-fields">
+                <div><dt>Lote</dt><dd className="consolidated-lot-number">{lot.lot}</dd></div>
+                <div><dt>Total de peças</dt><dd className="consolidated-lot-quantity">{lot.totalQuantity}</dd></div>
+                <div><dt>Localização</dt><dd><LotLocations locations={lot.locations} classification={lot.classification} presentation={lot.presentation} /></dd></div>
+                <div><dt>Situação</dt><dd><span className={`classification-tag ${presentationTone(lot)}`}>{visibleSituation(lot)}</span></dd></div>
+              </dl>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="card section-card stack" aria-label="Lotes para conferência">

@@ -224,9 +224,7 @@ def _decimal_to_lot(value: Decimal, number_format: str | None, *, numeric_warnin
     width = _zero_format_width(number_format)
     if width and len(text) < width:
         text = text.zfill(width)
-    warning = "A célula numérica não permite recuperar com segurança eventuais zeros à esquerda."
-    if width:
-        warning = None
+    warning = None
     if numeric_warning and abs(value) > Decimal(2**53):
         warning = "A célula numérica pode ter perdido precisão antes da importação pelo Excel."
     return text, warning

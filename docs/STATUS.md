@@ -1,5 +1,13 @@
 # Status do projeto
 
+## Ajuste informacional da prévia da referência SAP
+
+- Removido o aviso genérico de que uma célula numérica pode não permitir recuperar zeros à esquerda; permanece o aviso quando um número pode ter perdido precisão no Excel.
+- A interface informa o nome do arquivo carregado e a quantidade de linhas verificadas na prévia.
+- Nenhum schema ou migration foi alterado.
+- Validação local: ESLint, TypeScript, Vitest (73 testes), Pytest (69 testes, 4 avisos), build de produção, Chromium, Playwright (12 cenários) e `git diff --check` aprovados.
+- Validação operacional paralela: após salvar 15 lançamentos de cenário localmente, a sincronização central falhou duas vezes; os dados continuam preservados no dispositivo e a carga foi pausada.
+
 ## Correção da importação da referência SAP: cabeçalho Lote ou Lotes
 
 - O parser aceita os cabeçalhos exatos `Lote` e `Lotes`, sem diferenciar maiúsculas de minúsculas nem espaços externos. Duas colunas elegíveis continuam gerando erro de ambiguidade; `Lotes SAP` não passa a ser aceito.

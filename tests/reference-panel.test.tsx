@@ -4,7 +4,9 @@ import { expect, it, vi, afterEach } from "vitest";
 
 import { ReferencePanel } from "@/components/reference-panel";
 import { db } from "@/lib/db";
-import type { Inventory, InventoryReference } from "@/lib/models";
+import * as referenceClient from "@/lib/reference-client";
+import * as syncClient from "@/lib/sync-client";
+import type { Inventory, InventoryReference, ReferencePreview } from "@/lib/models";
 
 
 const inventory: Inventory = {
@@ -74,4 +76,43 @@ it("exibe a referência cacheada, tabela desktop e busca paginada", async () => 
   await userEvent.setup().type(screen.getByLabelText("Buscar lote"), "281");
   await waitFor(() => expect(within(table).queryByText("2712345678")).not.toBeInTheDocument());
   expect(within(table).getByText("2812345678")).toBeInTheDocument();
+});
+
+it("mostra linhas verificadas na prévia sem avisar sobre zeros à esquerda", async () => {
+  setOnline(false);
+  const preview: ReferencePreview = {
+    originalFilename: "materia-prima.xlsx",
+    sourceType: "SAP_EXCEL",
+    headerRow: 1,
+    columns: [{ index: 1, label: "Lote" }],
+    selectedColumn: 1,
+    selectedColumnLabel: "Lote",
+    requiresColumnSelection: false,
+    totalRows: 370,
+    validLotOccurrences: 370,
+    uniqueLots: 370,
+    duplicateRows: 0,
+    ignoredRows: 0,
+    sample: ["2712345678"],
+    warnings: [],
+  };
+  vi.spyOn(referenceClient, "previewReference").mockResolvedValue(preview);
+  vi.spyOn(syncClient, "syncInventory").mockResolvedValue({
+    conflicts: 0,
+    received: 0,
+    changed: false,
+    remoteChanged: false,
+  });
+  render(<ReferencePanel inventory={inventory} onChanged={vi.fn().mockResolvedValue(undefined)} />);
+
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole("button", { name: "Importar planilha SAP" }));
+  await user.upload(screen.getByLabelText("Arquivo Excel (.xlsx)"), new File(["xlsx"], "materia-prima.xlsx"));
+  setOnline(true);
+  await user.click(screen.getByRole("button", { name: "Pré-visualizar importação" }));
+
+  await screen.findByLabelText("Prévia da importação");
+  expect(screen.getByText("370 linhas verificadas")).toBeInTheDocument();
+  expect(screen.getByText("Arquivo carregado: materia-prima.xlsx")).toBeInTheDocument();
+  expect(screen.queryByText(/zeros à esquerda/i)).not.toBeInTheDocument();
 });

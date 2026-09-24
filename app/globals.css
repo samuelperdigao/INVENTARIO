@@ -6815,8 +6815,8 @@ body:has(.auth-shell) {
 .auth-loading-note {
   max-width: 38ch;
   margin: 14px 0 0;
-  color: #71839b;
-  font-size: .78rem;
+  color: #5f738d;
+  font-size: .82rem;
   line-height: 1.45;
 }
 

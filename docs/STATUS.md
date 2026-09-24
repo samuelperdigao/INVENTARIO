@@ -1,6 +1,20 @@
 # Status do projeto
 
-# Em validação — refinamento do dashboard desktop
+## Entrega validada — animação de carregamento no login
+
+Pull Request [#21](https://github.com/samuelperdigao/INVENTARIO/pull/21), branch
+`feat/login-loading-animation`, commit de código `f29f140`.
+
+- O login agora mostra uma tela animada enquanto a autenticação aguarda resposta, com a identidade azul do INVENTÁRIO.
+- A mensagem avisa que a primeira conexão após um período sem uso pode demorar um pouco mais.
+- O progresso é indeterminado, sem porcentagem simulada; `prefers-reduced-motion` é respeitado.
+- Quality Gates do GitHub Actions, run #106: lint, TypeScript, Vitest, build de produção, Pytest, Alembic e Playwright concluídos com sucesso.
+- Preview da Vercel concluído com sucesso; a rota `/acesso` carregou no Chrome desktop.
+- Mudança somente no frontend; backend, banco, contratos e fluxos de autenticação não foram alterados.
+
+Atualizado em 24/09/2026.
+
+## Registro anterior — refinamento do dashboard desktop
 
 Branch de trabalho: `feat/dashboard-desktop-redesign`, baseada na `main` em
 `e9783ac`.

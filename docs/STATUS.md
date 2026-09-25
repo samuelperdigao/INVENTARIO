@@ -1,11 +1,18 @@
 # Status do projeto
 
+## Corrida entre coleta local e polling de sincronização
+
+- Diagnóstico reproduzido: uma resposta de sincronização iniciada antes de um lançamento local podia retornar depois da gravação e comparar a revisão remota antiga com o estado local novo, criando um falso conflito de metadados. A resposta de um envio anterior também podia deixar alterações feitas durante a chamada com revisão-base antiga.
+- Correção local: reconciliar a resposta com o snapshot enviado; recalcular a revisão-base apenas quando os campos operacionais protegidos continuam iguais; manter conflitos de encerramento, tombstone, geração e divergência real; enviar automaticamente alterações locais que chegaram durante a requisição, com limite de três tentativas extras.
+- Validação local: ESLint, TypeScript, Vitest (78 testes), Pytest (69 testes, 4 avisos), build de produção, Chromium, Playwright (12 cenários) e `git diff --check` aprovados.
+- Estado operacional em 24/09/2026: os 55 registros e 748 peças permanecem preservados no dispositivo; 55 dos 370 lotes de referência encontrados, 315 pendentes, nenhum fora da referência, nenhum fragmentado. O usuário já escolheu a versão central para o conflito de metadados; essa resolução será reaplicada após a publicação da correção.
+
 ## Renovação de sessão na sincronização
 
 - Diagnóstico: o endpoint central registrava respostas `401` para `/api/v1/sync` após o access token de 15 minutos expirar. O cliente mantinha o token expirado em memória e não tentava renovar a sessão; a interface preservava os lançamentos locais, mas o envio permanecia pendente.
 - Correção local: renovar a sessão antes de usar um access token expirado. Se a sincronização receber `401` durante uma corrida de expiração, repetir uma única vez o mesmo payload e os mesmos IDs com o token renovado. Se a sessão renovável também tiver expirado, informar que é necessário entrar novamente e manter os dados locais.
 - Validação local: ESLint, TypeScript, Vitest (76 testes), Pytest (69 testes, 4 avisos de depreciação), build, instalação do Chromium, Playwright (12 cenários) e `git diff --check` aprovados.
-- Estado operacional: os 15 registros existentes continuam no dispositivo. A validação pública dessa correção com esses registros está pendente; a carga dos 355 lotes restantes permanece pausada.
+- Estado operacional da etapa anterior: os 15 registros originais continuam preservados. A sincronização pública e a carga dos lotes restantes aguardam a publicação e validação da correção de concorrência acima.
 
 ## Ajuste informacional da prévia da referência SAP
 

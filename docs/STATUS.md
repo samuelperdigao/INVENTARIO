@@ -1,5 +1,12 @@
 # Status do projeto
 
+## Renovação de sessão na sincronização
+
+- Diagnóstico: o endpoint central registrava respostas `401` para `/api/v1/sync` após o access token de 15 minutos expirar. O cliente mantinha o token expirado em memória e não tentava renovar a sessão; a interface preservava os lançamentos locais, mas o envio permanecia pendente.
+- Correção local: renovar a sessão antes de usar um access token expirado. Se a sincronização receber `401` durante uma corrida de expiração, repetir uma única vez o mesmo payload e os mesmos IDs com o token renovado. Se a sessão renovável também tiver expirado, informar que é necessário entrar novamente e manter os dados locais.
+- Validação local: ESLint, TypeScript, Vitest (76 testes), Pytest (69 testes, 4 avisos de depreciação), build, instalação do Chromium, Playwright (12 cenários) e `git diff --check` aprovados.
+- Estado operacional: os 15 registros existentes continuam no dispositivo. A validação pública dessa correção com esses registros está pendente; a carga dos 355 lotes restantes permanece pausada.
+
 ## Ajuste informacional da prévia da referência SAP
 
 - Removido o aviso genérico de que uma célula numérica pode não permitir recuperar zeros à esquerda; permanece o aviso quando um número pode ter perdido precisão no Excel.

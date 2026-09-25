@@ -24,8 +24,9 @@ interface AuthResponse {
 
 const cachedUserKey = "inventory-cached-user";
 let accessToken: string | undefined;
+let accessTokenExpiresAt: number | undefined;
 let currentUser: AuthUser | undefined;
-let refreshRequest: Promise<AuthUser | undefined> | undefined;
+let refreshRequest: Promise<AuthUser> | undefined;
 
 function cacheUser(user: AuthUser): void {
   if (typeof window !== "undefined") window.localStorage.setItem(cachedUserKey, JSON.stringify(user));
@@ -51,9 +52,30 @@ async function authRequest(path: string, init: RequestInit = {}): Promise<AuthRe
   }
   const result = await response.json() as AuthResponse;
   accessToken = result.accessToken;
+  accessTokenExpiresAt = tokenExpiration(result.accessToken);
   currentUser = result.user;
   cacheUser(result.user);
   return result;
+}
+
+function tokenExpiration(token: string): number | undefined {
+  const payload = token.split(".")[1];
+  if (!payload) return undefined;
+  try {
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="))) as { exp?: unknown };
+    return typeof decoded.exp === "number" ? decoded.exp * 1000 : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function requestSessionRefresh(): Promise<AuthUser> {
+  if (refreshRequest) return refreshRequest;
+  const pending = authRequest("/api/v1/auth/refresh", { method: "POST", body: "{}" })
+    .then(({ user }) => user);
+  refreshRequest = pending.finally(() => { refreshRequest = undefined; });
+  return refreshRequest;
 }
 
 async function messageRequest(path: string, body: object): Promise<string> {
@@ -115,19 +137,27 @@ export async function loginAccount(input: { email: string; password: string }): 
 
 export async function restoreSession(): Promise<AuthUser | undefined> {
   if (accessToken && currentUser) return currentUser;
-  if (refreshRequest) return refreshRequest;
+  try {
+    return await requestSessionRefresh();
+  } catch {
+    // A renovação iniciada ao abrir a tela pode terminar depois de um login
+    // bem-sucedido. Nesse caso, não deve apagar a sessão recém-criada.
+    if (!accessToken) currentUser = currentUser ?? cachedUser();
+    return currentUser;
+  }
+}
 
-  refreshRequest = authRequest("/api/v1/auth/refresh", { method: "POST", body: "{}" })
-    .then(({ user }) => user)
-    .catch(() => {
-      // A renovação iniciada ao abrir a tela pode terminar depois de um login
-      // bem-sucedido. Nesse caso, não deve apagar a sessão recém-criada.
-      if (!accessToken) currentUser = currentUser ?? cachedUser();
-      return currentUser;
-    })
-    .finally(() => { refreshRequest = undefined; });
-
-  return refreshRequest;
+export async function refreshAuthenticatedSession(rejectedToken: string): Promise<{ accessToken: string; user: AuthUser }> {
+  if (accessToken && accessToken !== rejectedToken && currentUser) return { accessToken, user: currentUser };
+  try {
+    await requestSessionRefresh();
+  } catch {
+    throw new Error("Sua sessão expirou. Entre novamente; os dados locais continuam preservados.");
+  }
+  if (!accessToken || !currentUser || accessToken === rejectedToken) {
+    throw new Error("Sua sessão expirou. Entre novamente; os dados locais continuam preservados.");
+  }
+  return { accessToken, user: currentUser };
 }
 
 export async function getAuthenticatedContext(): Promise<{ accessToken: string; teamId: string }> {
@@ -139,6 +169,10 @@ export async function getAuthenticatedContext(): Promise<{ accessToken: string; 
 
 export async function getAuthenticatedSession(): Promise<{ accessToken: string; user: AuthUser }> {
   if (!accessToken || !currentUser) await restoreSession();
+  if (accessToken && currentUser && accessTokenExpiresAt !== undefined && accessTokenExpiresAt <= Date.now()) {
+    const expiredToken = accessToken;
+    await refreshAuthenticatedSession(expiredToken);
+  }
   if (!accessToken || !currentUser) throw new Error("Entre na sua conta antes de sincronizar. Seus dados locais continuam preservados.");
   return { accessToken, user: currentUser };
 }
@@ -176,6 +210,7 @@ export async function logoutAccount(): Promise<void> {
     await fetch(`${apiBaseUrl}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
   } finally {
     accessToken = undefined;
+    accessTokenExpiresAt = undefined;
     currentUser = undefined;
     if (typeof window !== "undefined") {
       window.sessionStorage.removeItem("inventory-active-team");

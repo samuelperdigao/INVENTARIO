@@ -3,9 +3,9 @@
 ## Corrida entre coleta local e polling de sincronização
 
 - Diagnóstico reproduzido: uma resposta de sincronização iniciada antes de um lançamento local podia retornar depois da gravação e comparar a revisão remota antiga com o estado local novo, criando um falso conflito de metadados. A resposta de um envio anterior também podia deixar alterações feitas durante a chamada com revisão-base antiga.
-- Correção local: reconciliar a resposta com o snapshot enviado; recalcular a revisão-base apenas quando os campos operacionais protegidos continuam iguais; manter conflitos de encerramento, tombstone, geração e divergência real; enviar automaticamente alterações locais que chegaram durante a requisição, com limite de três tentativas extras.
-- Validação local: ESLint, TypeScript, Vitest (78 testes), Pytest (69 testes, 4 avisos), build de produção, Chromium, Playwright (12 cenários) e `git diff --check` aprovados.
-- Estado operacional em 24/09/2026: os 55 registros e 748 peças permanecem preservados no dispositivo; 55 dos 370 lotes de referência encontrados, 315 pendentes, nenhum fora da referência, nenhum fragmentado. O usuário já escolheu a versão central para o conflito de metadados; essa resolução será reaplicada após a publicação da correção.
+- Correção publicada pelo PR #27 (merge commit `c490487`): reconciliar a resposta com o snapshot enviado; recalcular a revisão-base apenas quando os campos operacionais protegidos continuam iguais; manter conflitos reais; enviar automaticamente alterações locais concorrentes com limite de três tentativas extras. Nenhuma API, migration, Render ou Neon foi alterado.
+- Validação: ESLint, TypeScript, Vitest (78 testes), Pytest (69 testes, 4 avisos), build, Playwright (12 cenários), Quality Gates do PR e de `main`, e Production Smoke aprovados. Em produção, a página inicial, `/acesso` e `/backend-api/healthz` retornaram 200; o cabeçalho HSTS está presente.
+- Estado operacional em 24/09/2026: o registro anterior indica 55 lançamentos/748 peças preservados, 55 de 370 lotes encontrados e 315 pendentes. A sessão de navegador disponível não compartilha a IndexedDB da sessão original e informa que o inventário não está neste dispositivo; nenhum dado foi reimportado, descartado ou alterado nesta tentativa. O usuário escolheu a versão central para o conflito; é necessário retomar a sessão original do Chrome para aplicar essa escolha e continuar os 315 lotes pendentes.
 
 ## Renovação de sessão na sincronização
 
@@ -242,7 +242,7 @@ A tela operacional recebeu uma direção visual mais ousada e profissional, sem 
 ## Produção
 
 - `main` é a baseline estável.
-- Frontend ativo na Vercel: `https://inventario-lpe.vercel.app`.
+- Frontend ativo na Vercel: `https://inventariolpe.vercel.app`.
 - API ativa no Render: `https://inventory-api-6o8h.onrender.com`.
 - PostgreSQL ativo no Neon.
 - Migration `0008_inventory_lot_references` aplicada na inicialização do deploy do ambiente principal.

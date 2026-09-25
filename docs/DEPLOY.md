@@ -4,11 +4,11 @@
 
 | Componente | Provedor | Endereço |
 |---|---|---|
-| Frontend | Vercel | `https://inventario-lpe.vercel.app` |
+| Frontend | Vercel | `https://inventariolpe.vercel.app` |
 | API | Render | `https://inventory-api-6o8h.onrender.com` |
 | Banco | Neon | PostgreSQL, URL armazenada somente no Render |
 
-O navegador usa `https://inventario-lpe.vercel.app/backend-api/*`. A rewrite do Next.js encaminha essas requisições para o Render e mantém o fluxo de sessão no mesmo origin observado pelo navegador.
+O navegador usa `https://inventariolpe.vercel.app/backend-api/*`. A rewrite do Next.js encaminha essas requisições para o Render e mantém o fluxo de sessão no mesmo origin observado pelo navegador.
 
 ## Variáveis do frontend
 

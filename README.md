@@ -4,7 +4,7 @@ Aplicação mobile-first para coleta, sincronização, análise e fechamento de 
 
 ## Estado atual
 
-- Frontend publicado: [inventario-lpe.vercel.app](https://inventario-lpe.vercel.app)
+- Frontend publicado: [inventariolpe.vercel.app](https://inventariolpe.vercel.app)
 - Backend publicado: [inventory-api-6o8h.onrender.com](https://inventory-api-6o8h.onrender.com)
 - Banco de produção: PostgreSQL no Neon
 - Migration aplicada no ambiente principal: `0008_inventory_lot_references`

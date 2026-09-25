@@ -1,11 +1,13 @@
 import { afterEach, expect, it, vi } from "vitest";
 
+import { refreshAuthenticatedSession } from "@/lib/auth-client";
 import { db } from "@/lib/db";
 import { createEntry, createInventory } from "@/lib/inventory-repository";
 import { joinInventoryByCode, listSyncConflicts, resolveConflict, syncInventory } from "@/lib/sync-client";
 
 vi.mock("@/lib/auth-client", () => ({
   getAuthenticatedContext: vi.fn().mockResolvedValue({ accessToken: "test-access-token", teamId: "00000000-0000-4000-8000-000000000001" }),
+  refreshAuthenticatedSession: vi.fn().mockResolvedValue({ accessToken: "renewed-access-token", user: { id: "user-id", email: "operador@example.com", displayName: "Operador", recoveryPinConfigured: true, teams: [] } }),
 }));
 
 afterEach(() => vi.unstubAllGlobals());
@@ -34,6 +36,35 @@ it("confirma alterações locais somente após a resposta idempotente do servido
   expect((await db.entries.get(entry.id))?.syncStatus).toBe("SYNCED");
   expect((await db.entries.get(entry.id))?.layer).toBe("A1");
   expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/v1/sync"), expect.objectContaining({ headers: expect.objectContaining({ "X-Inventory-Sync-Token": inventory.syncToken }) }));
+});
+
+it("renova a sessão e repete uma sincronização após 401 sem alterar os dados locais", async () => {
+  const inventory = await createInventory("2026-09-11");
+  const entry = await createEntry(inventory.id, { side: "EF", bay: "01", layer: "A1", lot: "2712345678", quantity: 3 });
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response(null, { status: 401 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify(response(inventory.id, entry.id)), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  await syncInventory(inventory.id);
+
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(fetchMock.mock.calls[1]?.[1]?.body);
+  expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual(expect.objectContaining({ Authorization: "Bearer test-access-token" }));
+  expect(fetchMock.mock.calls[1]?.[1]?.headers).toEqual(expect.objectContaining({ Authorization: "Bearer renewed-access-token" }));
+  expect(await db.entries.get(entry.id)).toMatchObject({ syncStatus: "SYNCED", lot: "2712345678", quantity: 3 });
+});
+
+it("preserva os registros pendentes quando a sessão não pode ser renovada", async () => {
+  const inventory = await createInventory("2026-09-11");
+  const entry = await createEntry(inventory.id, { side: "EF", bay: "01", lot: "2712345678", quantity: 3 });
+  vi.mocked(refreshAuthenticatedSession).mockRejectedValueOnce(new Error("Sua sessão expirou. Entre novamente; os dados locais continuam preservados."));
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+
+  await expect(syncInventory(inventory.id)).rejects.toThrow("Entre novamente");
+
+  expect(await db.entries.get(entry.id)).toMatchObject({ syncStatus: "PENDING", lot: "2712345678", quantity: 3 });
+  expect(await db.inventories.get(inventory.id)).toMatchObject({ syncStatus: "PENDING" });
 });
 
 it("envia camada nula explicitamente e preserva a ausência de camada recebida", async () => {

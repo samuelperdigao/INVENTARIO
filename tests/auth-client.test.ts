@@ -8,11 +8,16 @@ const authenticatedUser = {
   teams: [],
 };
 
-function authenticatedResponse(): Response {
-  return new Response(JSON.stringify({ accessToken: "access-token", user: authenticatedUser }), {
+function authenticatedResponse(accessToken = "access-token"): Response {
+  return new Response(JSON.stringify({ accessToken, user: authenticatedUser }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function tokenWithExpiry(expiration: number): string {
+  const payload = btoa(JSON.stringify({ exp: expiration })).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+  return `header.${payload}.signature`;
 }
 
 afterEach(() => {
@@ -57,4 +62,20 @@ it("não descarta um login concluído por uma renovação anterior que falhou", 
   await expect(refresh).resolves.toEqual(authenticatedUser);
   await expect(restoreSession()).resolves.toEqual(authenticatedUser);
   expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+it("renova o access token expirado antes de entregar a sessão à próxima chamada", async () => {
+  const expiredToken = tokenWithExpiry(Math.floor(Date.now() / 1000) - 1);
+  const freshToken = tokenWithExpiry(Math.floor(Date.now() / 1000) + 900);
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(authenticatedResponse(expiredToken))
+    .mockResolvedValueOnce(authenticatedResponse(freshToken));
+  vi.stubGlobal("fetch", fetchMock);
+  const { getAuthenticatedSession, loginAccount } = await import("@/lib/auth-client");
+
+  await loginAccount({ email: authenticatedUser.email, password: "senha-segura" });
+  await expect(getAuthenticatedSession()).resolves.toMatchObject({ accessToken: freshToken, user: authenticatedUser });
+
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(fetchMock.mock.calls[1]?.[0]).toContain("/api/v1/auth/refresh");
 });

@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 
 import { apiBaseUrl } from "@/lib/api-config";
-import { getAuthenticatedContext } from "@/lib/auth-client";
+import { getAuthenticatedContext, refreshAuthenticatedSession } from "@/lib/auth-client";
 import { db } from "@/lib/db";
 import { listEntriesForSync, prepareInventoryForSync } from "@/lib/inventory-repository";
 import type { Inventory, InventoryEntry, SyncConflict, SyncMetadata } from "@/lib/models";
@@ -75,26 +75,34 @@ async function requestSync(
   payload: { inventory: Inventory | null; entries: InventoryEntry[]; cursor: number; generation: number },
 ): Promise<SyncResponse> {
   const auth = await getAuthenticatedContext();
-  const response = await fetch(`${apiBaseUrl}/api/v1/sync`, {
+  const url = `${apiBaseUrl}/api/v1/sync`;
+  const body = JSON.stringify({
+    deviceId: await getDeviceId(),
+    inventoryId,
+    teamId: auth.teamId || null,
+    cursor: payload.cursor,
+    operationalGeneration: payload.generation,
+    inventory: payload.inventory ? serializeInventory(payload.inventory) : null,
+    entries: payload.entries.map(serializeEntry),
+  });
+  const send = (accessToken: string) => fetch(url, {
     method: "POST",
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "X-Inventory-Sync-Token": syncToken,
-      Authorization: `Bearer ${auth.accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({
-      deviceId: await getDeviceId(),
-      inventoryId,
-      teamId: auth.teamId || null,
-      cursor: payload.cursor,
-      operationalGeneration: payload.generation,
-      inventory: payload.inventory ? serializeInventory(payload.inventory) : null,
-      entries: payload.entries.map(serializeEntry),
-    }),
+    body,
   });
+  let response = await send(auth.accessToken);
+  if (response.status === 401) {
+    const renewed = await refreshAuthenticatedSession(auth.accessToken);
+    response = await send(renewed.accessToken);
+  }
   if (!response.ok) {
     if (response.status === 403) throw new SyncHttpError(response.status, "Código de sincronização inválido para este inventário.");
+    if (response.status === 401) throw new SyncHttpError(response.status, "Sua sessão expirou. Entre novamente; os dados locais continuam preservados.");
     throw new SyncHttpError(response.status, "Não foi possível sincronizar agora. Os dados locais continuam preservados.");
   }
   return response.json() as Promise<SyncResponse>;

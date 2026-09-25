@@ -49,6 +49,12 @@ interface SyncSnapshot {
   entries: Map<string, InventoryEntry>;
 }
 
+interface AppliedSyncResult extends SyncResult {
+  followUpRequired: boolean;
+}
+
+const MAX_AUTOMATIC_FOLLOW_UPS = 3;
+
 function isEntry(record: Inventory | InventoryEntry): record is InventoryEntry {
   return "inventoryId" in record;
 }
@@ -267,28 +273,102 @@ function sameEntrySnapshot(current: InventoryEntry, snapshot?: InventoryEntry): 
     && current.syncBaseRevision === snapshot.syncBaseRevision;
 }
 
+function sameInventoryValues(left: Inventory, right: Inventory): boolean {
+  return left.id === right.id
+    && left.date === right.date
+    && left.status === right.status
+    && left.createdAt === right.createdAt
+    && left.tombstone === right.tombstone
+    && (left.deletedAt ?? null) === (right.deletedAt ?? null)
+    && (left.operationalGeneration ?? 1) === (right.operationalGeneration ?? 1);
+}
+
+function rebasePendingInventory(local: Inventory, snapshot: Inventory | undefined, remote: Inventory): Inventory | undefined {
+  if (!snapshot || local.syncStatus !== "PENDING" || local.revision <= snapshot.revision) return undefined;
+  if (local.status !== "OPEN" || local.tombstone || remote.status !== "OPEN" || remote.tombstone) return undefined;
+  if (!sameInventoryValues(local, snapshot) || !sameInventoryValues(snapshot, remote)) return undefined;
+
+  return {
+    ...local,
+    revision: Math.max(local.revision, remote.revision + 1),
+    syncBaseRevision: remote.revision,
+    updatedAt: local.updatedAt >= remote.updatedAt ? local.updatedAt : remote.updatedAt,
+    syncStatus: "PENDING",
+  };
+}
+
+function sameEntryValues(left: InventoryEntry, right: InventoryEntry): boolean {
+  return left.id === right.id
+    && left.inventoryId === right.inventoryId
+    && left.side === right.side
+    && left.bay === right.bay
+    && (left.layer ?? null) === (right.layer ?? null)
+    && left.lot === right.lot
+    && left.quantity === right.quantity
+    && Boolean(left.duplicateConfirmed) === Boolean(right.duplicateConfirmed)
+    && left.createdAt === right.createdAt
+    && left.tombstone === right.tombstone
+    && (left.deletedAt ?? null) === (right.deletedAt ?? null)
+    && (left.operationalGeneration ?? 1) === (right.operationalGeneration ?? 1);
+}
+
+function rebasePendingEntry(local: InventoryEntry, snapshot: InventoryEntry | undefined, remote: InventoryEntry): InventoryEntry | undefined {
+  if (!snapshot || local.syncStatus !== "PENDING" || local.revision <= snapshot.revision) return undefined;
+  if (local.inventoryId !== snapshot.inventoryId
+    || (local.operationalGeneration ?? 1) !== (snapshot.operationalGeneration ?? 1)
+    || !sameEntryValues(snapshot, remote)) return undefined;
+
+  return {
+    ...local,
+    revision: Math.max(local.revision, remote.revision + 1),
+    syncBaseRevision: remote.revision,
+    updatedAt: local.updatedAt >= remote.updatedAt ? local.updatedAt : remote.updatedAt,
+    syncStatus: "PENDING",
+  };
+}
+
 async function applyResponse(
   inventoryId: string,
   syncToken: string,
   response: SyncResponse,
   snapshot: SyncSnapshot,
-): Promise<SyncResult> {
+): Promise<AppliedSyncResult> {
   let received = 0;
   let changed = false;
   let remoteChanged = false;
+  let conflicts = 0;
+  let followUpRequired = false;
+  const serverConflictKeys = new Set(response.conflicts.map(({ entityType, entityId }) => `${entityType}:${entityId}`));
   await db.transaction("rw", db.inventories, db.entries, db.syncMetadata, db.syncConflicts, async () => {
     let receivedRemoteEntry = false;
     const localInventory = await db.inventories.get(inventoryId);
-    if (localInventory && response.acknowledged.inventory && sameInventorySnapshot(localInventory, snapshot.inventory)) {
-      const nextInventory: Inventory = {
-        ...localInventory,
-        participationCode: response.participationCode === null ? undefined : response.participationCode ?? localInventory.participationCode,
-        syncStatus: "SYNCED",
-        syncBaseRevision: localInventory.revision,
-      };
-      if (inventoryStateKey(localInventory) !== inventoryStateKey(nextInventory)) {
-        await db.inventories.put(nextInventory);
-        changed = true;
+    if (localInventory && response.acknowledged.inventory) {
+      if (sameInventorySnapshot(localInventory, snapshot.inventory)) {
+        const serverRevision = response.inventory?.revision ?? localInventory.revision;
+        const nextInventory: Inventory = {
+          ...localInventory,
+          revision: Math.max(localInventory.revision, serverRevision),
+          participationCode: response.participationCode === null ? undefined : response.participationCode ?? localInventory.participationCode,
+          syncStatus: "SYNCED",
+          syncBaseRevision: serverRevision,
+        };
+        if (inventoryStateKey(localInventory) !== inventoryStateKey(nextInventory)) {
+          await db.inventories.put(nextInventory);
+          changed = true;
+        }
+      } else if (response.inventory) {
+        const remote = remoteInventory(response.inventory, syncToken, response.participationCode, localInventory.isOwner);
+        const rebased = rebasePendingInventory(localInventory, snapshot.inventory, remote);
+        if (rebased) {
+          await db.inventories.put(rebased);
+          changed = true;
+          followUpRequired = true;
+        } else if (localInventory.syncStatus === "PENDING") {
+          await recordConflict(inventoryId, "inventory", localInventory, remote);
+          await db.inventories.put({ ...localInventory, syncStatus: "ERROR" });
+          changed = true;
+          conflicts += 1;
+        }
       }
     }
 
@@ -296,14 +376,38 @@ async function applyResponse(
     const authoritativeEntries = new Map(response.entries.map((entry) => [entry.id, entry]));
     for (const entryId of response.acknowledged.entryIds) {
       const localEntry = await db.entries.get(entryId);
-      if (localEntry && sameEntrySnapshot(localEntry, snapshot.entries.get(entryId))) {
+      if (localEntry) {
+        const snapshotEntry = snapshot.entries.get(entryId);
         const authoritative = authoritativeEntries.get(entryId);
-        const nextEntry: InventoryEntry = authoritative
-          ? remoteEntry(authoritative)
-          : { ...localEntry, syncStatus: "SYNCED", syncBaseRevision: localEntry.revision };
-        if (entryStateKey(localEntry) !== entryStateKey(nextEntry)) {
-          await db.entries.put(nextEntry);
-          changed = true;
+        if (sameEntrySnapshot(localEntry, snapshotEntry)) {
+          const nextEntry: InventoryEntry = authoritative
+            ? remoteEntry(authoritative)
+            : { ...localEntry, syncStatus: "SYNCED", syncBaseRevision: localEntry.revision };
+          if (entryStateKey(localEntry) !== entryStateKey(nextEntry)) {
+            await db.entries.put(nextEntry);
+            changed = true;
+          }
+        } else if (authoritative && snapshotEntry) {
+          const remote = remoteEntry(authoritative);
+          const rebased = rebasePendingEntry(localEntry, snapshotEntry, remote);
+          if (rebased) {
+            await db.entries.put(rebased);
+            changed = true;
+            followUpRequired = true;
+          } else if (localEntry.syncStatus === "PENDING") {
+            await recordConflict(inventoryId, "entry", localEntry, remote);
+            await db.entries.put({ ...localEntry, syncStatus: "ERROR" });
+            changed = true;
+            conflicts += 1;
+          }
+        } else if (snapshotEntry && localEntry.syncStatus === "PENDING") {
+          const acceptedSnapshot = { ...snapshotEntry, syncStatus: "SYNCED" as const };
+          const rebased = rebasePendingEntry(localEntry, snapshotEntry, acceptedSnapshot);
+          if (rebased) {
+            await db.entries.put(rebased);
+            changed = true;
+            followUpRequired = true;
+          }
         }
       }
     }
@@ -332,12 +436,26 @@ async function applyResponse(
           await db.inventories.put({ ...local, syncStatus: "ERROR" });
           changed = true;
         }
+        conflicts += 1;
+      } else if (local.syncStatus === "PENDING") {
+        const rebased = rebasePendingInventory(local, snapshot.inventory, remote);
+        if (rebased) {
+          await db.inventories.put(rebased);
+          changed = true;
+          followUpRequired = true;
+        } else if (local.revision !== remote.revision && !serverConflictKeys.has(`inventory:${local.id}`)) {
+          await recordConflict(inventoryId, "inventory", local, remote);
+          await db.inventories.put({ ...local, syncStatus: "ERROR" });
+          changed = true;
+          conflicts += 1;
+        }
       } else if (local.revision !== remote.revision) {
         await recordConflict(inventoryId, "inventory", local, remote);
         if (local.syncStatus !== "ERROR") {
           await db.inventories.put({ ...local, syncStatus: "ERROR" });
           changed = true;
         }
+        conflicts += 1;
       }
       if (remote.tombstone || (remote.operationalGeneration ?? 1) > (snapshot.inventory?.operationalGeneration ?? 1)) {
         const pending = await db.entries.where("inventoryId").equals(inventoryId).filter((item) =>
@@ -348,6 +466,7 @@ async function applyResponse(
           await recordConflict(inventoryId, "entry", item, serverRecord ? remoteEntry(serverRecord) : { ...item, operationalGeneration: remote.operationalGeneration, revision: 0 });
           await db.entries.put({ ...item, syncStatus: "ERROR" });
           changed = true;
+          conflicts += 1;
         }
       }
     }
@@ -373,12 +492,26 @@ async function applyResponse(
           remoteChanged = true;
           receivedRemoteEntry = true;
         }
+      } else if (local.syncStatus === "PENDING") {
+        const rebased = rebasePendingEntry(local, snapshot.entries.get(remote.id), remote);
+        if (rebased) {
+          await db.entries.put(rebased);
+          changed = true;
+          followUpRequired = true;
+        } else if ((local.revision !== remote.revision || (local.operationalGeneration ?? 1) !== (remote.operationalGeneration ?? 1))
+          && !serverConflictKeys.has(`entry:${local.id}`)) {
+          await recordConflict(inventoryId, "entry", local, remote);
+          await db.entries.put({ ...local, syncStatus: "ERROR" });
+          changed = true;
+          conflicts += 1;
+        }
       } else if (local.revision !== remote.revision || (local.operationalGeneration ?? 1) !== (remote.operationalGeneration ?? 1)) {
         await recordConflict(inventoryId, "entry", local, remote);
         if (local.syncStatus !== "ERROR") {
           await db.entries.put({ ...local, syncStatus: "ERROR" });
           changed = true;
         }
+        conflicts += 1;
       }
     }
 
@@ -411,6 +544,7 @@ async function applyResponse(
           ? remoteEntry(conflict.serverRecord as SyncResponse["entries"][number])
           : { ...local as InventoryEntry, revision: 0, operationalGeneration: response.inventory?.operationalGeneration ?? 1 };
       await recordConflict(inventoryId, conflict.entityType, local, remote);
+      conflicts += 1;
       if (isEntry(local)) {
         if (local.syncStatus !== "ERROR") {
           await db.entries.put({ ...local, syncStatus: "ERROR" });
@@ -426,16 +560,17 @@ async function applyResponse(
     await db.syncMetadata.put(metadata);
   });
   return {
-    conflicts: response.conflicts.length,
+    conflicts,
     received,
     changed,
     remoteChanged,
     serverStatus: response.inventory?.status,
     serverDeleted: response.inventory?.tombstone === true,
+    followUpRequired,
   };
 }
 
-async function performSync(inventoryId: string, background: boolean, pullOnly = false): Promise<SyncResult> {
+async function performSync(inventoryId: string, background: boolean, pullOnly = false, followUpCount = 0): Promise<SyncResult> {
   const inventory = await prepareInventoryForSync(inventoryId);
   const entries = await listEntriesForSync(inventoryId);
   const snapshot: SyncSnapshot = { inventory, entries: new Map(entries.map((entry) => [entry.id, entry])) };
@@ -447,10 +582,23 @@ async function performSync(inventoryId: string, background: boolean, pullOnly = 
       inventory: pullOnly ? null : inventory.syncStatus === "PENDING" ? inventory : null,
       entries: pullOnly || inventory.tombstone ? [] : pendingEntries(entries),
     });
-    return applyResponse(inventoryId, inventory.syncToken, response, snapshot);
+    const applied = await applyResponse(inventoryId, inventory.syncToken, response, snapshot);
+    const { followUpRequired, ...result } = applied;
+    if (followUpRequired && result.conflicts === 0 && followUpCount < MAX_AUTOMATIC_FOLLOW_UPS) {
+      const followUp = await performSync(inventoryId, background, false, followUpCount + 1);
+      return {
+        conflicts: result.conflicts + followUp.conflicts,
+        received: result.received + followUp.received,
+        changed: result.changed || followUp.changed,
+        remoteChanged: result.remoteChanged || followUp.remoteChanged,
+        serverStatus: followUp.serverStatus ?? result.serverStatus,
+        serverDeleted: followUp.serverDeleted ?? result.serverDeleted,
+      };
+    }
+    return result;
   } catch (cause) {
     if (!pullOnly && cause instanceof SyncHttpError && cause.status === 409) {
-      return performSync(inventoryId, background, true);
+      return performSync(inventoryId, background, true, followUpCount);
     }
     throw cause;
   }

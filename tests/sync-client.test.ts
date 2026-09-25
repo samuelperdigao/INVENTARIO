@@ -2,8 +2,9 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { refreshAuthenticatedSession } from "@/lib/auth-client";
 import { db } from "@/lib/db";
-import { createEntry, createInventory } from "@/lib/inventory-repository";
+import { createEntry, createInventory, updateEntry } from "@/lib/inventory-repository";
 import { joinInventoryByCode, listSyncConflicts, resolveConflict, syncInventory } from "@/lib/sync-client";
+import type { Inventory, InventoryEntry } from "@/lib/models";
 
 vi.mock("@/lib/auth-client", () => ({
   getAuthenticatedContext: vi.fn().mockResolvedValue({ accessToken: "test-access-token", teamId: "00000000-0000-4000-8000-000000000001" }),
@@ -22,6 +23,41 @@ function response(inventoryId: string, entryId: string, revision = 1) {
     entries: [{ id: entryId, inventoryId, side: "EF", bay: "01", layer: "A1", lot: "2712345678", quantity: 3, duplicateConfirmed: false, createdAt: timestamp, updatedAt: timestamp, revision, syncBaseRevision: revision, tombstone: false, deletedAt: null }],
     acknowledged: { inventory: true, entryIds: [entryId] },
     conflicts: [] as ServerConflict[],
+  };
+}
+
+function inventoryRecord(inventory: Inventory, revision = inventory.revision) {
+  return {
+    id: inventory.id,
+    date: inventory.date,
+    status: inventory.status,
+    createdAt: inventory.createdAt,
+    updatedAt: inventory.updatedAt,
+    revision,
+    syncBaseRevision: revision,
+    tombstone: inventory.tombstone,
+    deletedAt: inventory.deletedAt ?? null,
+    operationalGeneration: inventory.operationalGeneration ?? 1,
+  };
+}
+
+function entryRecord(entry: InventoryEntry) {
+  return {
+    id: entry.id,
+    inventoryId: entry.inventoryId,
+    side: entry.side,
+    bay: entry.bay,
+    layer: entry.layer ?? null,
+    lot: entry.lot,
+    quantity: entry.quantity,
+    duplicateConfirmed: Boolean(entry.duplicateConfirmed),
+    createdAt: entry.createdAt,
+    updatedAt: entry.updatedAt,
+    revision: entry.revision,
+    syncBaseRevision: entry.revision,
+    tombstone: entry.tombstone,
+    deletedAt: entry.deletedAt ?? null,
+    operationalGeneration: entry.operationalGeneration ?? 1,
   };
 }
 
@@ -162,17 +198,122 @@ it("não sobrescreve um lançamento feito enquanto a requisição estava em voo"
   const inventory = await createInventory("2026-09-17");
   const entry = await createEntry(inventory.id, { side: "EF", bay: "03", lot: "2712345682", quantity: 2 });
   let resolveRequest: ((value: Response) => void) | undefined;
-  const fetchMock = vi.fn().mockImplementation(() => new Promise<Response>((resolve) => { resolveRequest = resolve; }));
+  const fetchMock = vi.fn().mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveRequest = resolve; }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const inventoryAtRequestStart = await db.inventories.get(inventory.id);
+  if (!inventoryAtRequestStart) throw new Error("Inventário não encontrado no teste.");
+  const syncing = syncInventory(inventory.id);
+  await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  const newerEntry = await createEntry(inventory.id, { side: "DE", bay: "04", lot: "2712345683", quantity: 4 });
+  const inventoryAfterEdit = await db.inventories.get(inventory.id);
+  if (!inventoryAfterEdit) throw new Error("Inventário não encontrado no teste.");
+  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+    ...response(inventory.id, newerEntry.id),
+    inventory: inventoryRecord(inventoryAfterEdit, 3),
+    entries: [entryRecord(newerEntry)],
+    acknowledged: { inventory: true, entryIds: [newerEntry.id] },
+  }), { status: 200 }));
+  const firstServerResponse = {
+    ...response(inventory.id, entry.id),
+    inventory: inventoryRecord(inventoryAtRequestStart, 2),
+  };
+  resolveRequest?.(new Response(JSON.stringify(firstServerResponse), { status: 200 }));
+  await syncing;
+
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  const followUp = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as {
+    inventory: { revision: number; syncBaseRevision: number };
+    entries: Array<{ id: string }>;
+  };
+  expect(followUp.inventory).toMatchObject({ revision: 3, syncBaseRevision: 2 });
+  expect(followUp.entries.map(({ id }) => id)).toContain(newerEntry.id);
+  expect((await db.entries.get(newerEntry.id))?.syncStatus).toBe("SYNCED");
+  expect((await db.inventories.get(inventory.id))).toMatchObject({ revision: 3, syncBaseRevision: 3, syncStatus: "SYNCED" });
+});
+
+it("rebaseia uma edição local feita durante o envio de um lançamento", async () => {
+  const inventory = await createInventory("2026-09-17");
+  const entry = await createEntry(inventory.id, { side: "EF", bay: "03", lot: "2712345686", quantity: 2 });
+  const inventoryAtRequestStart = await db.inventories.get(inventory.id);
+  if (!inventoryAtRequestStart) throw new Error("Inventário não encontrado no teste.");
+  let resolveRequest: ((value: Response) => void) | undefined;
+  const fetchMock = vi.fn().mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveRequest = resolve; }));
   vi.stubGlobal("fetch", fetchMock);
 
   const syncing = syncInventory(inventory.id);
   await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-  const newerEntry = await createEntry(inventory.id, { side: "DE", bay: "04", lot: "2712345683", quantity: 4 });
-  resolveRequest?.(new Response(JSON.stringify(response(inventory.id, entry.id)), { status: 200 }));
+  const entryAtRequestStart = await db.entries.get(entry.id);
+  if (!entryAtRequestStart) throw new Error("Lançamento não encontrado no teste.");
+  const updatedEntry = await updateEntry(entry.id, { side: "EF", bay: "03", lot: "2712345687", quantity: 4 });
+  const inventoryAfterEdit = await db.inventories.get(inventory.id);
+  if (!inventoryAfterEdit) throw new Error("Inventário não encontrado no teste.");
+  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+    ...response(inventory.id, updatedEntry.id),
+    inventory: inventoryRecord(inventoryAfterEdit, 3),
+    entries: [entryRecord(updatedEntry)],
+    acknowledged: { inventory: true, entryIds: [updatedEntry.id] },
+  }), { status: 200 }));
+  resolveRequest?.(new Response(JSON.stringify({
+    ...response(inventory.id, entry.id),
+    inventory: inventoryRecord(inventoryAtRequestStart, 2),
+    entries: [entryRecord(entryAtRequestStart)],
+  }), { status: 200 }));
   await syncing;
 
-  expect((await db.entries.get(newerEntry.id))?.syncStatus).toBe("PENDING");
-  expect((await db.inventories.get(inventory.id))).toMatchObject({ revision: 3, syncStatus: "PENDING" });
+  const followUp = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as {
+    inventory: { syncBaseRevision: number };
+    entries: Array<{ id: string; lot: string; revision: number; syncBaseRevision: number }>;
+  };
+  expect(followUp.inventory.syncBaseRevision).toBe(2);
+  expect(followUp.entries).toEqual([expect.objectContaining({
+    id: entry.id,
+    lot: "2712345687",
+    revision: 2,
+    syncBaseRevision: 1,
+  })]);
+  expect(await db.entries.get(entry.id)).toMatchObject({ lot: "2712345687", quantity: 4, syncStatus: "SYNCED", syncBaseRevision: 2 });
+});
+
+it("ignora uma resposta de polling antiga quando um lançamento é salvo durante a leitura", async () => {
+  const inventory = await createInventory("2026-09-17");
+  const entry = await createEntry(inventory.id, { side: "EF", bay: "03", lot: "2712345684", quantity: 2 });
+  let resolvePolling: ((value: Response) => void) | undefined;
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify(response(inventory.id, entry.id)), { status: 200 }))
+    .mockImplementationOnce(() => new Promise<Response>((resolve) => { resolvePolling = resolve; }));
+  vi.stubGlobal("fetch", fetchMock);
+  await syncInventory(inventory.id);
+
+  const polling = syncInventory(inventory.id);
+  await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  const inventoryBeforeEdit = await db.inventories.get(inventory.id);
+  if (!inventoryBeforeEdit) throw new Error("Inventário não encontrado no teste.");
+  const newerEntry = await createEntry(inventory.id, { side: "DE", bay: "04", lot: "2712345685", quantity: 4 });
+  const inventoryAfterEdit = await db.inventories.get(inventory.id);
+  if (!inventoryAfterEdit) throw new Error("Inventário não encontrado no teste.");
+  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+    ...response(inventory.id, newerEntry.id),
+    inventory: inventoryRecord(inventoryAfterEdit, 4),
+    entries: [entryRecord(newerEntry)],
+    acknowledged: { inventory: true, entryIds: [newerEntry.id] },
+  }), { status: 200 }));
+  resolvePolling?.(new Response(JSON.stringify({
+    ...response(inventory.id, entry.id),
+    inventory: inventoryRecord(inventoryBeforeEdit, 3),
+    entries: [],
+    acknowledged: { inventory: false, entryIds: [] },
+  }), { status: 200 }));
+  await polling;
+
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+  const followUp = JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body)) as {
+    inventory: { revision: number; syncBaseRevision: number };
+  };
+  expect(followUp.inventory).toMatchObject({ revision: 4, syncBaseRevision: 3 });
+  expect(await listSyncConflicts(inventory.id)).toHaveLength(0);
+  expect((await db.entries.get(newerEntry.id))?.syncStatus).toBe("SYNCED");
+  expect((await db.inventories.get(inventory.id))).toMatchObject({ revision: 4, syncBaseRevision: 4, syncStatus: "SYNCED" });
 });
 
 it("faz somente uma leitura quando o servidor já finalizou durante um polling", async () => {
@@ -194,6 +335,7 @@ it("faz somente uma leitura quando o servidor já finalizou durante um polling",
   const result = await syncInventory(inventory.id, { background: true });
 
   expect(result.serverStatus).toBe("FINISHED");
+  expect(result.conflicts).toBe(1);
   expect(fetchMock).toHaveBeenCalledTimes(2);
   expect((await db.inventories.get(inventory.id))?.syncStatus).toBe("ERROR");
   expect(await listSyncConflicts(inventory.id)).toHaveLength(1);

@@ -4,7 +4,8 @@
 
 - Baseline verificada: `main` e `origin/main` estão alinhadas no commit
   `6c1a11c45dde3407ecf9f2a8c313ca88213f864b`, publicado pelo Pull Request
-  #28. Não há divergência de código entre o checkout local e o GitHub.
+  #28. O checkout desta auditoria parte exatamente desse commit antes das
+  alterações documentais e da limpeza registrada abaixo.
 - GitHub Actions do commit atual: `Quality Gates` (`36081904376`) e
   `Production Smoke` (`36081904388`) concluídos com sucesso.
 - Gates locais desta auditoria: ESLint aprovado; TypeScript aprovado; Vitest

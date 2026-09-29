@@ -16,7 +16,7 @@
 - Correções de inventários finalizados não liberam edição operacional. Cada correção recalcula o relatório oficial e grava uma nova versão imutável em `admin_report_versions`. A migration copia os snapshots finalizados preexistentes para a versão 1.
 - Finalizações após reabertura criam outra versão. Versões anteriores podem ser consultadas e exportadas nos quatro formatos pela interface administrativa.
 - A transferência muda somente o responsável daquele inventário. Os autores dos lançamentos continuam registrados. O novo responsável vê o inventário no dashboard e recebe uma credencial de acesso específica da própria conta, sem expor o token anterior.
-- Importação SAP usa o parser existente: `.xlsx`, coluna `Lotes`, dez dígitos com início 27 ou 28. Peso e demais colunas não são persistidos. Lotes fora da referência continuam lançáveis.
+- Importação SAP usa o parser existente: `.xlsx`, coluna `Lote` ou `Lotes`, dez dígitos com início 27 ou 28. Peso e demais colunas não são persistidos. Lotes fora da referência continuam lançáveis.
 
 ## Primeira conta administrativa
 

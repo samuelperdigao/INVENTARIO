@@ -10,6 +10,11 @@
 
 O navegador usa `https://inventariolpe.vercel.app/backend-api/*`. A rewrite do Next.js encaminha essas requisições para o Render e mantém o fluxo de sessão no mesmo origin observado pelo navegador.
 
+A versão pública de referência desta documentação é a `main` em
+`6c1a11c45dde3407ecf9f2a8c313ca88213f864b`. A revisão Alembic esperada no
+ambiente principal é `0009_system_admin`; não repita essa migration em uma
+publicação posterior.
+
 ## Variáveis do frontend
 
 | Variável | Escopo | Uso |
@@ -48,16 +53,16 @@ Não copie valores reais para Git, documentação, logs, issues ou Pull Requests
 ## Ordem de publicação
 
 Para o painel administrativo, leia `docs/ADMINISTRACAO.md`. A revisão
-`0009_system_admin` precisa estar aplicada antes da publicação do backend:
-o login consulta a nova tabela `system_admins`. Valide a migration em uma
-branch de banco, faça snapshot ou backup verificado e use conexão direta para
-o Alembic. Não atribua a primeira permissão sem o endereço indicado pelo usuário.
+`0009_system_admin` já está aplicada no ambiente principal e o login consulta
+a tabela `system_admins`. Para uma nova migration, valide-a em uma branch de
+banco, faça snapshot ou backup verificado e use conexão direta para o Alembic.
+Não atribua a primeira permissão sem o endereço indicado pelo usuário.
 
 1. Criar a branch de release a partir da `main` atual.
 2. Executar todos os quality gates locais.
 3. Abrir Pull Request e aguardar o workflow `Quality Gates` concluir com sucesso.
-4. Confirmar a revisão atual `0008_inventory_lot_references`, criar e verificar um ponto de recuperação, e aplicar `0009_system_admin` no Neon antes do merge. Consultar `docs/ADMINISTRACAO.md`.
-5. Confirmar `alembic current` na revisão esperada.
+4. Criar e verificar um ponto de recuperação e aplicar somente as novas migrations necessárias no Neon antes do merge. Consultar `docs/ADMINISTRACAO.md`.
+5. Confirmar `alembic current` na revisão esperada, que na linha atual é `0009_system_admin`.
 6. Integrar o Pull Request sem force push.
 7. Aguardar os deploys automáticos de Render e Vercel.
 8. Confirmar o workflow `Production Smoke` e fazer verificação manual do fluxo alterado.
@@ -76,7 +81,7 @@ Use a variável apenas no processo confiável. Não registre a linha real no his
 ## Smoke test mínimo
 
 - `GET /healthz` retorna 200 e `{"status":"ok"}`.
-- Landing page e `/acesso` carregam por HTTPS.
+- `/` pode responder 307 para `/acesso`; `/acesso` deve carregar por HTTPS.
 - `/backend-api/healthz` funciona pelo frontend.
 - Headers HSTS e `X-Content-Type-Options` estão presentes.
 - Cadastro rejeita NP com tamanho diferente de oito dígitos.

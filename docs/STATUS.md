@@ -1,5 +1,40 @@
 # Status do projeto
 
+## Auditoria de prontidão — 29/09/2026
+
+- Baseline verificada: `main` e `origin/main` estão alinhadas no commit
+  `6c1a11c45dde3407ecf9f2a8c313ca88213f864b`, publicado pelo Pull Request
+  #28. Não há divergência de código entre o checkout local e o GitHub.
+- GitHub Actions do commit atual: `Quality Gates` (`36081904376`) e
+  `Production Smoke` (`36081904388`) concluídos com sucesso.
+- Gates locais desta auditoria: ESLint aprovado; TypeScript aprovado; Vitest
+  com 14 arquivos e 78 testes aprovados; Pytest com 69 testes aprovados e 4
+  avisos de dependências; build de produção aprovado; Alembic SQLite aplicado
+  até `0009_system_admin (head)`; Playwright com 12 cenários aprovados em
+  aproximadamente 3m12s.
+- Smoke público manual: `/` respondeu 307 para `/acesso`; `/acesso`, a API
+  Render e a rewrite `/backend-api/healthz` responderam 200; a análise válida
+  respondeu 200 e a análise com lote inválido respondeu 422; NP de recuperação
+  inválido respondeu 422; refresh sem sessão respondeu 401. HSTS,
+  `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e
+  `Permissions-Policy` estão presentes.
+- O ambiente local desta auditoria expôs `pnpm 11.25.0`, enquanto o projeto
+  declara `pnpm 10.15.1`; por isso a confirmação autoritativa do gerenciador
+  fixado permanece sendo o workflow verde do GitHub Actions. O projeto não
+  foi alterado para acomodar essa diferença local.
+- Pendências de prontidão real: validar instalação, cache e compartilhamento
+  em Android físico e Safari/iPhone físico; validar a operação com a sessão
+  original do Chrome que contém o inventário de campo pendente. Nenhum dado
+  local foi reimportado, descartado ou alterado nesta auditoria.
+
+## Limpeza de artefatos sem referência
+
+- O componente `components/landing-product-preview.tsx` e o módulo
+  `app/landing.module.css` não possuíam referências na aplicação atual e foram
+  removidos nesta branch. O Pull Request #13, aberto em 14/09/2026, continua
+  como resíduo de GitHub incompatível com a base atual e deve ser encerrado
+  depois que esta limpeza for integrada.
+
 ## Corrida entre coleta local e polling de sincronização
 
 - Diagnóstico reproduzido: uma resposta de sincronização iniciada antes de um lançamento local podia retornar depois da gravação e comparar a revisão remota antiga com o estado local novo, criando um falso conflito de metadados. A resposta de um envio anterior também podia deixar alterações feitas durante a chamada com revisão-base antiga.
@@ -241,16 +276,14 @@ A tela operacional recebeu uma direção visual mais ousada e profissional, sem 
 
 ## Produção
 
-- `main` é a baseline estável.
+- `main` é a baseline estável no commit `6c1a11c45dde3407ecf9f2a8c313ca88213f864b`.
 - Frontend ativo na Vercel: `https://inventariolpe.vercel.app`.
 - API ativa no Render: `https://inventory-api-6o8h.onrender.com`.
-- PostgreSQL ativo no Neon.
-- Migration `0008_inventory_lot_references` aplicada na inicialização do deploy do ambiente principal.
-- Os workflows `Quality Gates` e `Production Smoke` do commit `cbc55dd` concluíram com sucesso.
-- O frontend publicado na Vercel continua respondendo e a rewrite `/backend-api/healthz` respondeu `{"status":"ok"}`.
-- O redeploy manual do Render foi concluído com `live` para o commit `adfdc60`, que contém o código funcional do `cbc55dd`.
-- O smoke público funcional confirmou a correção: tanto `https://inventory-api-6o8h.onrender.com/api/v1/analysis/preview` quanto a rewrite da Vercel recusam `lot: "123"` com HTTP 422 e aceitam `2712345678` com HTTP 200.
-- O health check direto da API e a rewrite `/backend-api/healthz` respondem `{"status":"ok"}`; não houve logs de erro no intervalo do redeploy e da validação.
+- PostgreSQL ativo no Neon; a revisão principal esperada é `0009_system_admin`.
+- Os workflows `Quality Gates` e `Production Smoke` do commit atual concluíram
+  com sucesso.
+- O smoke público confirma a rewrite `/backend-api/healthz`, a validação de
+  cadastro e refresh e o contrato público da análise.
 
 ## Histórico — entrega publicada: referência opcional de lotes SAP
 

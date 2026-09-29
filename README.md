@@ -7,10 +7,13 @@ Aplicação mobile-first para coleta, sincronização, análise e fechamento de 
 - Frontend publicado: [inventariolpe.vercel.app](https://inventariolpe.vercel.app)
 - Backend publicado: [inventory-api-6o8h.onrender.com](https://inventory-api-6o8h.onrender.com)
 - Banco de produção: PostgreSQL no Neon
-- Migration aplicada no ambiente principal: `0008_inventory_lot_references`
+- Migration aplicada no ambiente principal: `0009_system_admin`
 - Referência SAP via Excel publicada no commit `9e05c46`
 - Baseline estável: branch `main`
 - Pendências conhecidas: validação em Android e Safari/iPhone físicos
+
+A entrada pública `/` redireciona para `/acesso`, que reúne a apresentação do
+sistema e o acesso à conta. A operação autenticada fica em `/dashboard`.
 
 O estado operacional mais recente fica em [`docs/STATUS.md`](docs/STATUS.md).
 
@@ -133,7 +136,8 @@ Toda alteração de schema deve gerar uma nova migration. Não edite migrations 
 
 A revisão `0009_system_admin` acrescenta permissão global, auditoria, gerações
 operacionais e versões de relatórios. Ela preserva como versão 1 os relatórios
-finalizados anteriormente. Aplique-a antes do deploy da API correspondente.
+finalizados anteriormente e é a revisão corrente do ambiente principal. Em um
+ambiente local novo, `upgrade head` aplica toda a cadeia até essa revisão.
 
 ```bash
 backend/.venv/bin/python -m alembic -c backend/alembic.ini current

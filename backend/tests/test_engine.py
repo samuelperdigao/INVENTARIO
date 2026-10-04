@@ -1,4 +1,4 @@
-from app.engine import AnalysisEntry, analyze_entries
+from app.engine import AnalysisEntry, analyze_entries, is_fragmented_location_count
 
 
 def entry(side: str, bay: str, lot: str, quantity: int, layer: str | None = None) -> AnalysisEntry:
@@ -15,6 +15,12 @@ def test_one_location_is_ok() -> None:
     assert result["classification"] == "OK"
     assert result["fragmented"] is False
     assert result["totalQuantity"] == 8
+
+
+def test_fragmented_boundary_requires_more_than_one_distinct_location() -> None:
+    assert is_fragmented_location_count(0) is False
+    assert is_fragmented_location_count(1) is False
+    assert is_fragmented_location_count(2) is True
 
 
 def test_19_plus_1_is_loose_piece_with_primary_location() -> None:

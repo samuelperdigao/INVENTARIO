@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedSession, restoreSession } from "@/lib/auth-client";
 import { formatBrazilianDate } from "@/lib/local-date";
+import { lotRequiresConference, lotSituation, lotTone, resolveLotPresentation } from "@/lib/lot-classification";
 import {
   downloadReport,
   prepareResourcesForSharing,
@@ -19,7 +20,7 @@ import {
 import { LotLocations } from "@/components/lot-locations";
 import { AppRail } from "@/components/app-rail";
 import { Icon } from "@/components/icon";
-import type { AnalysisSummary, LotAnalysis, LotPresentation, PresentationTone } from "@/lib/models";
+import type { AnalysisSummary, LotAnalysis } from "@/lib/models";
 
 const shareFormats: ShareableReportFormat[] = ["pdf", "xlsx", "docx"];
 const downloadFormats: ReportFormat[] = ["xls", "xlsx", "pdf", "docx"];
@@ -41,18 +42,6 @@ interface ConsolidatedReport {
   summary: AnalysisSummary;
   records: Array<{ side: "EF" | "DE"; bay: string; layer?: string | null; lot: string; quantity: number }>;
   lots: LotAnalysis[];
-}
-
-function visibleSituation(lot: LotAnalysis): string {
-  return lot.presentation?.situation ?? (lot.classification === "OK" ? "OK" : "LOTE PARA CONFERÊNCIA");
-}
-
-function presentationTone(lot: LotAnalysis): PresentationTone {
-  return lot.presentation?.tone ?? (lot.classification === "OK" ? "ok" : "review");
-}
-
-function requiresConference(lot: LotAnalysis): boolean {
-  return lot.presentation?.requiresConference ?? lot.classification !== "OK";
 }
 
 export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
@@ -132,7 +121,7 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
   }
 
   const shareReady = Boolean(preparedResources.pdf && preparedResources.xlsx && preparedResources.docx);
-  const conferenceLots = report?.lots.filter(requiresConference) ?? [];
+  const conferenceLots = report?.lots.filter(lotRequiresConference) ?? [];
   const lotsOk = report?.summary.lotsOk ?? report?.summary.regularLots ?? 0;
   const lotsForConference = report?.summary.lotsForConference ?? report?.summary.fragmentedLots ?? conferenceLots.length;
   const singlePieceOutsideLots = report?.summary.singlePieceOutsideLots ?? report?.summary.loosePieces ?? 0;
@@ -204,7 +193,7 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
               <td>{lot.lot}</td>
               <td>{lot.totalQuantity}</td>
               <td className="report-table-locations"><LotLocations locations={lot.locations} classification={lot.classification} presentation={lot.presentation} /></td>
-              <td><span className={`classification-tag ${presentationTone(lot)}`}>{visibleSituation(lot)}</span></td>
+              <td><span className={`classification-tag ${lotTone(lot)}`}>{lotSituation(lot)}</span></td>
             </tr>)}</tbody>
           </table>
         </div>
@@ -215,7 +204,7 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
                 <div><dt>Lote</dt><dd className="consolidated-lot-number">{lot.lot}</dd></div>
                 <div><dt>Total de peças</dt><dd className="consolidated-lot-quantity">{lot.totalQuantity}</dd></div>
                 <div><dt>Localização</dt><dd><LotLocations locations={lot.locations} classification={lot.classification} presentation={lot.presentation} /></dd></div>
-                <div><dt>Situação</dt><dd><span className={`classification-tag ${presentationTone(lot)}`}>{visibleSituation(lot)}</span></dd></div>
+                <div><dt>Situação</dt><dd><span className={`classification-tag ${lotTone(lot)}`}>{lotSituation(lot)}</span></dd></div>
               </dl>
             </li>
           ))}
@@ -228,11 +217,11 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
           <table className="report-table conference-table">
             <thead><tr><th>Lote</th><th>Total</th><th>Situação</th><th>Local principal</th><th>Outros locais</th><th>Peças fora</th><th>Ação recomendada</th></tr></thead>
             <tbody>{conferenceLots.map((lot) => {
-              const presentation: LotPresentation | undefined = lot.presentation;
+              const presentation = resolveLotPresentation(lot);
               return <tr key={lot.lot}>
                 <td>{lot.lot}</td>
                 <td>{lot.totalQuantity}</td>
-                <td><span className={`classification-tag ${presentationTone(lot)}`}>{visibleSituation(lot)}</span></td>
+                <td><span className={`classification-tag ${lotTone(lot)}`}>{lotSituation(lot)}</span></td>
                 <td>{presentation?.primaryLocation?.display ?? "Não definido"}</td>
                 <td className="conference-locations">{presentation?.otherLocations?.length ? presentation.otherLocations.map((location) => <span key={location.display}>{location.display}</span>) : "—"}</td>
                 <td>{presentation?.outOfPrimaryQuantity ?? "Não aplicável"}</td>

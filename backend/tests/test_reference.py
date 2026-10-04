@@ -337,6 +337,43 @@ def test_reference_preview_import_replace_remove_and_match() -> None:
         dependency.close()
 
 
+def test_reference_state_and_report_share_the_fragmented_boundary() -> None:
+    inventory_id, sync_token, auth = _create_inventory(
+        "referencia.fragmented-boundary@example.com",
+        [
+            _entry_payload("ignored", "2712345678", "DE", "15", 3),
+            _entry_payload("ignored", "2712345678", "DE", "15", 2),
+            _entry_payload("ignored", "2812345678", "DE", "15", 19),
+            _entry_payload("ignored", "2812345678", "EF", "21", 1),
+        ],
+    )
+    headers = {**auth, "X-Inventory-Sync-Token": sync_token}
+    imported = client.post(
+        f"/api/v1/inventories/{inventory_id}/reference",
+        files=_upload(_xlsx([["Lotes"], ["2712345678"], ["2812345678"]])),
+        headers=headers,
+    )
+    assert imported.status_code == 200, imported.text
+
+    state = client.get(f"/api/v1/inventories/{inventory_id}/reference", headers=headers)
+    assert state.status_code == 200, state.text
+    comparison = state.json()
+    items = {item["lotNumber"]: item for item in comparison["lots"]}
+    assert comparison["summary"]["fragmentedLots"] == 1
+    assert items["2712345678"]["fragmented"] is False
+    assert items["2812345678"]["fragmented"] is True
+
+    report = client.get(f"/api/v1/inventories/{inventory_id}/report", headers=headers)
+    assert report.status_code == 200, report.text
+    body = report.json()
+    lots = {lot["lot"]: lot for lot in body["lots"]}
+    assert body["summary"]["fragmentedLots"] == 1
+    assert body["reference"]["fragmentedLots"] == 1
+    assert lots["2712345678"]["fragmented"] is False
+    assert lots["2812345678"]["fragmented"] is True
+    assert lots["2812345678"]["classification"] == "PEÇA_SOLTEIRA"
+
+
 def test_reference_preview_and_import_lote_header_in_new_inventory() -> None:
     inventory_id, sync_token, auth = _create_inventory("referencia.singular@example.com")
     headers = {**auth, "X-Inventory-Sync-Token": sync_token}

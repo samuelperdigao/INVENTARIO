@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { getCachedReport, requestAnalysis } from "@/lib/analysis-client";
+import { lotRequiresConference, lotSituation, lotTone, resolveLotPresentation } from "@/lib/lot-classification";
 import type { AnalysisReport, Inventory, InventoryEntry } from "@/lib/models";
 
 interface AnalysisPanelProps {
@@ -84,10 +85,13 @@ export function AnalysisPanel({ inventory, entries, embedded = false, onStateCha
           <span className={`micro-pill ${(report.summary.lotsForConference ?? report.summary.fragmentedLots) === 0 ? "good" : ""}`}>{report.summary.lotsForConference ?? report.summary.fragmentedLots} lote(s) para conferência</span>
         </div>
         <ul className="report-list">
-          {report.lots.map((lot) => <li key={lot.lot}>
-            <strong>Lote {lot.lot}</strong> · {lot.totalQuantity} peça(s) · <span className={`classification-tag ${lot.presentation?.tone ?? (lot.classification === "OK" ? "ok" : "review")}`}>{lot.presentation?.situation ?? (lot.classification === "OK" ? "OK" : "LOTE PARA CONFERÊNCIA")}</span>
-            {lot.presentation?.action && lot.presentation.requiresConference ? <><br /><span className="muted">{lot.presentation.action}</span></> : null}
-          </li>)}
+          {report.lots.map((lot) => {
+            const presentation = resolveLotPresentation(lot);
+            return <li key={lot.lot}>
+              <strong>Lote {lot.lot}</strong> · {lot.totalQuantity} peça(s) · <span className={`classification-tag ${lotTone(lot)}`}>{lotSituation(lot)}</span>
+              {presentation.action && lotRequiresConference(lot) ? <><br /><span className="muted">{presentation.action}</span></> : null}
+            </li>;
+          })}
         </ul>
       </> : null}
     </section>

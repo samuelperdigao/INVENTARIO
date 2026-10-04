@@ -34,6 +34,32 @@ Auditoria em 04/10/2026, baseada em `6c1a11c45dde3407ecf9f2a8c313ca88213f864b`. 
 - Rollback simples: reverter este commit documental por outro PR; não há rollback de dados ou infraestrutura.
 - Revisão concluída e aprovada para commit e criação de PR. Merge, deploy, permissões e proteção da `main` continuam fora da autorização desta tarefa.
 
+## PR 2: classificação de lotes e consistência de relatórios
+
+Auditoria em 04/10/2026, baseada em `17c03758d67d04426bccffab1580e56f3ad09a18`. Branch de trabalho: `codex/pr-2-lot-classification-consistency`.
+
+### Implementação
+
+- A regra de fragmentação de um lote foi centralizada no motor Python: há fragmentação somente quando o lote ocupa mais de um local físico distinto. A conciliação da referência SAP reutiliza essa mesma fronteira, inclusive em resumo, totais e classificação `PEÇA_SOLTEIRA`.
+- A camada offline do cliente usa o mesmo critério de contagem. Os componentes de análise, histórico e locais consomem a apresentação devolvida pela API por meio de um único resolvedor; o fallback é exclusivo para caches legados e não recalcula classificação.
+- A consulta administrativa de versões reidrata a apresentação de snapshots legados somente na resposta, sem alterar a versão oficial persistida.
+- Não houve mudança de schema, migration, contrato de sincronização, autenticação, permissões, Render, Neon ou deploy.
+
+### Validações
+
+- Aprovado: ESLint, TypeScript e Vitest (`15 arquivos`, `81 testes`).
+- Aprovado: Pytest completo (`72 testes`, `3 avisos` de depreciação já emitidos por dependências/configuração).
+- Aprovado: upgrade Alembic em SQLite novo, das revisions `0001` a `0009`.
+- Aprovado: build de produção, incluindo service worker e geração das rotas. Nesta sandbox, a captura de saída de subprocessos pelo verificador interno do Next falha; a adaptação foi temporária e fora do Git, após o `pnpm typecheck` real. O código compilado e o build foram então concluídos.
+- Aprovado: Playwright completo (`12 cenários`), incluindo análise online/offline, sincronização, administração, responsividade, histórico, 100 lançamentos, finalização e os quatro formatos de exportação.
+- Aprovado: `git diff --check`, escopo do diff e documentação de arquitetura.
+
+### Limitações conhecidas
+
+- A validação física em Android real e iPhone/Safari continua pendente; Chromium desktop não a substitui.
+- Concorrência contra PostgreSQL/Neon de produção não foi exercitada. A validação desta rodada usou SQLite isolado, como a suíte automatizada prevê.
+- Nenhuma publicação, migration de ambiente ou merge foi executado nesta etapa.
+
 
 ## Corrida entre coleta local e polling de sincronização
 

@@ -56,6 +56,17 @@ def _location_record(side: str, bay: str, layer: str, quantity: int) -> dict[str
     return record
 
 
+def is_fragmented_location_count(location_count: int) -> bool:
+    """Informa se um lote ocupa mais de um local físico distinto.
+
+    A mesma fronteira é usada pela conciliação da referência SAP. A função
+    recebe somente a contagem porque as camadas de persistência já constroem
+    as chaves de localização antes de chegar a este ponto.
+    """
+
+    return location_count > 1
+
+
 def analyze_entries(inventory_id: str, revision: int, entries: Iterable[AnalysisEntry]) -> dict[str, object]:
     """Consolida os locais e aplica as regras de classificação do contrato."""
 
@@ -82,7 +93,7 @@ def analyze_entries(inventory_id: str, revision: int, entries: Iterable[Analysis
             for (side, bay, layer), quantity in sorted(quantities[lot].items(), key=lambda item: _location_sort_key(item[0]))
         ]
         total_quantity = sum(int(location["quantity"]) for location in locations)
-        fragmented = len(locations) > 1
+        fragmented = is_fragmented_location_count(len(locations))
         classification: Classification = "OK"
         primary_location: dict[str, object] | None = None
         displaced_quantity = 0

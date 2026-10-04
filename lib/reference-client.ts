@@ -2,6 +2,7 @@ import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedSession } from "@/lib/auth-client";
 import { db } from "@/lib/db";
 import { listActiveEntries } from "@/lib/inventory-repository";
+import { isFragmentedLocationCount } from "@/lib/lot-classification";
 import { isValidLot, LOT_VALIDATION_MESSAGE, normalizeLot } from "@/lib/lot-rules";
 import type {
   Inventory,
@@ -224,7 +225,7 @@ async function localReferenceState(inventoryId: string, page: number, query: str
       foundPhysically: Boolean(stats),
       physicalQuantity: stats?.quantity ?? 0,
       physicalOccurrences: stats?.occurrences ?? 0,
-      fragmented: (stats?.locations.size ?? 0) > 1,
+      fragmented: isFragmentedLocationCount(stats?.locations.size ?? 0),
     };
   });
   return {
@@ -235,7 +236,7 @@ async function localReferenceState(inventoryId: string, page: number, query: str
       foundLots: metadata.lotsComplete ? [...referenceLots].filter((lot) => physicalLots.has(lot)).length : 0,
       pendingLots: metadata.lotsComplete ? [...referenceLots].filter((lot) => !physicalLots.has(lot)).length : metadata.totalLots,
       outsideReferenceLots: metadata.lotsComplete ? [...physicalLots].filter((lot) => !referenceLots.has(lot)).length : 0,
-      fragmentedLots: [...physical.values()].filter((stats) => stats.locations.size > 1).length,
+      fragmentedLots: [...physical.values()].filter((stats) => isFragmentedLocationCount(stats.locations.size)).length,
       physicalDistinctLots: physicalLots.size,
     },
     lots,

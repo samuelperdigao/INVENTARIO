@@ -30,8 +30,13 @@
 
 ## Ciclo obrigatório de entrega
 
-- Sempre que uma alteração for realizada no projeto, após os gates aplicáveis, incorporá-la à `main`, fazer push sem force push e confirmar o deploy de produção nos provedores afetados. O frontend usa a Vercel e a API usa o Render. A tarefa só termina após a verificação do ambiente público ou o registro explícito de um bloqueio.
-- Antes de atualizar a `main`, fazer fetch e comparar os commits, preservando qualquer trabalho mais novo de outros agentes; usar merge ou fast-forward sem reescrever o histórico.
+- Toda alteração entra em `main` por Pull Request de uma branch própria; nunca fazer commit ou push diretamente na `main`.
+- Antes de integrar, exigir pelo menos uma aprovação de outro revisor, branch atualizada e o check `validate` do workflow `Quality Gates` concluído com sucesso. Checks obrigatórios pendentes ou falhos bloqueiam o merge.
+- A proteção recomendada da `main`, incluindo bloqueio de force push e exclusão, está em `docs/DEPLOY.md`. Documentar a recomendação não aplica a configuração no GitHub; sua aplicação exige confirmação explícita.
+- Merge e publicação devem respeitar a autorização da tarefa. Se a tarefa terminar na PR, não integrar nem fazer deploy.
+- Depois do merge aprovado, acompanhar os deploys dos provedores afetados e validar a versão publicada. O frontend usa Vercel e a API usa Render. `Production Smoke` é validação pós-merge ou manual, não check obrigatório de PR enquanto não for gerado nesse evento.
+- O sucesso de `Production Smoke` disparado pelo push não comprova que o novo commit foi publicado. Confirmar a revisão do deploy e validar novamente depois de sua conclusão; registrar bloqueios reais em `docs/STATUS.md`.
+- Antes do merge, fazer fetch e comparar os commits, preservando trabalho mais novo; atualizar a branch de trabalho sem reescrever o histórico da `main`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

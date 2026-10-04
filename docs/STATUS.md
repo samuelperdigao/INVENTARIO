@@ -1,5 +1,40 @@
 # Status do projeto
 
+## PR 1: governança da main e qualidade de entrega
+
+Auditoria em 04/10/2026, baseada em `6c1a11c45dde3407ecf9f2a8c313ca88213f864b`. Modo duplo ativo: executor sênior e revisão do supervisor de liderança, conduzidos em etapas separadas pelo mesmo agente.
+
+### Implementação do agente sênior
+
+- Branch de trabalho: `codex/pr-1-main-governance`.
+- Alterações limitadas a `AGENTS.md`, `README.md`, `docs/DEPLOY.md` e este documento: entrega por PR, revisão obrigatória, checks, atualização da branch, distinção pré-merge/pós-deploy e histórico de migrations.
+- GitHub confirmou `main` sem proteção e workflows `Quality Gates` e `Production Smoke` ativos. Os runs `36081904376` e `36081904388` passaram no commit-base.
+- `Quality Gates` produz `validate` em PR para `main`, push na `main` e execução manual. `Production Smoke` produz `smoke` somente em push na `main` ou execução manual. Nomes e gatilhos preservados; nenhum gate enfraquecido.
+- Proteção recomendada, ainda não aplicada: PR, uma aprovação de outro revisor, descarte de aprovações antigas, `validate` obrigatório e branch atualizada; bloquear force push e exclusão, sem bypass administrativo. Não exigir `smoke` em PR.
+- `0009_system_admin` sucede `0008_inventory_lot_references` no código e está documentada como aplicada em 23/09/2026. Esse registro não substitui uma consulta atual ao banco; nenhuma consulta ao Neon ou migration de ambiente foi executada.
+
+### Validações
+
+- Aprovado: instalação frontend com lockfile congelado, sem alteração de dependências ou lockfile. O runtime forneceu pnpm `11.25.0`, diferente do `10.15.1` fixado no projeto; a configuração do CI foi preservada.
+- Aprovado: lint e typecheck.
+- Aprovado: Vitest, 14 arquivos e 78 testes.
+- Aprovado: Pytest, 69 testes e 3 avisos de depreciação. A suíte inclui um teste de migration em SQLite temporário; nenhum banco de ambiente foi migrado.
+- Aprovado: build de produção local.
+- Aprovado: parsing YAML e conferência dos gatilhos, jobs e comandos dos gates existentes.
+- Aprovado: `git diff --check`, escopo do diff e igualdade dos workflows com o commit-base.
+- Não aplicável nesta alteração documental: Playwright e upgrade Alembic autônomo; não executados nesta rodada. Os gates permanecem no CI; Playwright inicializa uma migration local antes dos fluxos. Nenhuma integração deve ocorrer sem `validate` aprovado no PR.
+- Não aplicável nesta tarefa: novo smoke público e validação de deploy; não houve publicação nem mudança funcional. O sucesso do commit-base é evidência histórica, não validação de uma nova entrega.
+
+### Revisão do supervisor de liderança
+
+- Diff completo revisado antes do commit e da abertura da PR: apenas documentação, sem alteração de frontend, autenticação, API, banco, migrations, sincronização ou regras de negócio.
+- Nenhum segredo, credencial, endereço pessoal ou dado operacional de produção foi acrescentado.
+- Workflows preservados integralmente e YAML válido; `validate` existe em PR. Não recomendar `smoke` como obrigatório evita um check ausente bloquear o merge.
+- A obrigatoriedade de aprovação exige outro revisor com permissão adequada; confirmar disponibilidade antes de ativar a proteção. A documentação distingue política proposta de configuração efetivamente aplicada.
+- Rollback simples: reverter este commit documental por outro PR; não há rollback de dados ou infraestrutura.
+- Revisão concluída e aprovada para commit e criação de PR. Merge, deploy, permissões e proteção da `main` continuam fora da autorização desta tarefa.
+
+
 ## Corrida entre coleta local e polling de sincronização
 
 - Diagnóstico reproduzido: uma resposta de sincronização iniciada antes de um lançamento local podia retornar depois da gravação e comparar a revisão remota antiga com o estado local novo, criando um falso conflito de metadados. A resposta de um envio anterior também podia deixar alterações feitas durante a chamada com revisão-base antiga.
@@ -239,13 +274,13 @@ A tela operacional recebeu uma direção visual mais ousada e profissional, sem 
 - Playwright completo: `8 cenários aprovados`.
 - Pytest: `56 testes aprovados`, c…1425 tokens truncated…droid/iPhone Safari continuam sendo gates físicos pendentes.
 
-## Produção
+## Histórico de produção anterior à administração global
 
 - `main` é a baseline estável.
 - Frontend ativo na Vercel: `https://inventariolpe.vercel.app`.
 - API ativa no Render: `https://inventory-api-6o8h.onrender.com`.
 - PostgreSQL ativo no Neon.
-- Migration `0008_inventory_lot_references` aplicada na inicialização do deploy do ambiente principal.
+- Nesse registro histórico, a migration aplicada era `0008_inventory_lot_references`; a seção “Publicado: administração global” documenta posteriormente `0009_system_admin`.
 - Os workflows `Quality Gates` e `Production Smoke` do commit `cbc55dd` concluíram com sucesso.
 - O frontend publicado na Vercel continua respondendo e a rewrite `/backend-api/healthz` respondeu `{"status":"ok"}`.
 - O redeploy manual do Render foi concluído com `live` para o commit `adfdc60`, que contém o código funcional do `cbc55dd`.

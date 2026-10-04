@@ -7,7 +7,7 @@ Aplicação mobile-first para coleta, sincronização, análise e fechamento de 
 - Frontend publicado: [inventariolpe.vercel.app](https://inventariolpe.vercel.app)
 - Backend publicado: [inventory-api-6o8h.onrender.com](https://inventory-api-6o8h.onrender.com)
 - Banco de produção: PostgreSQL no Neon
-- Migration aplicada no ambiente principal: `0008_inventory_lot_references`
+- Última migration documentada como aplicada: `0009_system_admin` em 23/09/2026, conforme `docs/STATUS.md`; estado do banco não reconsultado nesta PR.
 - Referência SAP via Excel publicada no commit `9e05c46`
 - Baseline estável: branch `main`
 - Pendências conhecidas: validação em Android e Safari/iPhone físicos
@@ -154,7 +154,11 @@ pnpm exec playwright install chromium
 pnpm e2e
 ```
 
-O workflow `Quality Gates` executa os mesmos grupos em Pull Requests e na `main`. O workflow `Production Smoke` verifica as superfícies publicadas após mudanças na `main`.
+O workflow `Quality Gates` executa os mesmos grupos em Pull Requests para `main`, pushes na `main` e execução manual. Seu check estável é `validate`, recomendado como obrigatório antes do merge.
+
+Todas as alterações entram por Pull Request, com pelo menos uma aprovação de outro revisor, branch atualizada e checks obrigatórios aprovados. Force push e exclusão da `main` devem ser bloqueados. A configuração recomendada, ainda pendente de aplicação no GitHub, está em [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
+O workflow `Production Smoke`, check `smoke`, verifica as superfícies publicadas em push na `main` ou execução manual. Não roda em PR e não deve ser exigido na proteção pré-merge. Depois do merge aprovado, confirmar o deploy da revisão esperada e o smoke de produção; o sucesso do smoke disparado pelo push pode anteceder o deploy.
 
 O comando E2E prepara automaticamente um build de teste com a rewrite apontando
 para a API local em `127.0.0.1:8000`; não é necessário alterar variáveis de

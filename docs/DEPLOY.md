@@ -57,7 +57,7 @@ o Alembic. Não atribua a primeira permissão sem o endereço indicado pelo usu�
 2. Executar os quality gates locais aplicáveis e abrir Pull Request contra `main`.
 3. Consultar a proteção efetiva do GitHub. Se ela exigir aprovação, branch atualizada ou o check `validate`, cumprir essas exigências; nunca integrar com checks efetivamente pendentes ou falhos.
 4. Somente em uma entrega que altere schema, planejar e autorizar separadamente a migration: consultar a revisão real, validar em ambiente isolado e confirmar backup antes de publicar código dependente. Não reaplicar `0009_system_admin` com base em instruções históricas.
-5. Integrar o Pull Request aprovado somente quando autorizado, sem force push.
+5. Integrar o Pull Request validado somente quando autorizado, sem force push.
 6. Aguardar os deploys de Render e Vercel e confirmar que publicaram a revisão esperada.
 7. Confirmar `Production Smoke` após o deploy e verificar manualmente o fluxo alterado. Como seu disparo por push pode anteceder o deploy, repetir manualmente quando necessário. Falha impede considerar a entrega validada; investigar ou seguir o rollback.
 

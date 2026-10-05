@@ -1,5 +1,27 @@
 # Status do projeto
 
+## Estado de entrega atual
+
+Validação final em 05/10/2026 após o merge da PR #35 e a atualização da PR
+funcional principal.
+
+- A `main` e `origin/main` estão alinhadas no merge commit `ada335b`.
+- O `Quality Gates` do push da `main` passou no run `37390598334`, e o
+  `Production Smoke` passou no run `37390598348`.
+- O frontend público respondeu HTTP 200 na Vercel; a API direta do Render e
+  o proxy `/backend-api/healthz` responderam HTTP 200 com `{"status":"ok"}`.
+- O serviço Render `inventory-api` está `live` exatamente no commit
+  `ada335b`. O auto-deploy não iniciou após o merge, então foi feito um único
+  deploy manual do commit correto.
+- A PR #30 é a única PR aberta e está alinhada à base `ada335b`, com
+  `mergeStateStatus=CLEAN`, `Quality Gates` e Vercel aprovados. A PR #13 foi
+  encerrada por obsolescência, sem apagar sua branch.
+- A validação automatizada está concluída. Permanecem fora desta etapa a
+  validação física em Android/iPhone e o exercício multiusuário com dados reais
+  de produção.
+
+Atualizado em 05/10/2026.
+
 ## Resultado pós-publicação
 
 Validação final em 05/10/2026 após os merges `e687f63` e `881bb1b` na `main`.

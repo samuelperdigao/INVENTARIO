@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.persistence import (
     InventoryEntryRow,
     InventoryParticipantRow,
+    InventoryParticipantSessionRow,
     InventoryRow,
     SyncConflictRow,
     SyncEventRow,
@@ -311,13 +312,22 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
                 InventoryParticipantRow.user_id == actor_user_id,
             )
         )
+        token_hash = _hash_token(sync_token)
+        participant_session = session.scalar(
+            select(InventoryParticipantSessionRow).where(
+                InventoryParticipantSessionRow.inventory_id == inventory.id,
+                InventoryParticipantSessionRow.user_id == actor_user_id,
+                InventoryParticipantSessionRow.access_token_hash == token_hash,
+            )
+        )
         owner_access = inventory.owner_user_id == actor_user_id
         team_access = inventory.team_id == team_id and team_id is not None
-        participant_access = participant is not None and hmac.compare_digest(participant.access_token_hash, _hash_token(sync_token))
+        legacy_participant_access = participant is not None and hmac.compare_digest(participant.access_token_hash, token_hash)
+        participant_access = participant_session is not None or legacy_participant_access
         if not owner_access and not team_access and not participant_access:
             raise SyncNotFoundError()
-        owner_grant = bool(owner_access and inventory.owner_access_hash and hmac.compare_digest(inventory.owner_access_hash, _hash_token(sync_token)))
-        shared_grant = hmac.compare_digest(inventory.sync_token_hash, _hash_token(sync_token))
+        owner_grant = bool(owner_access and inventory.owner_access_hash and hmac.compare_digest(inventory.owner_access_hash, token_hash))
+        shared_grant = hmac.compare_digest(inventory.sync_token_hash, token_hash)
         if not participant_access and not owner_grant and not shared_grant:
             raise SyncAuthorizationError()
         # Uma leitura pode receber uma geração nova. Escritas da geração
@@ -327,8 +337,12 @@ def synchronize(session: Session, payload: SyncRequest, sync_token: str, *, team
                 raise SyncGenerationError()
             if payload.inventory is not None and payload.inventory.operationalGeneration != inventory.operational_generation:
                 raise SyncGenerationError()
-        if participant_access and participant is not None:
-            participant.last_accessed_at = datetime.now(timezone.utc)
+        if participant_access:
+            now_accessed = datetime.now(timezone.utc)
+            if participant is not None:
+                participant.last_accessed_at = now_accessed
+            if participant_session is not None:
+                participant_session.last_accessed_at = now_accessed
         if inventory.status == "OPEN" and inventory.participation_code is None:
             inventory.participation_code = _new_participation_code(session)
         acknowledged_inventory = False

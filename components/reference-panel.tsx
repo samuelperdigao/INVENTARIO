@@ -11,7 +11,7 @@ import {
   previewReference,
   removeReference,
 } from "@/lib/reference-client";
-import { syncInventory } from "@/lib/sync-client";
+import { INVENTORY_POLLING_INTERVAL_MS, syncInventory } from "@/lib/sync-client";
 import { LOT_LENGTH, sanitizeLotInput } from "@/lib/lot-rules";
 import type { Inventory, ReferencePreview, ReferenceState } from "@/lib/models";
 
@@ -51,19 +51,40 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
 
   useEffect(() => {
     let active = true;
-    void getReferenceState(inventory, page, query)
-      .then((next) => {
+    const controller = new AbortController();
+    async function load(showLoading: boolean): Promise<void> {
+      if (showLoading) setLoading(true);
+      try {
+        const next = await getReferenceState(inventory, page, query, controller.signal);
         if (!active) return;
         setState(next);
+        setError(undefined);
         if (!next.reference) setShowLots(false);
-      })
-      .catch(() => {
-        if (active) setError("Não foi possível carregar a referência de lotes.");
-      })
-      .finally(() => {
+      } catch (cause) {
+        if (active && !(cause instanceof Error && cause.name === "AbortError")) {
+          setError(cause instanceof Error ? cause.message : "Não foi possível carregar a referência de lotes.");
+        }
+      } finally {
         if (active) setLoading(false);
-      });
-    return () => { active = false; };
+      }
+    }
+    void load(true);
+    const poll = () => {
+      if (!active || document.visibilityState !== "visible" || !navigator.onLine) return;
+      void load(false);
+    };
+    const intervalId = window.setInterval(poll, INVENTORY_POLLING_INTERVAL_MS);
+    const handleVisibility = () => { if (document.visibilityState === "visible") poll(); };
+    const handleOnline = () => poll();
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("online", handleOnline);
+    };
   }, [inventory, page, query]);
 
   function resetImporter(): void {
@@ -149,7 +170,7 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
   const reference = state?.reference;
   const canEditReference = inventory.status === "OPEN";
   const selectedPreviewReady = Boolean(preview && !preview.requiresColumnSelection);
-  const referenceStatus = error ? "Com erro" : busy ? "Processando" : reference ? "Planilha importada" : continuedWithoutReference ? "Não utilizada" : "Opcional";
+  const referenceStatus = error ? "Com erro" : busy ? "Processando" : reference ? reference.lotsComplete ? "Planilha importada" : "Referência central" : continuedWithoutReference ? "Não utilizada" : "Opcional";
 
   return <>
     <section className="card section-card panel-card stack reference-panel" aria-label="Referência SAP">
@@ -177,7 +198,7 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
 
       {reference && !showImporter ? <div className="reference-card-content stack">
         <div className="reference-file-meta">
-          <strong>✓ Planilha importada</strong>
+          <strong>{reference.lotsComplete ? "✓ Planilha importada" : "Referência central disponível; lotes locais ainda não foram baixados"}</strong>
           <span>Arquivo: {reference.originalFilename}</span>
           <span>{summaryLabel(reference.totalLots)} lotes importados · {importedAtLabel(reference.importedAt)}</span>
         </div>

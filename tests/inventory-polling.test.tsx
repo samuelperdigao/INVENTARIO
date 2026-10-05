@@ -5,7 +5,14 @@ import { InventoryScreen } from "@/components/inventory-screen";
 import { createInventory, markInventoryFinished } from "@/lib/inventory-repository";
 import { db } from "@/lib/db";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
+const { routerMock } = vi.hoisted(() => ({ routerMock: { replace: vi.fn() } }));
+
+vi.mock("next/navigation", () => ({ useRouter: () => routerMock }));
+
+vi.mock("@/lib/auth-client", () => ({
+  getCurrentUser: vi.fn(() => ({ id: "polling-user", email: "polling@example.com", displayName: "Polling", recoveryPinConfigured: true, teams: [] })),
+  restoreSession: vi.fn().mockResolvedValue({ id: "polling-user", email: "polling@example.com", displayName: "Polling", recoveryPinConfigured: true, teams: [] }),
+}));
 
 const { syncInventoryMock, listSyncConflictsMock } = vi.hoisted(() => ({
   syncInventoryMock: vi.fn(),
@@ -14,6 +21,7 @@ const { syncInventoryMock, listSyncConflictsMock } = vi.hoisted(() => ({
 
 vi.mock("@/lib/sync-client", () => ({
   INVENTORY_POLLING_INTERVAL_MS: 50,
+  cancelSync: vi.fn(),
   syncInventory: syncInventoryMock,
   listSyncConflicts: listSyncConflictsMock,
   resolveConflict: vi.fn(),
@@ -27,7 +35,7 @@ afterEach(() => {
 it("sincroniza em segundo plano sem trocar a tela e encerra o timer ao desmontar", async () => {
   listSyncConflictsMock.mockResolvedValue([]);
   syncInventoryMock.mockResolvedValue({ conflicts: 0, received: 0, changed: false, remoteChanged: false, serverStatus: "OPEN" });
-  const inventory = await createInventory("2026-09-19");
+  const inventory = await createInventory("2026-09-19", "polling-user");
   const view = render(<InventoryScreen inventoryId={inventory.id} />);
 
   await screen.findByRole("heading", { name: "Novo registro" });
@@ -43,7 +51,7 @@ it("sincroniza em segundo plano sem trocar a tela e encerra o timer ao desmontar
 it("não consulta enquanto a página está oculta e retoma ao voltar para a tela", async () => {
   listSyncConflictsMock.mockResolvedValue([]);
   syncInventoryMock.mockResolvedValue({ conflicts: 0, received: 0, changed: false, remoteChanged: false, serverStatus: "OPEN" });
-  const inventory = await createInventory("2026-09-20");
+  const inventory = await createInventory("2026-09-20", "polling-user");
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
   render(<InventoryScreen inventoryId={inventory.id} />);
 
@@ -58,7 +66,7 @@ it("não consulta enquanto a página está oculta e retoma ao voltar para a tela
 
 it("recebe reabertura administrativa mesmo com a tela finalizada aberta", async () => {
   listSyncConflictsMock.mockResolvedValue([]);
-  const inventory = await createInventory("2026-09-23");
+  const inventory = await createInventory("2026-09-23", "polling-user");
   await markInventoryFinished(inventory.id, 2);
   syncInventoryMock.mockImplementation(async () => {
     const current = await db.inventories.get(inventory.id);

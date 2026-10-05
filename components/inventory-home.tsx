@@ -10,7 +10,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { Icon } from "@/components/icon";
 import { logoutAccount, restoreSession, type AuthUser } from "@/lib/auth-client";
 import { assignedInventories, type AssignedInventory } from "@/lib/admin-client";
-import { createInventory, listOpenInventories, listPendingInventoryDeletions, purgeInventory, restoreInventoryAfterDeletionFailure } from "@/lib/inventory-repository";
+import { createInventory, listOpenInventories, listPendingInventoryDeletions, purgeInventory, quarantineUnknownInventories, restoreInventoryAfterDeletionFailure } from "@/lib/inventory-repository";
 import { formatBrazilianDate } from "@/lib/local-date";
 import type { Inventory } from "@/lib/models";
 import { SyncHttpError, connectAssignedInventory, joinInventoryByCode, syncInventory } from "@/lib/sync-client";
@@ -28,9 +28,9 @@ function firstName(displayName: string): string {
   return displayName.trim().split(/\s+/)[0] || displayName;
 }
 
-async function reconcilePendingInventoryDeletions(): Promise<void> {
+async function reconcilePendingInventoryDeletions(accountUserId: string): Promise<void> {
   if (typeof navigator !== "undefined" && !navigator.onLine) return;
-  const pending = await listPendingInventoryDeletions();
+  const pending = await listPendingInventoryDeletions(accountUserId);
   for (const inventory of pending) {
     try {
       const result = await syncInventory(inventory.id);
@@ -67,8 +67,9 @@ export function InventoryHome() {
       try {
         const restored = await restoreSession();
         if (!restored) { router.replace("/acesso"); return; }
-        await reconcilePendingInventoryDeletions();
-        const items = await listOpenInventories();
+        await quarantineUnknownInventories();
+        await reconcilePendingInventoryDeletions(restored.id);
+        const items = await listOpenInventories(restored.id);
         if (!active) return;
         setUser(restored); setInventories(items);
         void assignedInventories().then((data) => { if (active) setAssigned(data.filter((item) => item.status === "OPEN")); }).catch(() => undefined);
@@ -87,7 +88,10 @@ export function InventoryHome() {
 
   async function handleCreate(): Promise<void> {
     setCreating(true); setError(undefined);
-    try { router.push(`/inventarios/${(await createInventory()).id}`); }
+    try {
+      if (!user) throw new Error("Entre na sua conta antes de criar um inventário.");
+      router.push(`/inventarios/${(await createInventory(undefined, user.id)).id}`);
+    }
     catch { setError("Não foi possível criar o inventário local. Nenhum dado foi salvo."); setCreating(false); }
   }
 

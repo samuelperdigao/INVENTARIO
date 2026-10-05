@@ -31,10 +31,11 @@ def create_user(session: Session, email: str) -> UserRow:
 
 
 def main() -> None:
-    owner_email, participant_email = sys.argv[1:3]
+    owner_email, *participant_emails = sys.argv[1:]
     with Session(engine) as session:
         owner = create_user(session, owner_email)
-        create_user(session, participant_email)
+        for participant_email in participant_emails:
+            create_user(session, participant_email)
         now = datetime.now(timezone.utc)
         team = TeamRow(id=str(uuid4()), name="Equipe E2E", created_by_user_id=owner.id, created_at=now)
         session.add(team)

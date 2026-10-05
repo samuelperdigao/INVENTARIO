@@ -103,6 +103,22 @@ class InventoryParticipantRow(Base):
     last_accessed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class InventoryParticipantSessionRow(Base):
+    """Credencial independente por dispositivo/sessão de participante."""
+
+    __tablename__ = "inventory_participant_sessions"
+    __table_args__ = (
+        UniqueConstraint("inventory_id", "user_id", "access_token_hash", name="uq_inventory_participant_sessions_scope_token"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    inventory_id: Mapped[str] = mapped_column(ForeignKey("inventories.id", ondelete="CASCADE"), index=True, nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    access_token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_accessed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class ParticipationAttemptRow(Base):
     __tablename__ = "participation_attempts"
 

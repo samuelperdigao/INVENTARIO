@@ -41,6 +41,15 @@ class InventoryDatabase extends Dexie {
       inventoryReferences: "id, inventoryId, updatedAt, status",
       referenceLots: "id, inventoryId, [inventoryId+lotNumber], lotNumber",
     });
+    this.version(5).stores({
+      inventories: "id, date, updatedAt, tombstone, accountUserId",
+      entries: "id, inventoryId, [inventoryId+tombstone], [inventoryId+lot], side, bay, layer, lot, updatedAt, tombstone",
+      analysisCache: "id, [inventoryId+revision], inventoryId, cachedAt",
+      syncMetadata: "id",
+      syncConflicts: "id, inventoryId, entityId, createdAt",
+      inventoryReferences: "id, inventoryId, updatedAt, status",
+      referenceLots: "id, inventoryId, [inventoryId+lotNumber], lotNumber",
+    });
   }
 }
 

@@ -27,6 +27,7 @@ let accessToken: string | undefined;
 let accessTokenExpiresAt: number | undefined;
 let currentUser: AuthUser | undefined;
 let refreshRequest: Promise<AuthUser> | undefined;
+let sessionGeneration = 0;
 
 function cacheUser(user: AuthUser): void {
   if (typeof window !== "undefined") window.localStorage.setItem(cachedUserKey, JSON.stringify(user));
@@ -40,7 +41,12 @@ function cachedUser(): AuthUser | undefined {
   } catch { return undefined; }
 }
 
-async function authRequest(path: string, init: RequestInit = {}): Promise<AuthResponse> {
+function clearCachedUser(): void {
+  if (typeof window !== "undefined") window.localStorage.removeItem(cachedUserKey);
+}
+
+async function authRequest(path: string, init: RequestInit = {}, expectedGeneration?: number): Promise<AuthResponse> {
+  const requestGeneration = expectedGeneration ?? sessionGeneration;
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
     credentials: "include",
@@ -51,10 +57,13 @@ async function authRequest(path: string, init: RequestInit = {}): Promise<AuthRe
     throw new Error(body?.detail ?? "Não foi possível concluir a autenticação.");
   }
   const result = await response.json() as AuthResponse;
-  accessToken = result.accessToken;
-  accessTokenExpiresAt = tokenExpiration(result.accessToken);
-  currentUser = result.user;
-  cacheUser(result.user);
+  if (requestGeneration === sessionGeneration) {
+    accessToken = result.accessToken;
+    accessTokenExpiresAt = tokenExpiration(result.accessToken);
+    currentUser = result.user;
+    cacheUser(result.user);
+    if (expectedGeneration === undefined) sessionGeneration += 1;
+  }
   return result;
 }
 
@@ -72,8 +81,15 @@ function tokenExpiration(token: string): number | undefined {
 
 function requestSessionRefresh(): Promise<AuthUser> {
   if (refreshRequest) return refreshRequest;
-  const pending = authRequest("/api/v1/auth/refresh", { method: "POST", body: "{}" })
-    .then(({ user }) => user);
+  const generationAtStart = sessionGeneration;
+  const pending = authRequest("/api/v1/auth/refresh", { method: "POST", body: "{}" }, generationAtStart)
+    .then(({ user }) => {
+      if (generationAtStart !== sessionGeneration) {
+        if (currentUser) return currentUser;
+        throw new Error("A sessão foi encerrada.");
+      }
+      return user;
+    });
   refreshRequest = pending.finally(() => { refreshRequest = undefined; });
   return refreshRequest;
 }
@@ -137,12 +153,17 @@ export async function loginAccount(input: { email: string; password: string }): 
 
 export async function restoreSession(): Promise<AuthUser | undefined> {
   if (accessToken && currentUser) return currentUser;
+  if (typeof navigator !== "undefined" && !navigator.onLine) return cachedUser();
   try {
     return await requestSessionRefresh();
   } catch {
     // A renovação iniciada ao abrir a tela pode terminar depois de um login
     // bem-sucedido. Nesse caso, não deve apagar a sessão recém-criada.
-    if (!accessToken) currentUser = currentUser ?? cachedUser();
+    if (!accessToken) {
+      accessTokenExpiresAt = undefined;
+      currentUser = undefined;
+      clearCachedUser();
+    }
     return currentUser;
   }
 }
@@ -160,11 +181,11 @@ export async function refreshAuthenticatedSession(rejectedToken: string): Promis
   return { accessToken, user: currentUser };
 }
 
-export async function getAuthenticatedContext(): Promise<{ accessToken: string; teamId: string }> {
+export async function getAuthenticatedContext(): Promise<{ accessToken: string; teamId: string; userId: string }> {
   const session = await getAuthenticatedSession();
   const selectedTeamId = typeof window === "undefined" ? undefined : window.sessionStorage.getItem("inventory-active-team");
   const team = session.user.teams.find((candidate) => candidate.id === selectedTeamId) ?? session.user.teams[0];
-  return { accessToken: session.accessToken, teamId: team?.id ?? "" };
+  return { accessToken: session.accessToken, teamId: team?.id ?? "", userId: session.user.id };
 }
 
 export async function getAuthenticatedSession(): Promise<{ accessToken: string; user: AuthUser }> {
@@ -206,6 +227,7 @@ export async function createTeam(name: string): Promise<AuthUser> {
 }
 
 export async function logoutAccount(): Promise<void> {
+  sessionGeneration += 1;
   try {
     await fetch(`${apiBaseUrl}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
   } finally {

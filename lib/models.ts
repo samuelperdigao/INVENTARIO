@@ -39,6 +39,10 @@ export interface Inventory extends LocalRecord {
   isOwner?: boolean;
   /** Código amigável de seis dígitos, emitido pelo servidor enquanto aberto. */
   participationCode?: string;
+  /** Identidade da conta que pode acessar este registro local neste dispositivo. */
+  accountUserId?: string;
+  /** Marca registros legados sem identidade para não expô-los a outra conta. */
+  accountQuarantined?: boolean;
 }
 
 export interface InventoryReference {

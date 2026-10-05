@@ -55,9 +55,9 @@ o Alembic. Não atribua a primeira permissão sem o endereço indicado pelo usu�
 
 1. Criar a branch de trabalho a partir da `main` atual, sem commits diretos na `main`.
 2. Executar os quality gates locais aplicáveis e abrir Pull Request contra `main`.
-3. Exigir pelo menos uma aprovação de outro revisor, branch atualizada e o check `validate` do workflow `Quality Gates` aprovado. Não integrar com checks obrigatórios pendentes ou falhos.
+3. Consultar a proteção efetiva do GitHub. Se ela exigir aprovação, branch atualizada ou o check `validate`, cumprir essas exigências; nunca integrar com checks efetivamente pendentes ou falhos.
 4. Somente em uma entrega que altere schema, planejar e autorizar separadamente a migration: consultar a revisão real, validar em ambiente isolado e confirmar backup antes de publicar código dependente. Não reaplicar `0009_system_admin` com base em instruções históricas.
-5. Integrar o Pull Request aprovado somente quando autorizado, sem force push.
+5. Integrar o Pull Request validado somente quando autorizado, sem force push.
 6. Aguardar os deploys de Render e Vercel e confirmar que publicaram a revisão esperada.
 7. Confirmar `Production Smoke` após o deploy e verificar manualmente o fluxo alterado. Como seu disparo por push pode anteceder o deploy, repetir manualmente quando necessário. Falha impede considerar a entrega validada; investigar ou seguir o rollback.
 
@@ -75,6 +75,10 @@ Configuração preparada, não aplicada por esta PR:
 - Aplicar as regras também a administradores, sem bypass configurado.
 
 `validate` e `smoke` são os nomes reais dos jobs confirmados nas execuções do commit-base. Renomeá-los exige revisar a proteção para não deixar PRs aguardando um contexto inexistente. Um autor não aprova o próprio PR; é necessário outro revisor com permissão adequada antes de ativar a exigência de aprovação.
+
+### Regra operacional do fluxo
+
+Esta seção descreve a proteção recomendada, não uma proteção automaticamente aplicada pelo repositório. Antes de cada entrega, consulte a configuração efetiva da branch e os rulesets do GitHub. Se o GitHub não estiver exigindo aprovação ou atualização da branch, não trate essas recomendações como bloqueios: a PR pode ser preparada e, com autorização explícita, integrada depois que o `validate` aplicável passar. O `Production Smoke` não deve ser aguardado em uma PR, pois ele só é disparado após push na `main` ou manualmente.
 
 ### Divergência de migrations 0008 e 0009
 
@@ -112,3 +116,47 @@ Use a variável apenas no processo confiável. Não registre a linha real no his
 - Não executar `alembic downgrade` automaticamente.
 - Se uma migration não destrutiva já foi aplicada, mantenha colunas ou tabelas compatíveis até uma migration corretiva planejada.
 - Em incidente de banco, interrompa novas escritas, preserve logs sem segredos e restaure pelo mecanismo do provedor.
+
+## Automação de terminal
+
+O script `scripts/deploy.ps1` automatiza a preparação da entrega e a publicação
+pós-merge sem ignorar a proteção efetiva da `main`.
+
+Na branch de trabalho, o modo `prepare` instala dependências, executa lint,
+TypeScript, Vitest, Pytest, build e Playwright, bloqueia arquivos de segredo,
+cria o commit, envia a branch e abre o Pull Request. Ele não fica aguardando
+aprovação e não inicia o deploy de produção:
+
+```powershell
+pnpm run release -- -Message "feat: descrever a entrega"
+```
+
+`pnpm run deploy -- -Message "..."` continua disponível como atalho compatível
+para o mesmo modo de preparação. O deploy pós-merge tem comando separado:
+
+```powershell
+pnpm run deploy:production
+```
+
+Se o comando for executado na `main`, ele cria automaticamente uma branch
+`codex/deploy-*` antes de preparar o commit. Não use o script em um checkout que
+contenha alterações de outra tarefa sem revisar os arquivos que serão incluídos.
+
+Depois do merge aprovado, configure os identificadores e o token somente na
+sessão local, sem gravá-los no Git:
+
+```powershell
+$env:INVENTORY_RENDER_SERVICE_ID = "<service-id-do-inventory-api>"
+$env:RENDER_API_KEY = "<token-do-render>"
+pnpm run deploy:production
+```
+
+O modo `production` exige `main` limpa e sincronizada com `origin/main`, confirma
+o `Quality Gates` do commit, aguarda a confirmação da Vercel, dispara o deploy
+do `inventory-api` no Render para o SHA exato, aguarda `live`, verifica os dois
+healthchecks e executa o `Production Smoke` manual. A Vercel continua sendo
+publicada pela integração GitHub; o script verifica o status dela e não duplica
+o deploy por CLI.
+
+O token do Render é usado apenas no processo local e nunca é exibido, salvo ou
+enviado para o repositório. O script não executa SQL nem altera dados do Neon.

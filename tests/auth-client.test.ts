@@ -47,6 +47,15 @@ it("compartilha uma única renovação entre chamadas simultâneas", async () =>
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
+it("não transforma um usuário em sessão autenticada quando a renovação falha", async () => {
+  window.localStorage.setItem("inventory-cached-user", JSON.stringify(authenticatedUser));
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Falha de rede")));
+  const { restoreSession } = await import("@/lib/auth-client");
+
+  await expect(restoreSession()).resolves.toBeUndefined();
+  expect(window.localStorage.getItem("inventory-cached-user")).toBeNull();
+});
+
 it("não descarta um login concluído por uma renovação anterior que falhou", async () => {
   let rejectRefresh: (reason?: unknown) => void = () => undefined;
   const fetchMock = vi.fn()
@@ -78,4 +87,20 @@ it("renova o access token expirado antes de entregar a sessão à próxima chama
 
   expect(fetchMock).toHaveBeenCalledTimes(2);
   expect(fetchMock.mock.calls[1]?.[0]).toContain("/api/v1/auth/refresh");
+});
+
+it("ignora um login antigo depois do logout", async () => {
+  let resolveLogin: (response: Response) => void = () => undefined;
+  const fetchMock = vi.fn()
+    .mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveLogin = resolve; }))
+    .mockResolvedValueOnce(new Response(null, { status: 204 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const { getCurrentUser, loginAccount, logoutAccount } = await import("@/lib/auth-client");
+
+  const pendingLogin = loginAccount({ email: authenticatedUser.email, password: "senha-segura" });
+  await logoutAccount();
+  resolveLogin(authenticatedResponse());
+  await expect(pendingLogin).resolves.toEqual(authenticatedUser);
+  expect(getCurrentUser()).toBeUndefined();
+  expect(window.localStorage.getItem("inventory-cached-user")).toBeNull();
 });

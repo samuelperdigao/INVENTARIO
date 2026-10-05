@@ -30,12 +30,12 @@
 
 ## Ciclo obrigatório de entrega
 
-- Toda alteração entra em `main` por Pull Request de uma branch própria; nunca fazer commit ou push diretamente na `main`.
-- Antes de integrar, exigir pelo menos uma aprovação de outro revisor, branch atualizada e o check `validate` do workflow `Quality Gates` concluído com sucesso. Checks obrigatórios pendentes ou falhos bloqueiam o merge.
+- Toda alteração integrada em `main` entra por Pull Request de uma branch própria; nunca fazer commit ou push diretamente na `main`. Um pedido explícito de commit autoriza criar o commit; um pedido explícito de PR autoriza enviar a branch e abrir a PR. Não acrescentar uma etapa não solicitada como bloqueio artificial.
+- Antes de integrar, consultar a proteção efetiva da `main` e os rulesets do GitHub. Se o GitHub realmente exigir aprovação, branch atualizada ou o check `validate`, respeitar essas exigências. Se a proteção não estiver ativa, não inventar uma aprovação obrigatória com base apenas na documentação; com autorização explícita do usuário e `validate` aprovado, a integração pode prosseguir.
 - A proteção recomendada da `main`, incluindo bloqueio de force push e exclusão, está em `docs/DEPLOY.md`. Documentar a recomendação não aplica a configuração no GitHub; sua aplicação exige confirmação explícita.
-- Merge e publicação devem respeitar a autorização da tarefa. Se a tarefa terminar na PR, não integrar nem fazer deploy.
-- Depois do merge aprovado, acompanhar os deploys dos provedores afetados e validar a versão publicada. O frontend usa Vercel e a API usa Render. `Production Smoke` é validação pós-merge ou manual, não check obrigatório de PR enquanto não for gerado nesse evento.
-- O sucesso de `Production Smoke` disparado pelo push não comprova que o novo commit foi publicado. Confirmar a revisão do deploy e validar novamente depois de sua conclusão; registrar bloqueios reais em `docs/STATUS.md`.
+- Merge e publicação devem respeitar a autorização da tarefa. Se a tarefa terminar na PR, não integrar nem fazer deploy; se o usuário autorizou merge ou deploy, executar a etapa correspondente depois dos pré-requisitos reais, sem esperar um evento que não seja necessário.
+- Depois do merge, acompanhar os deploys dos provedores afetados e validar a versão publicada. O frontend usa Vercel e a API usa Render. `Production Smoke` é validação pós-merge ou manual, não check obrigatório de PR enquanto não for gerado nesse evento.
+- O sucesso de `Production Smoke` disparado pelo push não comprova sozinho que o novo commit foi publicado. Confirmar a revisão do deploy e validar novamente depois de sua conclusão; registrar bloqueios reais em `docs/STATUS.md`.
 - Antes do merge, fazer fetch e comparar os commits, preservando trabalho mais novo; atualizar a branch de trabalho sem reescrever o histórico da `main`.
 
 <!-- BEGIN:nextjs-agent-rules -->

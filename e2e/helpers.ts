@@ -3,14 +3,15 @@ import { expect, type Page } from "@playwright/test";
 
 const pythonExecutable = process.platform === "win32" ? "backend\\.venv\\Scripts\\python.exe" : "backend/.venv/bin/python";
 
-export function seedUsers(prefix: string): { ownerEmail: string; participantEmail: string } {
+export function seedUsers(prefix: string): { ownerEmail: string; participantEmail: string; thirdParticipantEmail: string } {
   const runId = `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const ownerEmail = `${runId}@gerdau.com.br`;
   const participantEmail = `participante-${runId}@gerdau.com.br`;
-  execFileSync(pythonExecutable, ["backend/tests/e2e_seed.py", ownerEmail, participantEmail], {
+  const thirdParticipantEmail = `participante-3-${runId}@gerdau.com.br`;
+  execFileSync(pythonExecutable, ["backend/tests/e2e_seed.py", ownerEmail, participantEmail, thirdParticipantEmail], {
     env: { ...process.env, INVENTORY_DATABASE_URL: "sqlite:///./backend/inventario-e2e.db" },
   });
-  return { ownerEmail, participantEmail };
+  return { ownerEmail, participantEmail, thirdParticipantEmail };
 }
 
 export async function login(page: Page, email: string): Promise<void> {

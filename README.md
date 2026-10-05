@@ -156,7 +156,7 @@ pnpm e2e
 
 O workflow `Quality Gates` executa os mesmos grupos em Pull Requests para `main`, pushes na `main` e execução manual. Seu check estável é `validate`, recomendado como obrigatório antes do merge.
 
-Todas as alterações entram por Pull Request, com pelo menos uma aprovação de outro revisor, branch atualizada e checks obrigatórios aprovados. Force push e exclusão da `main` devem ser bloqueados. A configuração recomendada, ainda pendente de aplicação no GitHub, está em [`docs/DEPLOY.md`](docs/DEPLOY.md).
+As alterações integradas entram por Pull Request de uma branch própria. Aprovação de outro revisor, branch atualizada e bloqueio de force push são regras de proteção do GitHub somente quando estiverem efetivamente configuradas; a recomendação ainda pendente está em [`docs/DEPLOY.md`](docs/DEPLOY.md). A existência de uma PR não deve, sozinha, interromper um commit, a abertura da PR ou uma publicação autorizada.
 
 O workflow `Production Smoke`, check `smoke`, verifica as superfícies publicadas em push na `main` ou execução manual. Não roda em PR e não deve ser exigido na proteção pré-merge. Depois do merge aprovado, confirmar o deploy da revisão esperada e o smoke de produção; o sucesso do smoke disparado pelo push pode anteceder o deploy.
 

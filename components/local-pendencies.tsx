@@ -31,8 +31,10 @@ export function LocalPendencies() {
       setUser(current);
       const entries = await db.entries.filter((entry) => entry.syncStatus === "ERROR" || entry.syncStatus === "PENDING").toArray();
       const inventories = await db.inventories.bulkGet(entries.map((entry) => entry.inventoryId));
+      const authorizedRows = entries.map((entry, index) => ({ entry, inventory: inventories[index] }))
+        .filter(({ inventory }) => inventory?.accountUserId === current.id && !inventory.accountQuarantined);
       if (!active) return;
-      setRows(entries.map((entry, index) => ({ entry, inventory: inventories[index] })));
+      setRows(authorizedRows);
     }).catch((cause: unknown) => { if (active) setError(cause instanceof Error ? cause.message : "Falha ao consultar dados locais."); });
     return () => { active = false; };
   }, [router]);

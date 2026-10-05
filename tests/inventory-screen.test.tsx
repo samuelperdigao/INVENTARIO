@@ -8,8 +8,13 @@ import { createEntry, createInventory } from "@/lib/inventory-repository";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
+vi.mock("@/lib/auth-client", () => ({
+  getCurrentUser: vi.fn(() => ({ id: "screen-user", email: "screen@example.com", displayName: "Screen", recoveryPinConfigured: true, teams: [] })),
+  restoreSession: vi.fn().mockResolvedValue({ id: "screen-user", email: "screen@example.com", displayName: "Screen", recoveryPinConfigured: true, teams: [] }),
+}));
+
 it("edita e exige confirmação antes de tombstonar um registro", async () => {
-  const inventory = await createInventory("2026-09-11");
+  const inventory = await createInventory("2026-09-11", "screen-user");
   const entry = await createEntry(inventory.id, { side: "EF", bay: "1", layer: "A1", lot: "2712345678", quantity: 2 });
   const user = userEvent.setup();
   render(<InventoryScreen inventoryId={inventory.id} />);
@@ -35,7 +40,7 @@ it("edita e exige confirmação antes de tombstonar um registro", async () => {
 });
 
 it("exibe confirmação para lote repetido antes de aceitar a segunda ocorrência", async () => {
-  const inventory = await createInventory("2026-09-14");
+  const inventory = await createInventory("2026-09-14", "screen-user");
   const user = userEvent.setup();
   render(<InventoryScreen inventoryId={inventory.id} />);
 

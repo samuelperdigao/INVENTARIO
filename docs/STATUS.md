@@ -1,5 +1,97 @@
 # Status do projeto
 
+## Resultado pós-publicação
+
+Validação final em 05/10/2026 após os merges `e687f63` e `881bb1b` na `main`.
+
+- PR #31 entregou o isolamento multiusuário, a renovação de sessão protegida,
+  o polling resiliente, a referência SAP parcial e a migration `0010`.
+- PR #32 adicionou `preDeployCommand` ao Render para executar Alembic antes do
+  FastAPI. O serviço voltou a ficar saudável e o `Production Smoke` do commit
+  `881bb1b` passou.
+- A Vercel registrou deployment de produção para o commit `881bb1b`; o smoke
+  confirmou `/`, `/acesso`,
+  `/backend-api/healthz` e `https://inventory-api-6o8h.onrender.com/healthz`.
+- Quality Gates do commit `881bb1b` passou lint, TypeScript, Vitest, build,
+  Pytest, Alembic e Playwright. O teste local multiusuário cobriu 2, 3, 5 e
+  10 participantes, além de três contextos independentes no navegador.
+- O teste multiusuário com contas e dados reais de produção não foi executado,
+  pois o pedido proíbe alterar dados reais para testar. A validação física em
+  Android/iPhone também permanece pendente.
+
+Estado: publicação técnica e smoke público validados; certificação física e
+exercício multiusuário em dados reais deliberadamente não realizados.
+
+Atualizado em 05/10/2026.
+
+## Correção do deploy da migration 0010
+
+Validação em 05/10/2026 após o primeiro smoke público da entrega
+multiusuário. O healthcheck estava verde, mas o Blueprint do Render iniciava
+o FastAPI sem executar Alembic; por isso, a existência da tabela nova não era
+garantida no PostgreSQL de produção.
+
+- `render.yaml` passou a executar `python -m alembic -c alembic.ini upgrade head`
+  em `preDeployCommand`, antes de iniciar o serviço `inventory-api`.
+- A operação é aditiva e aplica a cadeia versionada até
+  `0010_participant_sync_sessions`; nenhum registro real é atualizado ou
+  removido e nenhum comando direto foi executado no Neon.
+- A migration foi incluída no deploy do Render pelo `preDeployCommand`; o
+  `Production Smoke` posterior confirmou que o serviço iniciou com a cadeia
+  publicada. O Render CLI não está instalado localmente; o Blueprint foi
+  revisado pelo diff e pelo deploy efetivo.
+
+Atualizado em 05/10/2026.
+
+## Prontidão multiusuário e operação offline
+
+Validação em 05/10/2026 na branch `hotfix/multiuser-sync-readiness`, baseada na
+`main` estável. A implementação foi integrada e publicada; o exercício
+multiusuário em dados reais de produção permanece fora do escopo seguro.
+
+- A operação local agora é vinculada à conta autenticada. Registros legados
+  sem vínculo são isolados em quarentena sem descarte; inventários de outra
+  conta não aparecem nem podem ser sincronizados.
+- A renovação de sessão impede respostas antigas de substituir uma sessão mais
+  nova e conserva os dados locais quando a sessão exige novo login.
+- A sincronização ganhou cancelamento por inventário, timeout de 15 segundos,
+  retry com backoff limitado, tratamento explícito de `401`, `403`, `404` e
+  falhas de rede, além de polling que respeita visibilidade e conectividade.
+- A participação multiusuário passou a usar sessões independentes por
+  participante. A migration aditiva `0010_participant_sync_sessions` cria essa
+  separação sem reescrever a migration `0009` nem invalidar o token legado do
+  proprietário.
+- A referência SAP não declara carga completa quando só existe metadado no
+  cache; a interface informa que os lotes locais ainda não foram baixados.
+
+### Gates locais
+
+- ESLint: aprovado.
+- TypeScript: aprovado.
+- Vitest: 14 arquivos, 83 testes aprovados.
+- Pytest: 74 testes aprovados, com 4 avisos de dependências já conhecidos.
+- Alembic: banco SQLite isolado aplicado de `0001` até `0010_participant_sync_sessions`.
+- Build de produção com proxy local e service worker: aprovado.
+- Playwright completo: 12 cenários aprovados; inclui três contextos
+  independentes no fluxo de participação, operação offline e tela segura para
+  inventário ausente no dispositivo.
+- `git diff --check`: aprovado.
+
+### Limitações e publicação
+
+- Um banco SQLite local preexistente continua falhando ao tentar a migration
+  antiga `0006`, porque já contém a tabela temporária
+  `_alembic_tmp_inventory_entries`. O artefato não foi apagado nem alterado;
+  a validação foi feita em banco isolado e limpo.
+- O merge, o deploy e o smoke público foram concluídos. Não houve alteração
+  direta no Neon; a migration aditiva foi encaminhada pelo pre-deploy do
+  serviço Render.
+- A concorrência foi exercitada localmente, inclusive com 2, 3, 5 e 10
+  participantes. A validação multiusuário no PostgreSQL de produção e em
+  dispositivos físicos continua pendente.
+
+Atualizado em 05/10/2026.
+
 ## PR 1: governança da main e qualidade de entrega
 
 Auditoria em 04/10/2026, baseada em `6c1a11c45dde3407ecf9f2a8c313ca88213f864b`. Modo duplo ativo: executor sênior e revisão do supervisor de liderança, conduzidos em etapas separadas pelo mesmo agente.

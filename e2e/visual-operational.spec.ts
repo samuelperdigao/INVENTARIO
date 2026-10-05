@@ -17,8 +17,9 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
   await login(page, ownerEmail);
   await page.getByRole("button", { name: /Iniciar novo inventário/ }).click();
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Importar planilha SAP", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continuar sem planilha SAP", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Referência SAP / SICLA", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Importar planilha SAP / SICLA", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continuar sem planilha SAP / SICLA", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Controle do inventário", exact: true })).toBeVisible();
   await expect(page.locator(".inventory-rail-label")).toHaveText(/Inventário ativo/);
   await expect(page.locator(".control-stage-summary").filter({ hasText: "Sincronização" })).toBeVisible();

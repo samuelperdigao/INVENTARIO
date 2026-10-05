@@ -2,18 +2,22 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { refreshAuthenticatedSession } from "@/lib/auth-client";
 import { db } from "@/lib/db";
-import { createEntry, createInventory, updateEntry } from "@/lib/inventory-repository";
+import { createEntry, createInventory as createLocalInventory, updateEntry } from "@/lib/inventory-repository";
 import { joinInventoryByCode, listSyncConflicts, resolveConflict, syncInventory } from "@/lib/sync-client";
 import type { Inventory, InventoryEntry } from "@/lib/models";
 
 vi.mock("@/lib/auth-client", () => ({
-  getAuthenticatedContext: vi.fn().mockResolvedValue({ accessToken: "test-access-token", teamId: "00000000-0000-4000-8000-000000000001" }),
+  getAuthenticatedContext: vi.fn().mockResolvedValue({ accessToken: "test-access-token", teamId: "00000000-0000-4000-8000-000000000001", userId: "user-id" }),
   refreshAuthenticatedSession: vi.fn().mockResolvedValue({ accessToken: "renewed-access-token", user: { id: "user-id", email: "operador@example.com", displayName: "Operador", recoveryPinConfigured: true, teams: [] } }),
 }));
 
 afterEach(() => vi.unstubAllGlobals());
 
 type ServerConflict = { entityType: "entry"; entityId: string; serverRecord: Record<string, unknown> };
+
+function createInventory(date: string, accountUserId = "user-id"): ReturnType<typeof createLocalInventory> {
+  return createLocalInventory(date, accountUserId);
+}
 
 function response(inventoryId: string, entryId: string, revision = 1) {
   const timestamp = "2026-09-11T12:00:00.000Z";
@@ -160,6 +164,31 @@ it("entra por seis dígitos e guarda somente o token interno retornado", async (
   expect(await db.inventories.get(inventoryId)).toMatchObject({
     participationCode: "482731",
     syncToken: "secure-participant-token-with-more-than-32-characters",
+    isOwner: false,
+    accountUserId: "user-id",
+  });
+});
+
+it("substitui o token local quando a conta participa novamente de um inventário existente", async () => {
+  const local = await createInventory("2026-09-18", "user-id");
+  await db.inventories.put({ ...local, syncStatus: "SYNCED", syncBaseRevision: local.revision });
+  const replacementToken = "replacement-participant-token-with-more-than-32-characters";
+  const server = {
+    ...response(local.id, "00000000-0000-4000-8000-000000000012"),
+    entries: [],
+    acknowledged: { inventory: false, entryIds: [] },
+  };
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify({ inventoryId: local.id, accessToken: replacementToken }), { status: 200 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify(server), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  await joinInventoryByCode("482731");
+
+  expect(await db.inventories.get(local.id)).toMatchObject({
+    syncToken: replacementToken,
+    accountUserId: "user-id",
+    isOwner: false,
   });
 });
 

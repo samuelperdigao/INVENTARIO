@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
+import pytest
 
 from app.main import app
 from auth_helpers import register_verified
@@ -109,6 +110,58 @@ def test_user_without_team_can_create_sync_and_share_inventory() -> None:
     )
     assert pulled.status_code == 200
     assert pulled.json()["entries"][0]["lot"] == "2815634434"
+
+
+def test_participant_rejoin_keeps_previous_device_credential_valid() -> None:
+    _owner, owner_auth = register_verified(client, "multi-session-owner@example.com")
+    inventory_id = str(uuid4())
+    created = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, None, inventory_record=inventory(inventory_id), entries=[]),
+        headers=sync_headers(owner_auth, str(uuid4())),
+    )
+    assert created.status_code == 200
+
+    _participant, participant_auth = register_verified(client, "multi-session-participant@example.com")
+    code = created.json()["participationCode"]
+    first = client.post("/api/v1/inventories/join", json={"code": code}, headers=participant_auth)
+    second = client.post("/api/v1/inventories/join", json={"code": code}, headers=participant_auth)
+    assert first.status_code == 200 and second.status_code == 200
+    first_token = first.json()["accessToken"]
+    second_token = second.json()["accessToken"]
+    assert first_token != second_token
+
+    for token in (first_token, second_token):
+        pulled = client.post(
+            "/api/v1/sync",
+            json=sync_payload(inventory_id, None, inventory_record=None, entries=[]),
+            headers=sync_headers(participant_auth, token),
+        )
+        assert pulled.status_code == 200
+
+
+@pytest.mark.parametrize("participant_count", [2, 3, 5, 10])
+def test_multiple_participants_can_pull_the_same_open_inventory_independently(participant_count: int) -> None:
+    _owner, owner_auth = register_verified(client, "ten-users-owner@example.com")
+    inventory_id = str(uuid4())
+    created = client.post(
+        "/api/v1/sync",
+        json=sync_payload(inventory_id, None, inventory_record=inventory(inventory_id), entries=[]),
+        headers=sync_headers(owner_auth, str(uuid4())),
+    )
+    assert created.status_code == 200
+    code = created.json()["participationCode"]
+
+    for index in range(participant_count):
+        _participant, participant_auth = register_verified(client, f"ten-users-{index}@example.com")
+        joined = client.post("/api/v1/inventories/join", json={"code": code}, headers=participant_auth)
+        assert joined.status_code == 200
+        pulled = client.post(
+            "/api/v1/sync",
+            json=sync_payload(inventory_id, None, inventory_record=None, entries=[]),
+            headers=sync_headers(participant_auth, joined.json()["accessToken"]),
+        )
+        assert pulled.status_code == 200
 
 
 def test_sync_is_idempotent_and_returns_layer_and_author_for_authorized_team() -> None:

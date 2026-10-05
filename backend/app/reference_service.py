@@ -35,7 +35,7 @@ MAX_COLUMNS = 256
 HEADER_SCAN_ROWS = 25
 WARNING_LIMIT = 20
 LOT_HEADERS = frozenset({"lote", "lotes"})
-MISSING_LOT_HEADER_MESSAGE = "Não foi possível localizar a coluna ‘Lote’ ou ‘Lotes’ na planilha do SAP. Confira o arquivo selecionado."
+MISSING_LOT_HEADER_MESSAGE = "Não foi possível localizar a coluna ‘Lote’ ou ‘Lotes’ na planilha do SAP / SICLA. Confira o arquivo selecionado."
 
 
 class ReferenceImportError(ValueError):
@@ -162,7 +162,7 @@ def _load_single_data_sheet(content: bytes) -> tuple[Any, Any, list[list[Any]]]:
         if not data_sheets:
             raise ReferenceImportError("A planilha Excel está vazia.")
         if len(data_sheets) > 1:
-            raise ReferenceImportError("A planilha possui mais de uma aba com dados. Envie uma única aba exportada do SAP.")
+            raise ReferenceImportError("A planilha possui mais de uma aba com dados. Envie uma única aba exportada do SAP / SICLA.")
         worksheet, preview_rows = data_sheets[0]
         return workbook, worksheet, preview_rows
     except ReferenceImportError:
@@ -276,7 +276,7 @@ def parse_xlsx_reference(
 
     safe_filename = safe_original_filename(filename)
     if not safe_filename.casefold().endswith(".xlsx"):
-        raise ReferenceImportError("Envie um arquivo Excel .xlsx exportado do SAP.")
+        raise ReferenceImportError("Envie um arquivo Excel .xlsx exportado do SAP / SICLA.")
     _safe_zip_bytes(content, max_bytes)
     workbook, worksheet, preview_rows = _load_single_data_sheet(content)
     try:
@@ -286,7 +286,7 @@ def parse_xlsx_reference(
         if selected is not None and (selected < 1 or selected > MAX_COLUMNS or selected not in available_columns):
             raise ReferenceImportError("Selecione uma coluna disponível na prévia da planilha.")
         if selected != automatic_column:
-            raise ReferenceImportError("A importação da referência SAP utiliza exclusivamente a coluna com cabeçalho ‘Lote’ ou ‘Lotes’.")
+            raise ReferenceImportError("A importação da referência SAP / SICLA utiliza exclusivamente a coluna com cabeçalho ‘Lote’ ou ‘Lotes’.")
         selected_label = available_columns.get(selected) if selected is not None else None
         first_data_row = header_row + 1 if header_row else 1
         total_rows = 0

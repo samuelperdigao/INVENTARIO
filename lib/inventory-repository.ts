@@ -28,6 +28,13 @@ export class InventoryDeletionError extends Error {
   }
 }
 
+export class InventoryAccessError extends Error {
+  constructor(message = "Este inventário não pertence à conta ativa neste dispositivo.") {
+    super(message);
+    this.name = "InventoryAccessError";
+  }
+}
+
 export interface InventoryDeletionSnapshot {
   previous: Inventory;
   tombstoned: Inventory;
@@ -61,7 +68,7 @@ async function bumpInventory(inventory: Inventory, now: string): Promise<void> {
   });
 }
 
-export async function createInventory(date = localDateIso()): Promise<Inventory> {
+export async function createInventory(date = localDateIso(), accountUserId?: string): Promise<Inventory> {
   const now = timestamp();
   const inventory: Inventory = {
     id: uuidv7(),
@@ -76,22 +83,39 @@ export async function createInventory(date = localDateIso()): Promise<Inventory>
     tombstone: false,
     syncToken: uuidv4(),
     isOwner: true,
+    accountUserId,
   };
   await db.inventories.add(inventory);
   return inventory;
 }
 
-export async function listOpenInventories(): Promise<Inventory[]> {
-  return db.inventories.filter((inventory) => !inventory.tombstone && inventory.status === "OPEN").sortBy("createdAt");
+export async function listOpenInventories(accountUserId?: string): Promise<Inventory[]> {
+  return db.inventories.filter((inventory) => !inventory.tombstone
+    && inventory.status === "OPEN"
+    && (accountUserId === undefined ? true : inventory.accountUserId === accountUserId && !inventory.accountQuarantined)).sortBy("createdAt");
 }
 
-export async function listLocalInventories(): Promise<Inventory[]> {
-  return db.inventories.filter((inventory) => !inventory.tombstone).sortBy("createdAt");
+export async function listLocalInventories(accountUserId?: string): Promise<Inventory[]> {
+  return db.inventories.filter((inventory) => !inventory.tombstone
+    && (accountUserId === undefined ? true : inventory.accountUserId === accountUserId && !inventory.accountQuarantined)).sortBy("createdAt");
 }
 
-export async function getInventory(id: string): Promise<Inventory | undefined> {
+/** Preserva e marca registros legados que não têm uma conta verificável. */
+export async function quarantineUnknownInventories(): Promise<void> {
+  const legacy = await db.inventories.filter((inventory) => !inventory.accountUserId && !inventory.accountQuarantined).toArray();
+  if (!legacy.length) return;
+  await db.transaction("rw", db.inventories, async () => {
+    for (const inventory of legacy) {
+      await db.inventories.put({ ...inventory, accountQuarantined: true });
+    }
+  });
+}
+
+export async function getInventory(id: string, accountUserId?: string): Promise<Inventory | undefined> {
   const inventory = await db.inventories.get(id);
-  return inventory && !inventory.tombstone ? inventory : undefined;
+  if (!inventory || inventory.tombstone) return undefined;
+  if (accountUserId !== undefined && (inventory.accountUserId !== accountUserId || inventory.accountQuarantined)) return undefined;
+  return inventory;
 }
 
 export async function listActiveEntries(inventoryId: string): Promise<InventoryEntry[]> {
@@ -261,8 +285,10 @@ export async function restoreInventoryAfterDeletionFailure(inventoryId: string):
   });
 }
 
-export async function listPendingInventoryDeletions(): Promise<Inventory[]> {
-  return db.inventories.filter((inventory) => inventory.tombstone && inventory.syncStatus === "PENDING").toArray();
+export async function listPendingInventoryDeletions(accountUserId?: string): Promise<Inventory[]> {
+  return db.inventories.filter((inventory) => inventory.tombstone
+    && inventory.syncStatus === "PENDING"
+    && (accountUserId === undefined ? true : inventory.accountUserId === accountUserId && !inventory.accountQuarantined)).toArray();
 }
 
 export async function purgeInventory(inventoryId: string): Promise<void> {
@@ -288,10 +314,13 @@ export async function purgeInventory(inventoryId: string): Promise<void> {
 }
 
 /** Compatibiliza inventários criados na Fase 1 antes da chave de sincronização. */
-export async function prepareInventoryForSync(inventoryId: string): Promise<Inventory> {
+export async function prepareInventoryForSync(inventoryId: string, accountUserId?: string): Promise<Inventory> {
   return db.transaction("rw", db.inventories, async () => {
     const inventory = await db.inventories.get(inventoryId);
     if (!inventory) throw new Error("Inventário não encontrado.");
+    if (accountUserId !== undefined && (inventory.accountUserId !== accountUserId || inventory.accountQuarantined)) {
+      throw new InventoryAccessError();
+    }
     const prepared: Inventory = {
       ...inventory,
       syncToken: inventory.syncToken || uuidv4(),

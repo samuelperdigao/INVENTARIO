@@ -71,7 +71,14 @@ function localReference(inventoryId: string, metadata: ApiReferenceMetadata, lot
 
 async function errorFromResponse(response: Response, fallback: string): Promise<Error> {
   const body = await response.json().catch(() => undefined) as { detail?: string } | undefined;
-  return new Error(body?.detail ?? fallback);
+  return new ReferenceHttpError(response.status, body?.detail ?? fallback);
+}
+
+export class ReferenceHttpError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = "ReferenceHttpError";
+  }
 }
 
 async function authorizedHeaders(inventory: Inventory): Promise<Record<string, string>> {
@@ -167,13 +174,14 @@ export async function importReference(
   };
 }
 
-async function fetchReferenceState(inventory: Inventory, page: number, query: string): Promise<ReferenceState> {
+async function fetchReferenceState(inventory: Inventory, page: number, query: string, signal?: AbortSignal): Promise<ReferenceState> {
   const params = new URLSearchParams({ page: String(page), pageSize: "50" });
   if (query.trim()) params.set("query", query.trim());
   const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventory.id}/reference?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     headers: await authorizedHeaders(inventory),
+    signal,
   });
   if (!response.ok) throw await errorFromResponse(response, "Não foi possível carregar a referência de lotes.");
   const result = await response.json() as ApiReferenceState;
@@ -247,12 +255,18 @@ async function localReferenceState(inventoryId: string, page: number, query: str
   };
 }
 
-export async function getReferenceState(inventory: Inventory, page = 1, query = ""): Promise<ReferenceState> {
-  if (typeof navigator !== "undefined" && !navigator.onLine) return localReferenceState(inventory.id, page, query);
+export async function getReferenceState(inventory: Inventory, page = 1, query = "", signal?: AbortSignal): Promise<ReferenceState> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const local = await localReferenceState(inventory.id, page, query);
+    if (local.reference?.lotsComplete) return local;
+    throw new Error("A referência SAP / SICLA ainda não está disponível neste dispositivo sem conexão.");
+  }
   try {
-    return await fetchReferenceState(inventory, page, query);
-  } catch {
-    return localReferenceState(inventory.id, page, query);
+    return await fetchReferenceState(inventory, page, query, signal);
+  } catch (cause) {
+    const local = await localReferenceState(inventory.id, page, query);
+    if (local.reference?.lotsComplete) return local;
+    throw cause;
   }
 }
 

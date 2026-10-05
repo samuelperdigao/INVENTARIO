@@ -26,7 +26,7 @@ from app.engine import AnalysisEntry, analyze_entries
 from app.email_service import EmailAttachment, send_email
 from app.lot_rules import validate_lot
 from app.persistence import (
-    InventoryEntryRow, InventoryParticipantRow, InventoryRow,
+    InventoryEntryRow, InventoryParticipantRow, InventoryParticipantSessionRow, InventoryRow,
     ParticipationAttemptRow, TeamMemberRow, TeamRow, UserRow,
 )
 from app.presentation import apply_report_presentation
@@ -346,12 +346,21 @@ def _valid_inventory_token(session: Session, inventory: InventoryRow, user: User
     if inventory.owner_user_id == user.id and inventory.owner_access_hash and hmac.compare_digest(inventory.owner_access_hash, token_hash):
         return True
     participant_hash = session.scalar(
+        select(InventoryParticipantSessionRow.access_token_hash).where(
+            InventoryParticipantSessionRow.inventory_id == inventory.id,
+            InventoryParticipantSessionRow.user_id == user.id,
+            InventoryParticipantSessionRow.access_token_hash == token_hash,
+        )
+    )
+    if participant_hash is not None and hmac.compare_digest(participant_hash, token_hash):
+        return True
+    legacy_hash = session.scalar(
         select(InventoryParticipantRow.access_token_hash).where(
             InventoryParticipantRow.inventory_id == inventory.id,
             InventoryParticipantRow.user_id == user.id,
         )
     )
-    return participant_hash is not None and hmac.compare_digest(participant_hash, token_hash)
+    return legacy_hash is not None and hmac.compare_digest(legacy_hash, token_hash)
 
 
 def _inventory_access(
@@ -406,7 +415,7 @@ def inventory_lot_matches(
 async def _read_reference_upload(file: UploadFile) -> tuple[str, bytes]:
     filename = safe_original_filename(file.filename)
     if not filename.casefold().endswith(".xlsx"):
-        raise HTTPException(status_code=422, detail="Envie um arquivo Excel .xlsx exportado do SAP.")
+        raise HTTPException(status_code=422, detail="Envie um arquivo Excel .xlsx exportado do SAP / SICLA.")
     max_bytes = settings.reference_max_mb * 1024 * 1024
     content = await file.read(max_bytes + 1)
     if not content:
@@ -869,8 +878,15 @@ def join_inventory(
         )
         session.add(participant)
     else:
-        participant.access_token_hash = token_hash
         participant.last_accessed_at = now
+    session.add(InventoryParticipantSessionRow(
+        id=str(uuid4()),
+        inventory_id=inventory.id,
+        user_id=user.id,
+        access_token_hash=token_hash,
+        created_at=now,
+        last_accessed_at=now,
+    ))
     session.commit()
     return {"inventoryId": inventory.id, "accessToken": access_token}
 

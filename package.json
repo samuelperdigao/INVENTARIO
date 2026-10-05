@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy.ps1"
+    "deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy.ps1",
+    "release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy.ps1 -Mode prepare",
+    "deploy:production": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy.ps1 -Mode production"
   },
   "dependencies": {
     "@serwist/next": "9.5.12",

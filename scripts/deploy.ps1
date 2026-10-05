@@ -91,6 +91,31 @@ function Get-StatusLines {
     return @(& git status --porcelain=v1)
 }
 
+function Sync-MainBaseline {
+    if ((Get-CurrentBranch) -ne "main") {
+        return
+    }
+
+    if ((@(Get-StatusLines)).Count -gt 0) {
+        return
+    }
+
+    Invoke-Checked -Tool "git" -Arguments @("fetch", "origin", "main", "--prune")
+    $localSha = (& git rev-parse main).Trim()
+    $remoteSha = (& git rev-parse origin/main).Trim()
+    if ($localSha -eq $remoteSha) {
+        return
+    }
+
+    & git merge-base --is-ancestor $localSha $remoteSha
+    if ($LASTEXITCODE -ne 0) {
+        throw "A main local divergiu de origin/main. Preserve os commits locais e resolva a divergência antes de preparar a entrega."
+    }
+
+    Invoke-Checked -Tool "git" -Arguments @("merge", "--ff-only", "origin/main")
+    Write-Host "main local atualizada por fast-forward antes de criar a branch de entrega." -ForegroundColor Green
+}
+
 function Assert-NoSensitivePaths {
     param([string[]]$Paths)
 
@@ -105,7 +130,9 @@ function Assert-NoSensitivePaths {
     )
 
     if ($sensitivePaths.Count -gt 0) {
-        & git reset | Out-Null
+        foreach ($path in $sensitivePaths) {
+            & git reset -- $path | Out-Null
+        }
         throw ("Arquivos potencialmente sensiveis foram bloqueados: " + ($sensitivePaths -join ", "))
     }
 }
@@ -200,10 +227,20 @@ function Prepare-Release {
         throw "Informe -Message, por exemplo: -Message 'feat: atualizar fluxo de sincronizacao'"
     }
 
+    if (-not $NoPullRequest) {
+        Assert-Command -Name "gh"
+    }
+
     $branch = Get-CurrentBranch
     if ([string]::IsNullOrWhiteSpace($branch)) {
         throw "O checkout esta em detached HEAD; crie uma branch antes de preparar a entrega."
     }
+
+    $statusBefore = @(Get-StatusLines)
+    if ($branch -eq "main" -and $statusBefore.Count -eq 0) {
+        Sync-MainBaseline
+    }
+
     if ($branch -eq "main") {
         $branch = New-DeployBranch -CommitMessage $Message
     }
@@ -230,7 +267,7 @@ function Prepare-Release {
         Open-PullRequest -Branch $branch -CommitMessage $Message
     }
 
-    Write-Host "Entrega preparada. Aguarde aprovacao e merge do PR antes do modo production." -ForegroundColor Green
+    Write-Host "Entrega preparada. A PR foi aberta (quando solicitada); o modo production fica separado e exige merge concluido e autorizacao explicita." -ForegroundColor Green
 }
 
 function Get-GitHubRunList {

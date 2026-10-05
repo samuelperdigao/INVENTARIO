@@ -210,7 +210,7 @@ def _summary_rows(report: dict[str, Any]) -> list[tuple[str, object]]:
         reference = report["reference"]
         rows.extend(
             [
-                ("Referência de lotes", "Planilha Excel exportada do SAP"),
+                ("Referência de lotes", "Planilha Excel exportada do SAP / SICLA"),
                 ("Lotes previstos", int(reference.get("totalLots", 0))),
                 ("Previstos e encontrados", int(reference.get("foundLots", 0))),
                 ("Previstos e não encontrados", int(reference.get("missingLots", 0))),
@@ -845,7 +845,7 @@ def export_pdf(report: dict[str, Any]) -> bytes:
             [
                 PageBreak(),
                 Paragraph("Conciliação com referência de lotes", heading_style),
-                Paragraph("A referência usa somente números de lote da planilha Excel exportada do SAP. As quantidades abaixo são exclusivamente físicas.", note_style),
+                Paragraph("A referência usa somente números de lote da planilha Excel exportada do SAP / SICLA. As quantidades abaixo são exclusivamente físicas.", note_style),
                 _pdf_table(
                     reference_rows,
                     [2.0 * cm, 3.0 * cm, 2.6 * cm, 10.2 * cm, 2.5 * cm, 7.0 * cm],
@@ -1012,7 +1012,7 @@ def export_docx(report: dict[str, Any]) -> bytes:
     if _has_reference(report):
         document.add_page_break()
         document.add_heading("Conciliação com referência de lotes", level=1)
-        document.add_paragraph("A referência usa somente números de lote da planilha Excel exportada do SAP. As quantidades abaixo são exclusivamente físicas.")
+        document.add_paragraph("A referência usa somente números de lote da planilha Excel exportada do SAP / SICLA. As quantidades abaixo são exclusivamente físicas.")
         _docx_add_table(
             document,
             ["Lote", "Referência", "Físico", "Localização", "Qtd. física", "Condição"],

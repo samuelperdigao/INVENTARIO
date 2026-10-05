@@ -55,8 +55,9 @@ it("explica que a referência é opcional e mantém a coleta liberada", async ()
   setOnline(false);
   render(<ReferencePanel inventory={inventory} onChanged={vi.fn().mockResolvedValue(undefined)} />);
 
+  expect(screen.getByRole("heading", { name: "Referência SAP / SICLA" })).toBeInTheDocument();
   await screen.findByText(/Você pode continuar sem referência e registrar normalmente/);
-  await userEvent.setup().click(screen.getByRole("button", { name: "Continuar sem planilha SAP" }));
+  await userEvent.setup().click(screen.getByRole("button", { name: "Continuar sem planilha SAP / SICLA" }));
 
   expect(screen.getByRole("status")).toHaveTextContent("Sem referência: a coleta física continua disponível normalmente.");
 });
@@ -106,7 +107,7 @@ it("mostra linhas verificadas na prévia sem avisar sobre zeros à esquerda", as
   render(<ReferencePanel inventory={inventory} onChanged={vi.fn().mockResolvedValue(undefined)} />);
 
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: "Importar planilha SAP / Sicla" }));
+  await user.click(await screen.findByRole("button", { name: "Importar planilha SAP / SICLA" }));
   await user.upload(screen.getByLabelText("Arquivo Excel (.xlsx)"), new File(["xlsx"], "materia-prima.xlsx"));
   setOnline(true);
   await user.click(screen.getByRole("button", { name: "Pré-visualizar importação" }));

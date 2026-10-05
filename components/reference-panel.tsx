@@ -103,7 +103,7 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
 
   async function handlePreview(): Promise<void> {
     if (!file) {
-      setError("Escolha um arquivo .xlsx exportado do SAP.");
+      setError("Escolha um arquivo .xlsx exportado do SAP / SICLA.");
       return;
     }
     setBusy(true);
@@ -173,14 +173,14 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
   const referenceStatus = error ? "Com erro" : busy ? "Processando" : reference ? reference.lotsComplete ? "Planilha importada" : "Referência central" : continuedWithoutReference ? "Não utilizada" : "Opcional";
 
   return <>
-    <section className="card section-card panel-card stack reference-panel" aria-label="Referência SAP">
+    <section className="card section-card panel-card stack reference-panel" aria-label="Referência SAP / SICLA">
       <div className="section-header">
         <div className="panel-heading">
           <span className="panel-index" aria-hidden="true">06</span>
           <div className="panel-copy">
             <p className="eyebrow">Antes do primeiro lançamento</p>
-            <h2>Referência SAP</h2>
-            <p className="muted">Opcional: importe os lotes do SAP para comparar a conferência depois. A coleta física nunca fica bloqueada.</p>
+            <h2>Referência SAP / SICLA</h2>
+            <p className="muted">Opcional: importe os lotes do SAP / SICLA para comparar a conferência depois. A coleta física nunca fica bloqueada.</p>
           </div>
         </div>
         <span className={`micro-pill ${reference ? "good" : continuedWithoutReference ? "attention" : ""}`}>{referenceStatus}</span>
@@ -189,10 +189,10 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
       {loading && !state ? <p className="muted">Carregando referência…</p> : null}
 
       {!reference && !showImporter ? <div className={`reference-empty ${continuedWithoutReference ? "reference-empty-compact" : ""}`}>
-        <p className="muted">{continuedWithoutReference ? "Sem planilha: a coleta física continua liberada para qualquer lote." : "Você pode continuar sem referência e registrar normalmente. Se houver um arquivo do SAP, importe-o para comparar presença de lotes depois."}</p>
+        <p className="muted">{continuedWithoutReference ? "Sem planilha: a coleta física continua liberada para qualquer lote." : "Você pode continuar sem referência e registrar normalmente. Se houver um arquivo do SAP / SICLA, importe-o para comparar presença de lotes depois."}</p>
         <div className="actions">
-          {canEditReference ? <button className="primary" type="button" onClick={() => { setShowImporter(true); setMessage(undefined); setError(undefined); }}>Importar planilha SAP / Sicla</button> : null}
-          {!continuedWithoutReference ? <button className="secondary" type="button" aria-label="Continuar sem planilha SAP" onClick={() => { setContinuedWithoutReference(true); setMessage("Sem referência: a coleta física continua disponível normalmente."); }}>Continuar sem planilha</button> : null}
+          {canEditReference ? <button className="primary" type="button" onClick={() => { setShowImporter(true); setMessage(undefined); setError(undefined); }}>Importar planilha SAP / SICLA</button> : null}
+          {!continuedWithoutReference ? <button className="secondary" type="button" aria-label="Continuar sem planilha SAP / SICLA" onClick={() => { setContinuedWithoutReference(true); setMessage("Sem referência: a coleta física continua disponível normalmente."); }}>Continuar sem planilha</button> : null}
         </div>
       </div> : null}
 
@@ -219,7 +219,7 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
       {showImporter && canEditReference ? <div className="reference-importer details-box">
         <div className="details-content stack">
           <div>
-            <h3>{reference ? "Substituir referência" : "Importar planilha SAP / Sicla"}</h3>
+            <h3>{reference ? "Substituir referência" : "Importar planilha SAP / SICLA"}</h3>
             <p className="muted">O arquivo é lido em memória. Após a confirmação, ficam salvos apenas os números de lote.</p>
           </div>
           <label className="field" htmlFor="reference-file">Arquivo Excel (.xlsx)

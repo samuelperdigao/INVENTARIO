@@ -23,12 +23,12 @@ const labels: Record<AdminAudit["action"], string> = {
   ENTRY_CREATED: "Lançamento incluído", ENTRY_UPDATED: "Lançamento corrigido",
   ENTRY_REMOVED: "Lançamento removido", REOPENED: "Inventário reaberto",
   INVENTORY_DELETED: "Inventário excluído", OWNER_TRANSFERRED: "Responsável alterado",
-  REFERENCE_IMPORTED: "Referência SAP atualizada", REFERENCE_REMOVED: "Referência SAP removida",
+  REFERENCE_IMPORTED: "Referência SAP / SICLA atualizada", REFERENCE_REMOVED: "Referência SAP / SICLA removida",
 };
 const actionLabels: Record<Action, string> = {
   create: "Adicionar lançamento", edit: "Corrigir lançamento", remove: "Remover lançamento",
   reopen: "Reabrir inventário", delete: "Excluir inventário", transfer: "Transferir responsabilidade",
-  reference: "Importar referência SAP", removeReference: "Remover referência SAP",
+  reference: "Importar referência SAP / SICLA", removeReference: "Remover referência SAP / SICLA",
 };
 
 function dateTime(value?: string): string {
@@ -319,7 +319,7 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
             setEntryPage(next); void refreshDetail(next);
           }} />
         </section>
-        <div className={styles.twoColumns}><section className={styles.card}><div className={styles.sectionTitle}><h2>Referência SAP</h2>
+        <div className={styles.twoColumns}><section className={styles.card}><div className={styles.sectionTitle}><h2>Referência SAP / SICLA</h2>
           {!detail.tombstone ? <button className={styles.secondary} type="button" onClick={() => openAction("reference")}>{detail.reference.reference ? "Substituir" : "Importar"}</button> : null}</div>
           {detail.reference.reference ? <><p><strong>{detail.reference.reference.originalFilename}</strong></p>
             <p>{detail.reference.summary.totalLots} lotes previstos · {detail.reference.summary.foundLots} encontrados · {detail.reference.summary.pendingLots} pendentes</p>
@@ -340,7 +340,7 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
               void adminGet<AdminReferenceState>(`/inventories/${detail.id}/reference?query=${encodeURIComponent(referenceSearch)}&page=${next}`)
                 .then(setComparison).catch((cause: Error) => setError(cause.message));
             }} />
-            {!detail.tombstone ? <button className={styles.textButton} type="button" onClick={() => openAction("removeReference")}>Remover referência</button> : null}</> : <p className={styles.empty}>Sem referência SAP ativa.</p>}</section>
+            {!detail.tombstone ? <button className={styles.textButton} type="button" onClick={() => openAction("removeReference")}>Remover referência</button> : null}</> : <p className={styles.empty}>Sem referência SAP / SICLA ativa.</p>}</section>
           <section className={styles.card}><h2>Participantes</h2>
             <p>{detail.participants.length} participante(s) registrado(s)</p>
             {detail.participants.map((person) => <p key={person.email}><strong>{person.name}</strong><br /><small>{person.email}</small></p>)}</section></div>
@@ -377,7 +377,7 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
           {action === "transfer" ? <><label>Buscar novo responsável <input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Nome ou e-mail" /></label>
             <button className={styles.secondary} type="button" onClick={() => void searchUsers()}>Buscar contas</button>
             <label>Novo responsável <select required value={newOwner} onChange={(event) => setNewOwner(event.target.value)}><option value="">Selecione uma conta</option>{users.filter((candidate) => candidate.id !== detail.ownerUserId).map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.name} · {candidate.email}</option>)}</select></label></> : null}
-          {action === "reference" ? <><label>Planilha SAP (.xlsx) <input required type="file" accept=".xlsx" onChange={(event) => { const chosen = event.target.files?.[0]; if (chosen) void handlePreview(chosen); }} /></label>
+          {action === "reference" ? <><label>Planilha SAP / SICLA (.xlsx) <input required type="file" accept=".xlsx" onChange={(event) => { const chosen = event.target.files?.[0]; if (chosen) void handlePreview(chosen); }} /></label>
             {preview ? <p className={styles.notice}>Prévia: {preview.uniqueLots} lote(s) válido(s), {preview.ignoredRows} linha(s) ignorada(s). {preview.warnings.slice(0, 2).join(" ")}</p> : null}</> : null}
           <label>Justificativa {detail.status === "OPEN" && (action === "create" || action === "edit" || action === "remove") ? "(opcional)" : ""}
             <textarea required={detail.status === "FINISHED" || !["create", "edit", "remove"].includes(action)}

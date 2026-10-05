@@ -11,12 +11,12 @@ import { InventoryControlPanel } from "@/components/inventory-control-panel";
 import { ReferencePanel, createReferenceLotChecker } from "@/components/reference-panel";
 import { BrandLogo } from "@/components/brand-logo";
 import { Icon } from "@/components/icon";
-import { getCurrentUser } from "@/lib/auth-client";
+import { getCurrentUser, restoreSession } from "@/lib/auth-client";
 import { findRemoteDuplicateLotEntries } from "@/lib/duplicate-client";
 import { formatBrazilianDate } from "@/lib/local-date";
 import { createEntry, DuplicateLotError, findDuplicateLotEntries, getInventory, listActiveEntries, purgeInventory, restoreInventoryAfterDeletionFailure, tombstoneEmptyInventory, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
 import { formatSideLabel, type EntryDraft, type Inventory, type InventoryEntry } from "@/lib/models";
-import { INVENTORY_POLLING_INTERVAL_MS, SyncHttpError, syncInventory } from "@/lib/sync-client";
+import { cancelSync, INVENTORY_POLLING_INTERVAL_MS, SyncHttpError, syncInventory } from "@/lib/sync-client";
 
 function inventoryScreenKey(value?: Inventory): string {
   if (!value) return "";
@@ -71,11 +71,16 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const [highlightedEntryId, setHighlightedEntryId] = useState<string>();
   const [formDirty, setFormDirty] = useState(false);
   const [remoteFinalized, setRemoteFinalized] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string>();
+  const accountUserIdRef = useRef<string | undefined>(undefined);
+  const syncFailureCountRef = useRef(0);
+  const nextSyncRetryAtRef = useRef(0);
   const latestInventoryRef = useRef<Inventory | undefined>(undefined);
   const latestEntriesRef = useRef<InventoryEntry[]>([]);
 
   const refresh = useCallback(async () => {
-    const [currentInventory, currentEntries] = await Promise.all([getInventory(inventoryId), listActiveEntries(inventoryId)]);
+    const accountUserId = accountUserIdRef.current;
+    const [currentInventory, currentEntries] = await Promise.all([getInventory(inventoryId, accountUserId), listActiveEntries(inventoryId)]);
     if (!currentInventory) throw new Error("Inventário não encontrado neste dispositivo.");
     latestInventoryRef.current = currentInventory;
     latestEntriesRef.current = currentEntries;
@@ -86,7 +91,8 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const refreshIfChanged = useCallback(async () => {
     const previousInventory = latestInventoryRef.current;
     const previousEntries = latestEntriesRef.current;
-    const [currentInventory, currentEntries] = await Promise.all([getInventory(inventoryId), listActiveEntries(inventoryId)]);
+    const accountUserId = accountUserIdRef.current;
+    const [currentInventory, currentEntries] = await Promise.all([getInventory(inventoryId, accountUserId), listActiveEntries(inventoryId)]);
     if (!currentInventory) throw new Error("Inventário não encontrado neste dispositivo.");
     if (inventoryScreenKey(previousInventory) !== inventoryScreenKey(currentInventory)) setInventory(currentInventory);
     if (entriesScreenKey(previousEntries) !== entriesScreenKey(currentEntries)) setEntries(currentEntries);
@@ -96,7 +102,14 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
 
   useEffect(() => {
     let active = true;
-    void Promise.all([getInventory(inventoryId), listActiveEntries(inventoryId)])
+    void (async () => {
+      const currentUser = getCurrentUser() ?? await restoreSession();
+      if (!currentUser) {
+        return Promise.reject(new Error("Entre na sua conta para abrir este inventário."));
+      }
+      accountUserIdRef.current = currentUser.id;
+      return Promise.all([getInventory(inventoryId, currentUser.id), listActiveEntries(inventoryId)]);
+    })()
       .then(([currentInventory, currentEntries]) => {
         if (!active) return;
         if (!currentInventory) throw new Error("Inventário não encontrado neste dispositivo.");
@@ -112,7 +125,32 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [inventoryId]);
+  }, [inventoryId, router]);
+
+  const noteSyncSuccess = useCallback(() => {
+    syncFailureCountRef.current = 0;
+    nextSyncRetryAtRef.current = 0;
+    setSyncMessage(undefined);
+  }, []);
+
+  const noteSyncFailure = useCallback((cause: unknown) => {
+    if (cause instanceof Error && cause.name === "AbortError") return;
+    if (cause instanceof SyncHttpError && cause.status === 401) {
+      setSyncMessage(cause.message);
+      router.replace("/acesso");
+      return;
+    }
+    if (cause instanceof SyncHttpError && (cause.status === 403 || cause.status === 404)) {
+      setSyncMessage(cause.message);
+      router.replace("/pendencias");
+      return;
+    }
+    syncFailureCountRef.current += 1;
+    nextSyncRetryAtRef.current = Date.now() + Math.min(60_000, 1_000 * 2 ** (syncFailureCountRef.current - 1));
+    setSyncMessage(cause instanceof TypeError
+      ? "Sem conexão com o servidor. Os dados locais continuam disponíveis."
+      : cause instanceof Error ? cause.message : "Não foi possível sincronizar agora. Os dados locais continuam disponíveis.");
+  }, [router]);
 
   const runBackgroundSync = useCallback(async () => {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
@@ -121,10 +159,11 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       if (result.serverDeleted) { router.replace("/pendencias"); return; }
       setRemoteFinalized(result.serverStatus === "FINISHED" && latestInventoryRef.current?.status === "OPEN");
       if (result.changed) await refreshIfChanged();
-    } catch {
-      // Local writes stay available when the network or authentication is unavailable.
+      noteSyncSuccess();
+    } catch (cause) {
+      noteSyncFailure(cause);
     }
-  }, [inventoryId, refreshIfChanged, router]);
+  }, [inventoryId, noteSyncFailure, noteSyncSuccess, refreshIfChanged, router]);
 
   const inventoryStatus = inventory?.status;
 
@@ -136,7 +175,11 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
 
     async function poll(): Promise<void> {
       if (!active || busy || (typeof document !== "undefined" && document.visibilityState !== "visible")) return;
-      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setSyncMessage("Sem conexão. Os novos lançamentos continuam salvos neste dispositivo.");
+        return;
+      }
+      if (Date.now() < nextSyncRetryAtRef.current) return;
       const now = Date.now();
       if (now - lastTriggerAt < 500) return;
       lastTriggerAt = now;
@@ -147,32 +190,42 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
         if (result.serverDeleted) { router.replace("/pendencias"); return; }
         setRemoteFinalized(result.serverStatus === "FINISHED" && latestInventoryRef.current?.status === "OPEN");
         if (result.changed) await refreshIfChanged();
-      } catch {
-        // Polling is intentionally silent; manual sync remains available for visible errors.
+        noteSyncSuccess();
+      } catch (cause) {
+        noteSyncFailure(cause);
       } finally {
         busy = false;
       }
     }
 
     const intervalId = window.setInterval(() => { void poll(); }, INVENTORY_POLLING_INTERVAL_MS);
-    const handleVisibility = () => { if (document.visibilityState === "visible") void poll(); };
-    const handleOnline = () => { void poll(); };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        nextSyncRetryAtRef.current = 0;
+        void poll();
+      }
+    };
+    const handleOnline = () => {
+      nextSyncRetryAtRef.current = 0;
+      void poll();
+    };
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("online", handleOnline);
     return () => {
       active = false;
       window.clearInterval(intervalId);
+      cancelSync(inventoryId);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("online", handleOnline);
     };
-  }, [inventoryId, inventoryStatus, refreshIfChanged, router]);
+  }, [inventoryId, inventoryStatus, noteSyncFailure, noteSyncSuccess, refreshIfChanged, router]);
 
   const totalPieces = useMemo(() => entries.reduce((sum, entry) => sum + entry.quantity, 0), [entries]);
   const distinctLots = useMemo(() => new Set(entries.map((entry) => entry.lot.trim())).size, [entries]);
 
   async function saveEntry(draft: EntryDraft, entryId?: string, allowDuplicate = false): Promise<void> {
     setError(undefined);
-    const currentInventory = inventory ?? await getInventory(inventoryId);
+    const currentInventory = inventory ?? await getInventory(inventoryId, accountUserIdRef.current);
     if (!currentInventory) throw new Error("Inventário não encontrado neste dispositivo.");
 
     if (!allowDuplicate) {
@@ -324,6 +377,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       </section>
 
       {error && <p className="error" role="alert">{error}</p>}
+      {syncMessage ? <p className="notice" role="status">{syncMessage}</p> : null}
       <div className="stack">
         <ReferencePanel inventory={displayedInventory} onChanged={refresh} />
         <div className="entry-workspace">

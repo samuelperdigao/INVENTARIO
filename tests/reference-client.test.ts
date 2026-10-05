@@ -103,6 +103,14 @@ it("consulta o cache offline, calcula a situação física e responde ao pertenc
   expect(fetchMock).not.toHaveBeenCalled();
 });
 
+it("não trata metadados incompletos como planilha carregada quando a API falha", async () => {
+  setOnline(true);
+  await db.inventoryReferences.put({ ...metadata, lotsComplete: false });
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
+
+  await expect(getReferenceState(inventory)).rejects.toThrow();
+});
+
 it("descarta lotes cacheados quando a referência central muda de revisão", async () => {
   setOnline(true);
   await db.inventoryReferences.put(metadata);

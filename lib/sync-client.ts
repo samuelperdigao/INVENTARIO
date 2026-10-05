@@ -3,13 +3,17 @@ import { v4 as uuidv4 } from "uuid";
 import { apiBaseUrl } from "@/lib/api-config";
 import { getAuthenticatedContext, refreshAuthenticatedSession } from "@/lib/auth-client";
 import { db } from "@/lib/db";
-import { listEntriesForSync, prepareInventoryForSync } from "@/lib/inventory-repository";
+import { InventoryAccessError, listEntriesForSync, prepareInventoryForSync } from "@/lib/inventory-repository";
 import type { Inventory, InventoryEntry, SyncConflict, SyncMetadata } from "@/lib/models";
 
 const deviceMetadataId = "sync-device";
 export const INVENTORY_POLLING_INTERVAL_MS = 10_000;
 
 const inFlightSyncs = new Map<string, Promise<SyncResult>>();
+const syncControllers = new Map<string, AbortController>();
+const SYNC_REQUEST_TIMEOUT_MS = 15_000;
+
+type SyncAuthContext = Awaited<ReturnType<typeof getAuthenticatedContext>>;
 
 interface SyncResponse {
   cursor: number;
@@ -49,6 +53,12 @@ interface SyncSnapshot {
   entries: Map<string, InventoryEntry>;
 }
 
+interface ApplyResponseOptions {
+  accountUserId?: string;
+  replaceCredential?: boolean;
+  isOwner?: boolean;
+}
+
 interface AppliedSyncResult extends SyncResult {
   followUpRequired: boolean;
 }
@@ -75,12 +85,34 @@ function pendingEntries(entries: InventoryEntry[]): InventoryEntry[] {
   return entries.filter((entry) => entry.syncStatus === "PENDING");
 }
 
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, parentSignal?: AbortSignal): Promise<Response> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = globalThis.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, SYNC_REQUEST_TIMEOUT_MS);
+  const abortParent = () => controller.abort(parentSignal?.reason);
+  parentSignal?.addEventListener("abort", abortParent, { once: true });
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (cause) {
+    if (timedOut) throw new SyncHttpError(408, "A sincronização demorou mais que o esperado. Os dados locais continuam preservados.");
+    throw cause;
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+    parentSignal?.removeEventListener("abort", abortParent);
+  }
+}
+
 async function requestSync(
   inventoryId: string,
   syncToken: string,
   payload: { inventory: Inventory | null; entries: InventoryEntry[]; cursor: number; generation: number },
-): Promise<SyncResponse> {
-  const auth = await getAuthenticatedContext();
+  signal?: AbortSignal,
+  authContext?: SyncAuthContext,
+): Promise<{ response: SyncResponse; accountUserId: string }> {
+  const auth = authContext ?? await getAuthenticatedContext();
   const url = `${apiBaseUrl}/api/v1/sync`;
   const body = JSON.stringify({
     deviceId: await getDeviceId(),
@@ -91,7 +123,7 @@ async function requestSync(
     inventory: payload.inventory ? serializeInventory(payload.inventory) : null,
     entries: payload.entries.map(serializeEntry),
   });
-  const send = (accessToken: string) => fetch(url, {
+  const send = (accessToken: string) => fetchWithTimeout(url, {
     method: "POST",
     credentials: "include",
     headers: {
@@ -100,10 +132,12 @@ async function requestSync(
       Authorization: `Bearer ${accessToken}`,
     },
     body,
-  });
+  }, signal);
+  let accountUserId = auth.userId;
   let response = await send(auth.accessToken);
   if (response.status === 401) {
     const renewed = await refreshAuthenticatedSession(auth.accessToken);
+    accountUserId = renewed.user.id;
     response = await send(renewed.accessToken);
   }
   if (!response.ok) {
@@ -111,7 +145,7 @@ async function requestSync(
     if (response.status === 401) throw new SyncHttpError(response.status, "Sua sessão expirou. Entre novamente; os dados locais continuam preservados.");
     throw new SyncHttpError(response.status, "Não foi possível sincronizar agora. Os dados locais continuam preservados.");
   }
-  return response.json() as Promise<SyncResponse>;
+  return response.json().then((result) => ({ response: result as SyncResponse, accountUserId }));
 }
 
 function serializeInventory(inventory: Inventory) {
@@ -156,8 +190,23 @@ function serializeEntry(entry: InventoryEntry) {
   };
 }
 
-function remoteInventory(record: NonNullable<SyncResponse["inventory"]>, syncToken: string, participationCode?: string | null, isOwner?: boolean): Inventory {
-  return { ...record, syncToken, isOwner, participationCode: participationCode ?? undefined, syncStatus: "SYNCED", syncBaseRevision: record.revision };
+function remoteInventory(
+  record: NonNullable<SyncResponse["inventory"]>,
+  syncToken: string,
+  participationCode?: string | null,
+  isOwner?: boolean,
+  accountUserId?: string,
+): Inventory {
+  return {
+    ...record,
+    syncToken,
+    isOwner,
+    accountUserId,
+    accountQuarantined: false,
+    participationCode: participationCode ?? undefined,
+    syncStatus: "SYNCED",
+    syncBaseRevision: record.revision,
+  };
 }
 
 function remoteEntry(record: SyncResponse["entries"][number]): InventoryEntry {
@@ -332,6 +381,7 @@ async function applyResponse(
   syncToken: string,
   response: SyncResponse,
   snapshot: SyncSnapshot,
+  options: ApplyResponseOptions = {},
 ): Promise<AppliedSyncResult> {
   let received = 0;
   let changed = false;
@@ -342,11 +392,23 @@ async function applyResponse(
   await db.transaction("rw", db.inventories, db.entries, db.syncMetadata, db.syncConflicts, async () => {
     let receivedRemoteEntry = false;
     const localInventory = await db.inventories.get(inventoryId);
+    if (localInventory && options.accountUserId
+      && localInventory.accountUserId
+      && localInventory.accountUserId !== options.accountUserId) {
+      throw new InventoryAccessError();
+    }
+    const storedSyncToken = (local: Inventory) => options.replaceCredential ? syncToken : local.syncToken || syncToken;
+    const storedOwner = (local: Inventory) => options.isOwner ?? local.isOwner;
+    const storedAccount = (local: Inventory) => options.accountUserId ?? local.accountUserId;
     if (localInventory && response.acknowledged.inventory) {
       if (sameInventorySnapshot(localInventory, snapshot.inventory)) {
         const serverRevision = response.inventory?.revision ?? localInventory.revision;
         const nextInventory: Inventory = {
           ...localInventory,
+          syncToken: storedSyncToken(localInventory),
+          isOwner: storedOwner(localInventory),
+          accountUserId: storedAccount(localInventory),
+          accountQuarantined: false,
           revision: Math.max(localInventory.revision, serverRevision),
           participationCode: response.participationCode === null ? undefined : response.participationCode ?? localInventory.participationCode,
           syncStatus: "SYNCED",
@@ -357,7 +419,7 @@ async function applyResponse(
           changed = true;
         }
       } else if (response.inventory) {
-        const remote = remoteInventory(response.inventory, syncToken, response.participationCode, localInventory.isOwner);
+        const remote = remoteInventory(response.inventory, syncToken, response.participationCode, storedOwner(localInventory), options.accountUserId ?? localInventory.accountUserId);
         const rebased = rebasePendingInventory(localInventory, snapshot.inventory, remote);
         if (rebased) {
           await db.inventories.put(rebased);
@@ -413,7 +475,7 @@ async function applyResponse(
     }
 
     if (response.inventory) {
-      const remote = remoteInventory(response.inventory, syncToken, response.participationCode);
+      const remote = remoteInventory(response.inventory, syncToken, response.participationCode, options.isOwner, options.accountUserId);
       const local = await db.inventories.get(remote.id);
       if (!local) {
         await db.inventories.put(remote);
@@ -423,7 +485,13 @@ async function applyResponse(
       } else if (response.acknowledged.inventory) {
         // Acknowledgement belongs to the request snapshot; keep newer local data untouched.
       } else if (local.syncStatus === "SYNCED") {
-        const nextInventory = { ...remote, syncToken: local.syncToken || syncToken, isOwner: local.isOwner };
+        const nextInventory = {
+          ...remote,
+          syncToken: storedSyncToken(local),
+          isOwner: storedOwner(local),
+          accountUserId: storedAccount(local),
+          accountQuarantined: false,
+        };
         if (inventoryStateKey(local) !== inventoryStateKey(nextInventory)) {
           await db.inventories.put(nextInventory);
           received += 1;
@@ -539,7 +607,7 @@ async function applyResponse(
         : await db.entries.get(conflict.entityId);
       if (!local) continue;
       const remote = conflict.entityType === "inventory"
-        ? remoteInventory(conflict.serverRecord as NonNullable<SyncResponse["inventory"]>, syncToken, response.participationCode)
+        ? remoteInventory(conflict.serverRecord as NonNullable<SyncResponse["inventory"]>, syncToken, response.participationCode, options.isOwner, options.accountUserId)
         : "id" in conflict.serverRecord
           ? remoteEntry(conflict.serverRecord as SyncResponse["entries"][number])
           : { ...local as InventoryEntry, revision: 0, operationalGeneration: response.inventory?.operationalGeneration ?? 1 };
@@ -570,22 +638,29 @@ async function applyResponse(
   };
 }
 
-async function performSync(inventoryId: string, background: boolean, pullOnly = false, followUpCount = 0): Promise<SyncResult> {
-  const inventory = await prepareInventoryForSync(inventoryId);
+async function performSync(
+  inventoryId: string,
+  background: boolean,
+  pullOnly = false,
+  followUpCount = 0,
+  signal?: AbortSignal,
+): Promise<SyncResult> {
+  const auth = await getAuthenticatedContext();
+  const inventory = await prepareInventoryForSync(inventoryId, auth.userId);
   const entries = await listEntriesForSync(inventoryId);
   const snapshot: SyncSnapshot = { inventory, entries: new Map(entries.map((entry) => [entry.id, entry])) };
   const cursor = await getCursor(inventoryId);
   try {
-    const response = await requestSync(inventoryId, inventory.syncToken, {
+    const requested = await requestSync(inventoryId, inventory.syncToken, {
       cursor,
       generation: inventory.operationalGeneration ?? 1,
       inventory: pullOnly ? null : inventory.syncStatus === "PENDING" ? inventory : null,
       entries: pullOnly || inventory.tombstone ? [] : pendingEntries(entries),
-    });
-    const applied = await applyResponse(inventoryId, inventory.syncToken, response, snapshot);
+    }, signal, auth);
+    const applied = await applyResponse(inventoryId, inventory.syncToken, requested.response, snapshot, { accountUserId: requested.accountUserId });
     const { followUpRequired, ...result } = applied;
     if (followUpRequired && result.conflicts === 0 && followUpCount < MAX_AUTOMATIC_FOLLOW_UPS) {
-      const followUp = await performSync(inventoryId, background, false, followUpCount + 1);
+      const followUp = await performSync(inventoryId, background, false, followUpCount + 1, signal);
       return {
         conflicts: result.conflicts + followUp.conflicts,
         received: result.received + followUp.received,
@@ -598,7 +673,7 @@ async function performSync(inventoryId: string, background: boolean, pullOnly = 
     return result;
   } catch (cause) {
     if (!pullOnly && cause instanceof SyncHttpError && cause.status === 409) {
-      return performSync(inventoryId, background, true, followUpCount);
+      return performSync(inventoryId, background, true, followUpCount, signal);
     }
     throw cause;
   }
@@ -607,27 +682,34 @@ async function performSync(inventoryId: string, background: boolean, pullOnly = 
 export function syncInventory(inventoryId: string, options: SyncOptions = {}): Promise<SyncResult> {
   const existing = inFlightSyncs.get(inventoryId);
   if (existing) return existing;
-  const pending = performSync(inventoryId, options.background === true);
+  const controller = new AbortController();
+  const pending = performSync(inventoryId, options.background === true, false, 0, controller.signal);
   const operation = pending.finally(() => {
     if (inFlightSyncs.get(inventoryId) === operation) inFlightSyncs.delete(inventoryId);
+    if (syncControllers.get(inventoryId) === controller) syncControllers.delete(inventoryId);
   });
   inFlightSyncs.set(inventoryId, operation);
+  syncControllers.set(inventoryId, controller);
   return operation;
 }
 
-export async function connectRemoteInventory(inventoryId: string, syncToken: string): Promise<SyncResult> {
-  const response = await requestSync(inventoryId, syncToken, { inventory: null, entries: [], cursor: 0, generation: 1 });
-  if (!response.inventory) throw new Error("Inventário não encontrado no servidor.");
-  return applyResponse(inventoryId, syncToken, response, { entries: new Map() });
+export function cancelSync(inventoryId: string): void {
+  syncControllers.get(inventoryId)?.abort();
+}
+
+export async function connectRemoteInventory(inventoryId: string, syncToken: string, options: { isOwner?: boolean } = {}): Promise<SyncResult> {
+  const auth = await getAuthenticatedContext();
+  const requested = await requestSync(inventoryId, syncToken, { inventory: null, entries: [], cursor: 0, generation: 1 }, undefined, auth);
+  if (!requested.response.inventory) throw new Error("Inventário não encontrado no servidor.");
+  return applyResponse(inventoryId, syncToken, requested.response, { entries: new Map() }, {
+    accountUserId: requested.accountUserId,
+    replaceCredential: true,
+    isOwner: options.isOwner,
+  });
 }
 
 export async function connectAssignedInventory(inventoryId: string, syncToken: string): Promise<SyncResult> {
-  const result = await connectRemoteInventory(inventoryId, syncToken);
-  await db.transaction("rw", db.inventories, async () => {
-    const inventory = await db.inventories.get(inventoryId);
-    if (inventory) await db.inventories.put({ ...inventory, syncToken, isOwner: true });
-  });
-  return result;
+  return connectRemoteInventory(inventoryId, syncToken, { isOwner: true });
 }
 
 export async function joinInventoryByCode(code: string): Promise<{ inventoryId: string; result: SyncResult }> {
@@ -644,11 +726,11 @@ export async function joinInventoryByCode(code: string): Promise<{ inventoryId: 
   }
   const joinedInventoryId = body.inventoryId;
   const accessToken = body.accessToken;
-  const syncResponse = await requestSync(joinedInventoryId, accessToken, { inventory: null, entries: [], cursor: 0, generation: 1 });
-  const result = await applyResponse(joinedInventoryId, accessToken, syncResponse, { entries: new Map() });
-  await db.transaction("rw", db.inventories, async () => {
-    const inventory = await db.inventories.get(joinedInventoryId);
-    if (inventory) await db.inventories.put({ ...inventory, isOwner: false });
+  const requested = await requestSync(joinedInventoryId, accessToken, { inventory: null, entries: [], cursor: 0, generation: 1 }, undefined, auth);
+  const result = await applyResponse(joinedInventoryId, accessToken, requested.response, { entries: new Map() }, {
+    accountUserId: requested.accountUserId,
+    replaceCredential: true,
+    isOwner: false,
   });
   return { inventoryId: joinedInventoryId, result };
 }

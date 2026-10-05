@@ -3,7 +3,7 @@ import { login, seedUsers } from "./helpers";
 
 test("participa de um inventário com seis dígitos sem expor UUID ou token", async ({ browser, page }) => {
   test.setTimeout(90_000);
-  const { ownerEmail, participantEmail } = seedUsers("sync");
+  const { ownerEmail, participantEmail, thirdParticipantEmail } = seedUsers("sync");
   await login(page, ownerEmail);
   await expect(page.getByText(/Bem-vindo\(a\)/)).toBeVisible();
   await page.getByRole("button", { name: "Iniciar novo inventário" }).click();
@@ -39,10 +39,26 @@ test("participa de um inventário com seis dígitos sem expor UUID ou token", as
   await secondPage.getByRole("button", { name: "Adicionar" }).click();
   await expect(secondPage.getByText("Lote 2712345679")).toBeVisible();
 
+  const thirdContext = await browser.newContext();
+  const thirdPage = await thirdContext.newPage();
+  await login(thirdPage, thirdParticipantEmail);
+  await thirdPage.getByLabel("Código de participação").fill(participationCode!);
+  await thirdPage.getByRole("button", { name: "Participar agora" }).click();
+  await expect(thirdPage.getByText("Lote 2712345679")).toBeVisible();
+  await thirdPage.getByRole("button", { name: "LE" }).click();
+  await thirdPage.getByRole("textbox", { name: "Vão" }).fill("18");
+  await thirdPage.getByLabel("Lote").fill("2712345690");
+  await thirdPage.getByLabel("Quantidade de peças").fill("2");
+  await thirdPage.getByRole("button", { name: "Adicionar" }).click();
+  await expect(thirdPage.getByText("Lote 2712345690")).toBeVisible();
+  await expect(page.getByText("Lote 2712345690")).toBeVisible({ timeout: 30_000 });
+  await expect(secondPage.getByText("Lote 2712345690")).toBeVisible({ timeout: 30_000 });
+
   await expect(page.getByText("Lote 2712345679")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("textbox", { name: "Vão" })).toHaveValue("17");
   await expect(page.getByRole("combobox", { name: "Camada" })).toHaveValue("A2");
   await expect(page.getByRole("textbox", { name: "Lote" })).toHaveValue("2712345689");
   await expect(page.getByRole("textbox", { name: "Quantidade de peças" })).toHaveValue("7");
+  await thirdContext.close();
   await secondContext.close();
 });

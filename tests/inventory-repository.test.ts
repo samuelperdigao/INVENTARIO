@@ -6,7 +6,10 @@ import {
   createInventory,
   DuplicateLotError,
   getInventory,
+  InventoryAccessError,
+  listOpenInventories,
   listActiveEntries,
+  prepareInventoryForSync,
   restoreInventoryAfterDeletionFailure,
   tombstoneEmptyInventory,
   tombstoneEntry,
@@ -15,6 +18,18 @@ import {
 } from "@/lib/inventory-repository";
 
 describe("repositório IndexedDB", () => {
+  it("isola inventários locais por conta e mantém legados desconhecidos fora do painel", async () => {
+    const first = await createInventory("2026-09-10", "user-one");
+    const second = await createInventory("2026-09-11", "user-two");
+    const legacy = await createInventory("2026-09-12");
+
+    expect(await listOpenInventories("user-one")).toEqual([expect.objectContaining({ id: first.id, accountUserId: "user-one" })]);
+    expect(await getInventory(second.id, "user-one")).toBeUndefined();
+    expect(await getInventory(legacy.id, "user-one")).toBeUndefined();
+    await expect(prepareInventoryForSync(second.id, "user-one"))
+      .rejects.toBeInstanceOf(InventoryAccessError);
+  });
+
   it("cria, relê, edita e tombstona lançamento na mesma fonte local", async () => {
     const inventory = await createInventory("2026-09-11");
     const created = await createEntry(inventory.id, { side: "EF", bay: "01", layer: "A1", lot: " 2712345678 ", quantity: 3 });

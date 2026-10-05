@@ -154,7 +154,7 @@ it("exibe lote fora da referência sem impedir o lançamento", async () => {
   await fillValidForm();
   fireEvent.blur(screen.getByLabelText("Lote"));
 
-  await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("não consta na referência SAP"));
+  await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("não consta na referência SAP / SICLA"));
   await userEvent.setup().click(screen.getByRole("button", { name: "Adicionar" }));
   await waitFor(() => expect(onSave).toHaveBeenCalled());
 });

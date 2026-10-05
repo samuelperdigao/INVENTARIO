@@ -1027,10 +1027,13 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .reference-panel { grid-column: 1 / -1; margin-bottom: 2px; border-color: #c9dff7; }
 .reference-panel::before { display: none; }
 .reference-panel .panel-index { display: none; }
-.reference-panel .section-header { align-items: center; }
+.reference-panel .section-header { align-items: center; min-width: 0; }
+.reference-panel .panel-heading { min-width: 0; }
+.reference-panel .panel-copy h2 { overflow-wrap: anywhere; }
 .reference-empty { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px; border: 1px solid #d8e8f8; border-radius: 13px; background: #f8fbff; }
-.reference-empty > p { max-width: 50rem; font-size: .88rem; }
-.reference-empty .actions { flex: 0 0 auto; }
+.reference-empty > p { min-width: 0; max-width: 50rem; font-size: .88rem; }
+.reference-empty .actions { flex: 0 0 auto; min-width: 0; }
+.reference-empty .actions button { max-width: 100%; line-height: 1.25; text-align: center; white-space: normal; }
 .reference-empty-compact { padding-block: 11px; }
 
 

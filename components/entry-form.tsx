@@ -194,9 +194,9 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker, rea
           </label>
         </div>
         {lotValidationError ? <p className="error" role="alert">{lotValidationError}</p> : null}
-        {referenceFeedback === "checking" ? <p className="reference-feedback" role="status">Consultando a referência SAP…</p> : null}
-        {referenceFeedback === "found" ? <p className="reference-feedback found" role="status">✓ Lote previsto na referência SAP.</p> : null}
-        {referenceFeedback === "outside" ? <p className="reference-feedback outside" role="status">Este lote não consta na referência SAP. O lançamento continua liberado.</p> : null}
+        {referenceFeedback === "checking" ? <p className="reference-feedback" role="status">Consultando a referência SAP / SICLA…</p> : null}
+        {referenceFeedback === "found" ? <p className="reference-feedback found" role="status">✓ Lote previsto na referência SAP / SICLA.</p> : null}
+        {referenceFeedback === "outside" ? <p className="reference-feedback outside" role="status">Este lote não consta na referência SAP / SICLA. O lançamento continua liberado.</p> : null}
         {error && <p className="error" role="alert">{error}</p>}
         {feedback ? <p className="success-feedback" role="status">{feedback}</p> : null}
         <button className="primary entry-form-submit" type="submit" disabled={saving || readOnly} aria-label={editing ? "Salvar alterações" : "Adicionar"}>{saving ? "Salvando…" : editing ? "Salvar alterações" : "Adicionar registro"}</button>

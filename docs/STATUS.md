@@ -1,5 +1,54 @@
 # Status do projeto
 
+## Prontidão multiusuário e operação offline
+
+Validação em 05/10/2026 na branch `hotfix/multiuser-sync-readiness`, baseada na
+`main` estável. A implementação está pronta para integração, mas ainda não
+deve ser considerada validada em produção antes do merge e do smoke público.
+
+- A operação local agora é vinculada à conta autenticada. Registros legados
+  sem vínculo são isolados em quarentena sem descarte; inventários de outra
+  conta não aparecem nem podem ser sincronizados.
+- A renovação de sessão impede respostas antigas de substituir uma sessão mais
+  nova e conserva os dados locais quando a sessão exige novo login.
+- A sincronização ganhou cancelamento por inventário, timeout de 15 segundos,
+  retry com backoff limitado, tratamento explícito de `401`, `403`, `404` e
+  falhas de rede, além de polling que respeita visibilidade e conectividade.
+- A participação multiusuário passou a usar sessões independentes por
+  participante. A migration aditiva `0010_participant_sync_sessions` cria essa
+  separação sem reescrever a migration `0009` nem invalidar o token legado do
+  proprietário.
+- A referência SAP não declara carga completa quando só existe metadado no
+  cache; a interface informa que os lotes locais ainda não foram baixados.
+
+### Gates locais
+
+- ESLint: aprovado.
+- TypeScript: aprovado.
+- Vitest: 14 arquivos, 83 testes aprovados.
+- Pytest: 74 testes aprovados, com 4 avisos de dependências já conhecidos.
+- Alembic: banco SQLite isolado aplicado de `0001` até `0010_participant_sync_sessions`.
+- Build de produção com proxy local e service worker: aprovado.
+- Playwright completo: 12 cenários aprovados; inclui três contextos
+  independentes no fluxo de participação, operação offline e tela segura para
+  inventário ausente no dispositivo.
+- `git diff --check`: aprovado.
+
+### Limitações e publicação
+
+- Um banco SQLite local preexistente continua falhando ao tentar a migration
+  antiga `0006`, porque já contém a tabela temporária
+  `_alembic_tmp_inventory_entries`. O artefato não foi apagado nem alterado;
+  a validação foi feita em banco isolado e limpo.
+- Nenhum banco Neon, serviço Render ou projeto Vercel foi alterado durante a
+  validação local. Merge, deploy e smoke público continuam pendentes desta
+  entrega.
+- A concorrência foi exercitada localmente, inclusive com 2, 3, 5 e 10
+  participantes. A validação multiusuário no PostgreSQL de produção e em
+  dispositivos físicos continua pendente.
+
+Atualizado em 05/10/2026.
+
 ## PR 1: governança da main e qualidade de entrega
 
 Auditoria em 04/10/2026, baseada em `6c1a11c45dde3407ecf9f2a8c313ca88213f864b`. Modo duplo ativo: executor sênior e revisão do supervisor de liderança, conduzidos em etapas separadas pelo mesmo agente.

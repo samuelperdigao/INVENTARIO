@@ -1,5 +1,23 @@
 # Status do projeto
 
+## Correção do deploy da migration 0010
+
+Validação em 05/10/2026 após o primeiro smoke público da entrega
+multiusuário. O healthcheck estava verde, mas o Blueprint do Render iniciava
+o FastAPI sem executar Alembic; por isso, a existência da tabela nova não era
+garantida no PostgreSQL de produção.
+
+- `render.yaml` passou a executar `python -m alembic -c alembic.ini upgrade head`
+  em `preDeployCommand`, antes de iniciar o serviço `inventory-api`.
+- A operação é aditiva e aplica a cadeia versionada até
+  `0010_participant_sync_sessions`; nenhum registro real é atualizado ou
+  removido e nenhum comando direto foi executado no Neon.
+- A migration será validada pelo próximo deploy do Render e pelo smoke público
+  posterior. O Render CLI não está instalado localmente; o Blueprint foi
+  revisado pelo diff e pelo deploy efetivo.
+
+Atualizado em 05/10/2026.
+
 ## Prontidão multiusuário e operação offline
 
 Validação em 05/10/2026 na branch `hotfix/multiuser-sync-readiness`, baseada na

@@ -96,7 +96,7 @@ imutáveis em `admin_report_versions` para exportação histórica.
 
 ## Análise e relatórios
 
-`backend/app/engine.py` recebe lançamentos e produz classificações determinísticas internas. `backend/app/presentation.py` traduz essa saída para a linguagem operacional única, sem recalcular o motor. `backend/app/reports.py` prepara a fonte única em `build_inventory_report_data()` e deriva `.xls` BIFF8, `.xlsx`, PDF e Word desse modelo, incluindo a aba/seção condicional de conciliação quando há referência SAP. A finalização salva o snapshot oficial e bloqueia novas mutações. Os detalhes do contrato de exportação estão em `docs/EXPORTACOES.md`.
+`backend/app/engine.py` recebe lançamentos, produz classificações determinísticas internas e expõe a fronteira de fragmentação por quantidade de locais distintos. `backend/app/reference_service.py` reutiliza essa fronteira na conciliação SAP, enquanto `lib/lot-classification.ts` mantém a equivalência do cache offline. `backend/app/presentation.py` traduz a saída para a linguagem operacional única, sem recalcular o motor; o frontend consome essa apresentação e usa fallback somente para caches antigos. `backend/app/reports.py` prepara a fonte única em `build_inventory_report_data()` e deriva `.xls` BIFF8, `.xlsx`, PDF e Word desse modelo, incluindo a aba/seção condicional de conciliação quando há referência SAP. A leitura administrativa de versões reidrata a apresentação de snapshots legados sem modificar o JSON persistido. A finalização salva o snapshot oficial e bloqueia novas mutações. Os detalhes do contrato de exportação estão em `docs/EXPORTACOES.md`.
 
 ## Banco e migrations
 

@@ -1,5 +1,27 @@
 # Status do projeto
 
+## Estado de entrega atual
+
+Validação final em 05/10/2026 após o merge da PR #35 e a atualização da PR
+funcional principal.
+
+- A `main` e `origin/main` estão alinhadas no merge commit `ada335b`.
+- O `Quality Gates` do push da `main` passou no run `37390598334`, e o
+  `Production Smoke` passou no run `37390598348`.
+- O frontend público respondeu HTTP 200 na Vercel; a API direta do Render e
+  o proxy `/backend-api/healthz` responderam HTTP 200 com `{"status":"ok"}`.
+- O serviço Render `inventory-api` está `live` exatamente no commit
+  `ada335b`. O auto-deploy não iniciou após o merge, então foi feito um único
+  deploy manual do commit correto.
+- A PR #30 é a única PR aberta e está alinhada à base `ada335b`, com
+  `mergeStateStatus=CLEAN`, `Quality Gates` e Vercel aprovados. A PR #13 foi
+  encerrada por obsolescência, sem apagar sua branch.
+- A validação automatizada está concluída. Permanecem fora desta etapa a
+  validação física em Android/iPhone e o exercício multiusuário com dados reais
+  de produção.
+
+Atualizado em 05/10/2026.
+
 ## Resultado pós-publicação
 
 Validação final em 05/10/2026 após os merges `e687f63` e `881bb1b` na `main`.
@@ -125,6 +147,32 @@ Auditoria em 04/10/2026, baseada em `6c1a11c45dde3407ecf9f2a8c313ca88213f864b`. 
 - A obrigatoriedade de aprovação exige outro revisor com permissão adequada; confirmar disponibilidade antes de ativar a proteção. A documentação distingue política proposta de configuração efetivamente aplicada.
 - Rollback simples: reverter este commit documental por outro PR; não há rollback de dados ou infraestrutura.
 - Revisão concluída e aprovada para commit e criação de PR. Merge, deploy, permissões e proteção da `main` continuam fora da autorização desta tarefa.
+
+## PR 2: classificação de lotes e consistência de relatórios
+
+Auditoria em 04/10/2026, baseada em `17c03758d67d04426bccffab1580e56f3ad09a18`. Branch de trabalho: `codex/pr-2-lot-classification-consistency`.
+
+### Implementação
+
+- A regra de fragmentação de um lote foi centralizada no motor Python: há fragmentação somente quando o lote ocupa mais de um local físico distinto. A conciliação da referência SAP reutiliza essa mesma fronteira, inclusive em resumo, totais e classificação `PEÇA_SOLTEIRA`.
+- A camada offline do cliente usa o mesmo critério de contagem. Os componentes de análise, histórico e locais consomem a apresentação devolvida pela API por meio de um único resolvedor; o fallback é exclusivo para caches legados e não recalcula classificação.
+- A consulta administrativa de versões reidrata a apresentação de snapshots legados somente na resposta, sem alterar a versão oficial persistida.
+- Não houve mudança de schema, migration, contrato de sincronização, autenticação, permissões, Render, Neon ou deploy.
+
+### Validações
+
+- Aprovado: ESLint, TypeScript e Vitest (`15 arquivos`, `81 testes`).
+- Aprovado: Pytest completo (`72 testes`, `3 avisos` de depreciação já emitidos por dependências/configuração).
+- Aprovado: upgrade Alembic em SQLite novo, das revisions `0001` a `0009`.
+- Aprovado: build de produção, incluindo service worker e geração das rotas. Nesta sandbox, a captura de saída de subprocessos pelo verificador interno do Next falha; a adaptação foi temporária e fora do Git, após o `pnpm typecheck` real. O código compilado e o build foram então concluídos.
+- Aprovado: Playwright completo (`12 cenários`), incluindo análise online/offline, sincronização, administração, responsividade, histórico, 100 lançamentos, finalização e os quatro formatos de exportação.
+- Aprovado: `git diff --check`, escopo do diff e documentação de arquitetura.
+
+### Limitações conhecidas
+
+- A validação física em Android real e iPhone/Safari continua pendente; Chromium desktop não a substitui.
+- Concorrência contra PostgreSQL/Neon de produção não foi exercitada. A validação desta rodada usou SQLite isolado, como a suíte automatizada prevê.
+- Nenhuma publicação, migration de ambiente ou merge foi executado nesta etapa.
 
 
 ## Corrida entre coleta local e polling de sincronização

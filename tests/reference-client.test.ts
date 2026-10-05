@@ -91,13 +91,62 @@ it("consulta o cache offline, calcula a situação física e responde ao pertenc
     syncStatus: "PENDING",
     tombstone: false,
   });
+  await db.entries.bulkPut([
+    {
+      id: "same-location",
+      inventoryId: inventory.id,
+      side: "DE",
+      bay: "15",
+      lot: "2712345678",
+      quantity: 1,
+      createdAt: "2026-09-16T10:01:00.000Z",
+      updatedAt: "2026-09-16T10:01:00.000Z",
+      revision: 2,
+      syncBaseRevision: 0,
+      syncStatus: "PENDING",
+      tombstone: false,
+    },
+    {
+      id: "fragmented-primary",
+      inventoryId: inventory.id,
+      side: "DE",
+      bay: "15",
+      lot: "2812345678",
+      quantity: 19,
+      createdAt: "2026-09-16T10:01:00.000Z",
+      updatedAt: "2026-09-16T10:01:00.000Z",
+      revision: 2,
+      syncBaseRevision: 0,
+      syncStatus: "PENDING",
+      tombstone: false,
+    },
+    {
+      id: "fragmented-secondary",
+      inventoryId: inventory.id,
+      side: "EF",
+      bay: "21",
+      lot: "2812345678",
+      quantity: 1,
+      createdAt: "2026-09-16T10:01:00.000Z",
+      updatedAt: "2026-09-16T10:01:00.000Z",
+      revision: 2,
+      syncBaseRevision: 0,
+      syncStatus: "PENDING",
+      tombstone: false,
+    },
+  ]);
   const fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
 
   const state = await getReferenceState(inventory, 1, "281");
 
-  expect(state.summary).toMatchObject({ totalLots: 2, foundLots: 1, pendingLots: 1, outsideReferenceLots: 0 });
-  expect(state.lots[0]).toMatchObject({ lotNumber: "2812345678", foundPhysically: false, physicalQuantity: 0 });
+  expect(state.summary).toMatchObject({ totalLots: 2, foundLots: 2, pendingLots: 0, outsideReferenceLots: 0, fragmentedLots: 1 });
+  expect(state.lots[0]).toMatchObject({ lotNumber: "2812345678", foundPhysically: true, physicalQuantity: 20, fragmented: true });
+  const allLots = await getReferenceState(inventory);
+  expect(allLots.lots).toEqual(expect.arrayContaining([
+    expect.objectContaining({ lotNumber: "2712345678", fragmented: false, physicalQuantity: 20 }),
+    expect.objectContaining({ lotNumber: "2812345678", fragmented: true, physicalQuantity: 20 }),
+  ]));
   expect(await checkReferenceLot(inventory, "2712345678")).toBe(true);
   expect(await checkReferenceLot(inventory, "2898765432")).toBe(false);
   expect(fetchMock).not.toHaveBeenCalled();

@@ -23,6 +23,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from app.engine import is_fragmented_location_count
 from app.lot_rules import LOT_VALIDATION_MESSAGE, is_valid_lot, validate_lot
 from app.persistence import InventoryEntryRow, InventoryReferenceRow, ReferenceLotRow, UserRow
 
@@ -515,7 +516,9 @@ def reference_state(
                     "foundLots": len(found_lots),
                     "pendingLots": len(reference_lots - physical_lots),
                     "outsideReferenceLots": len(physical_lots - reference_lots),
-                    "fragmentedLots": sum(len(item["locations"]) > 1 for item in physical.values()),
+                    "fragmentedLots": sum(
+                        is_fragmented_location_count(len(item["locations"])) for item in physical.values()
+                    ),
                     "physicalDistinctLots": len(physical_lots),
                 },
                 "lots": [],
@@ -539,7 +542,9 @@ def reference_state(
             "foundPhysically": row.lot_number in physical,
             "physicalQuantity": int(physical.get(row.lot_number, {}).get("quantity", 0)),
             "physicalOccurrences": int(physical.get(row.lot_number, {}).get("occurrences", 0)),
-            "fragmented": len(physical.get(row.lot_number, {}).get("locations", set())) > 1,
+            "fragmented": is_fragmented_location_count(
+                len(physical.get(row.lot_number, {}).get("locations", set()))
+            ),
         }
         for row in rows
     ]
@@ -551,7 +556,9 @@ def reference_state(
             "foundLots": len(found_lots),
             "pendingLots": len(reference_lots - physical_lots),
             "outsideReferenceLots": len(physical_lots - reference_lots),
-            "fragmentedLots": sum(len(item["locations"]) > 1 for item in physical.values()),
+            "fragmentedLots": sum(
+                is_fragmented_location_count(len(item["locations"])) for item in physical.values()
+            ),
             "physicalDistinctLots": len(physical_lots),
         },
         "lots": lot_items,

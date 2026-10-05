@@ -25,6 +25,7 @@ from app.persistence import (
     AdminAuditRow, AdminReportVersionRow, InventoryEntryRow, InventoryParticipantRow,
     InventoryRow, ReferenceLotRow, SystemAdminRow, UserRow,
 )
+from app.presentation import apply_report_presentation
 from app.reference_service import (
     active_reference, reference_lot_numbers, reference_metadata, reference_state,
     remove_reference, replace_reference,
@@ -309,7 +310,10 @@ def version_report(
     inventory_id: str, version: int, _admin: UserRow = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> dict:
-    return _version(session, inventory_id, version).snapshot
+    # Versões persistidas antes da camada operacional podem não conter
+    # ``presentation``. Reidratar na leitura preserva o snapshot e mantém o
+    # mesmo contrato usado pelo histórico e pelas exportações.
+    return apply_report_presentation(_version(session, inventory_id, version).snapshot)
 
 
 @router.get("/inventories/{inventory_id}/export/{format_name}")

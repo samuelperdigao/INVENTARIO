@@ -1,13 +1,15 @@
+from copy import deepcopy
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from openpyxl import Workbook
+from sqlalchemy import select
 
 from app.database import get_session
 from app.main import app
-from app.persistence import SystemAdminRow
+from app.persistence import AdminReportVersionRow, SystemAdminRow
 from auth_helpers import register_verified
 
 
@@ -261,3 +263,66 @@ def test_admin_removes_finalized_entry_and_preserves_preceding_report() -> None:
     assert removal["entryId"] == entry_id
     assert removal["before"]["quantity"] == 4 and removal["after"]["tombstone"] is True
     assert removal["reportVersion"] == 2
+
+
+def test_admin_version_report_rehydrates_legacy_presentation_without_mutating_snapshot() -> None:
+    _operator, auth_operator = register_verified(client, "operator-legacy-presentation@example.com")
+    admin, auth_admin = register_verified(client, "admin-legacy-presentation@example.com")
+    grant_admin(admin["user"]["id"])
+    inventory_id, _entry_id, token = create_inventory(auth_operator)
+    path = f"/api/v1/admin/inventories/{inventory_id}"
+    detail = client.get(path, headers=auth_admin).json()
+    finalized = client.post(
+        f"/api/v1/inventories/{inventory_id}/finalize",
+        headers={**auth_operator, "X-Inventory-Sync-Token": token},
+        json={"revision": detail["revision"]},
+    )
+    assert finalized.status_code == 200, finalized.text
+
+    dependency = app.dependency_overrides[get_session]()
+    session = next(dependency)
+    try:
+        stored = session.scalar(
+            select(AdminReportVersionRow).where(
+                AdminReportVersionRow.inventory_id == inventory_id,
+                AdminReportVersionRow.version == 1,
+            )
+        )
+        assert stored is not None
+        legacy_snapshot = deepcopy(stored.snapshot)
+        for lot in legacy_snapshot["lots"]:
+            lot.pop("presentation", None)
+        for field in (
+            "lotsOk",
+            "lotsForConference",
+            "singlePieceOutsideLots",
+            "multiplePiecesOutsideLots",
+            "distributedLots",
+            "reviewLots",
+        ):
+            legacy_snapshot["summary"].pop(field, None)
+        stored.snapshot = legacy_snapshot
+        session.commit()
+    finally:
+        dependency.close()
+
+    response = client.get(f"{path}/versions/1", headers=auth_admin)
+    assert response.status_code == 200, response.text
+    returned = response.json()
+    assert returned["lots"][0]["presentation"]["situation"] == "OK"
+    assert returned["summary"]["lotsOk"] == 1
+    assert returned["summary"]["lotsForConference"] == 0
+
+    dependency = app.dependency_overrides[get_session]()
+    session = next(dependency)
+    try:
+        stored = session.scalar(
+            select(AdminReportVersionRow).where(
+                AdminReportVersionRow.inventory_id == inventory_id,
+                AdminReportVersionRow.version == 1,
+            )
+        )
+        assert stored is not None
+        assert stored.snapshot == legacy_snapshot
+    finally:
+        dependency.close()

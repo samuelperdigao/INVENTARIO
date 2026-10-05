@@ -1,4 +1,5 @@
 import { formatSideLabel, type AnalysisClassification, type AnalysisLocation, type LotPresentation, type PresentationLocation } from "@/lib/models";
+import { lotRequiresConference } from "@/lib/lot-classification";
 
 interface LotLocationsProps {
   locations: AnalysisLocation[];
@@ -13,7 +14,7 @@ function formatPresentedSide(value: string): string {
 
 export function formatLotLocation(location: AnalysisLocation, classification: AnalysisClassification): string {
   const name = `${formatSideLabel(location.side)} ${location.bay}${location.layer ? ` · ${location.layer}` : ""}`;
-  return classification === "OK" ? name : `${name} · ${location.quantity} pç`;
+  return lotRequiresConference({ classification }) ? `${name} · ${location.quantity} pç` : name;
 }
 
 export function LotLocations({ locations, classification, presentation }: LotLocationsProps) {
@@ -27,7 +28,7 @@ export function LotLocations({ locations, classification, presentation }: LotLoc
       quantity: location.quantity,
       isPrimary: false,
     }));
-  const showQuantity = presentation?.requiresConference ?? classification !== "OK";
+  const showQuantity = lotRequiresConference({ classification, presentation });
 
   return (
     <ul className="lot-location-list" aria-label="Locais do lote">

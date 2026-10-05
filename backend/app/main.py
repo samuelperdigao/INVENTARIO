@@ -415,7 +415,7 @@ def inventory_lot_matches(
 async def _read_reference_upload(file: UploadFile) -> tuple[str, bytes]:
     filename = safe_original_filename(file.filename)
     if not filename.casefold().endswith(".xlsx"):
-        raise HTTPException(status_code=422, detail="Envie um arquivo Excel .xlsx exportado do SAP.")
+        raise HTTPException(status_code=422, detail="Envie um arquivo Excel .xlsx exportado do SAP / SICLA.")
     max_bytes = settings.reference_max_mb * 1024 * 1024
     content = await file.read(max_bytes + 1)
     if not content:

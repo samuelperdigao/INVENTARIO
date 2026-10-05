@@ -258,7 +258,7 @@ export async function getReferenceState(inventory: Inventory, page = 1, query = 
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     const local = await localReferenceState(inventory.id, page, query);
     if (local.reference?.lotsComplete) return local;
-    throw new Error("A referência SAP ainda não está disponível neste dispositivo sem conexão.");
+    throw new Error("A referência SAP / SICLA ainda não está disponível neste dispositivo sem conexão.");
   }
   try {
     return await fetchReferenceState(inventory, page, query, signal);

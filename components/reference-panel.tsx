@@ -191,7 +191,7 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
       {!reference && !showImporter ? <div className={`reference-empty ${continuedWithoutReference ? "reference-empty-compact" : ""}`}>
         <p className="muted">{continuedWithoutReference ? "Sem planilha: a coleta física continua liberada para qualquer lote." : "Você pode continuar sem referência e registrar normalmente. Se houver um arquivo do SAP, importe-o para comparar presença de lotes depois."}</p>
         <div className="actions">
-          {canEditReference ? <button className="primary" type="button" onClick={() => { setShowImporter(true); setMessage(undefined); setError(undefined); }}>Importar planilha SAP</button> : null}
+          {canEditReference ? <button className="primary" type="button" onClick={() => { setShowImporter(true); setMessage(undefined); setError(undefined); }}>Importar planilha SAP / Sicla</button> : null}
           {!continuedWithoutReference ? <button className="secondary" type="button" aria-label="Continuar sem planilha SAP" onClick={() => { setContinuedWithoutReference(true); setMessage("Sem referência: a coleta física continua disponível normalmente."); }}>Continuar sem planilha</button> : null}
         </div>
       </div> : null}
@@ -219,7 +219,7 @@ export function ReferencePanel({ inventory, onChanged }: ReferencePanelProps) {
       {showImporter && canEditReference ? <div className="reference-importer details-box">
         <div className="details-content stack">
           <div>
-            <h3>{reference ? "Substituir referência" : "Importar planilha SAP"}</h3>
+            <h3>{reference ? "Substituir referência" : "Importar planilha SAP / Sicla"}</h3>
             <p className="muted">O arquivo é lido em memória. Após a confirmação, ficam salvos apenas os números de lote.</p>
           </div>
           <label className="field" htmlFor="reference-file">Arquivo Excel (.xlsx)

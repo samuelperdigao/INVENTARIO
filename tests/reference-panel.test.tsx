@@ -106,7 +106,7 @@ it("mostra linhas verificadas na prévia sem avisar sobre zeros à esquerda", as
   render(<ReferencePanel inventory={inventory} onChanged={vi.fn().mockResolvedValue(undefined)} />);
 
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: "Importar planilha SAP" }));
+  await user.click(await screen.findByRole("button", { name: "Importar planilha SAP / Sicla" }));
   await user.upload(screen.getByLabelText("Arquivo Excel (.xlsx)"), new File(["xlsx"], "materia-prima.xlsx"));
   setOnline(true);
   await user.click(screen.getByRole("button", { name: "Pré-visualizar importação" }));

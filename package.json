@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy.ps1"
   },
   "dependencies": {
     "@serwist/next": "9.5.12",

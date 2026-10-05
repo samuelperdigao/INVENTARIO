@@ -112,3 +112,39 @@ Use a variável apenas no processo confiável. Não registre a linha real no his
 - Não executar `alembic downgrade` automaticamente.
 - Se uma migration não destrutiva já foi aplicada, mantenha colunas ou tabelas compatíveis até uma migration corretiva planejada.
 - Em incidente de banco, interrompa novas escritas, preserve logs sem segredos e restaure pelo mecanismo do provedor.
+
+## Automação de terminal
+
+O script `scripts/deploy.ps1` automatiza a preparação da entrega e a publicação
+pós-merge sem ignorar a proteção da `main`.
+
+Na branch de trabalho, o modo `prepare` instala dependências, executa lint,
+TypeScript, Vitest, Pytest, build e Playwright, bloqueia arquivos de segredo,
+cria o commit, envia a branch e abre o Pull Request:
+
+```powershell
+pnpm run deploy -Message "feat: descrever a entrega"
+```
+
+Se o comando for executado na `main`, ele cria automaticamente uma branch
+`codex/deploy-*` antes de preparar o commit. Não use o script em um checkout que
+contenha alterações de outra tarefa sem revisar os arquivos que serão incluídos.
+
+Depois do merge aprovado, configure os identificadores e o token somente na
+sessão local, sem gravá-los no Git:
+
+```powershell
+$env:INVENTORY_RENDER_SERVICE_ID = "<service-id-do-inventory-api>"
+$env:RENDER_API_KEY = "<token-do-render>"
+pnpm run deploy -Mode production
+```
+
+O modo `production` exige `main` limpa e sincronizada com `origin/main`, confirma
+o `Quality Gates` do commit, aguarda a confirmação da Vercel, dispara o deploy
+do `inventory-api` no Render para o SHA exato, aguarda `live`, verifica os dois
+healthchecks e executa o `Production Smoke` manual. A Vercel continua sendo
+publicada pela integração GitHub; o script verifica o status dela e não duplica
+o deploy por CLI.
+
+O token do Render é usado apenas no processo local e nunca é exibido, salvo ou
+enviado para o repositório. O script não executa SQL nem altera dados do Neon.

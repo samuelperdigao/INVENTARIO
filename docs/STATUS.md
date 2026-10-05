@@ -1,5 +1,29 @@
 # Status do projeto
 
+## Resultado pós-publicação
+
+Validação final em 05/10/2026 após os merges `e687f63` e `881bb1b` na `main`.
+
+- PR #31 entregou o isolamento multiusuário, a renovação de sessão protegida,
+  o polling resiliente, a referência SAP parcial e a migration `0010`.
+- PR #32 adicionou `preDeployCommand` ao Render para executar Alembic antes do
+  FastAPI. O serviço voltou a ficar saudável e o `Production Smoke` do commit
+  `881bb1b` passou.
+- A Vercel registrou deployment de produção para o commit `881bb1b`; o smoke
+  confirmou `/`, `/acesso`,
+  `/backend-api/healthz` e `https://inventory-api-6o8h.onrender.com/healthz`.
+- Quality Gates do commit `881bb1b` passou lint, TypeScript, Vitest, build,
+  Pytest, Alembic e Playwright. O teste local multiusuário cobriu 2, 3, 5 e
+  10 participantes, além de três contextos independentes no navegador.
+- O teste multiusuário com contas e dados reais de produção não foi executado,
+  pois o pedido proíbe alterar dados reais para testar. A validação física em
+  Android/iPhone também permanece pendente.
+
+Estado: publicação técnica e smoke público validados; certificação física e
+exercício multiusuário em dados reais deliberadamente não realizados.
+
+Atualizado em 05/10/2026.
+
 ## Correção do deploy da migration 0010
 
 Validação em 05/10/2026 após o primeiro smoke público da entrega
@@ -12,8 +36,9 @@ garantida no PostgreSQL de produção.
 - A operação é aditiva e aplica a cadeia versionada até
   `0010_participant_sync_sessions`; nenhum registro real é atualizado ou
   removido e nenhum comando direto foi executado no Neon.
-- A migration será validada pelo próximo deploy do Render e pelo smoke público
-  posterior. O Render CLI não está instalado localmente; o Blueprint foi
+- A migration foi incluída no deploy do Render pelo `preDeployCommand`; o
+  `Production Smoke` posterior confirmou que o serviço iniciou com a cadeia
+  publicada. O Render CLI não está instalado localmente; o Blueprint foi
   revisado pelo diff e pelo deploy efetivo.
 
 Atualizado em 05/10/2026.
@@ -21,8 +46,8 @@ Atualizado em 05/10/2026.
 ## Prontidão multiusuário e operação offline
 
 Validação em 05/10/2026 na branch `hotfix/multiuser-sync-readiness`, baseada na
-`main` estável. A implementação está pronta para integração, mas ainda não
-deve ser considerada validada em produção antes do merge e do smoke público.
+`main` estável. A implementação foi integrada e publicada; o exercício
+multiusuário em dados reais de produção permanece fora do escopo seguro.
 
 - A operação local agora é vinculada à conta autenticada. Registros legados
   sem vínculo são isolados em quarentena sem descarte; inventários de outra
@@ -58,9 +83,9 @@ deve ser considerada validada em produção antes do merge e do smoke público.
   antiga `0006`, porque já contém a tabela temporária
   `_alembic_tmp_inventory_entries`. O artefato não foi apagado nem alterado;
   a validação foi feita em banco isolado e limpo.
-- Nenhum banco Neon, serviço Render ou projeto Vercel foi alterado durante a
-  validação local. Merge, deploy e smoke público continuam pendentes desta
-  entrega.
+- O merge, o deploy e o smoke público foram concluídos. Não houve alteração
+  direta no Neon; a migration aditiva foi encaminhada pelo pre-deploy do
+  serviço Render.
 - A concorrência foi exercitada localmente, inclusive com 2, 3, 5 e 10
   participantes. A validação multiusuário no PostgreSQL de produção e em
   dispositivos físicos continua pendente.

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 
 import { InventoryScreen } from "@/components/inventory-screen";
+import { InventoryEntriesScreen } from "@/components/inventory-entries-screen";
 import { db } from "@/lib/db";
 import { createEntry, createInventory } from "@/lib/inventory-repository";
 
@@ -17,7 +18,7 @@ it("edita e exige confirmação antes de tombstonar um registro", async () => {
   const inventory = await createInventory("2026-09-11", "screen-user");
   const entry = await createEntry(inventory.id, { side: "EF", bay: "1", layer: "A1", lot: "2712345678", quantity: 2 });
   const user = userEvent.setup();
-  render(<InventoryScreen inventoryId={inventory.id} />);
+  render(<InventoryEntriesScreen inventoryId={inventory.id} />);
 
   await screen.findByText("Lote 2712345678");
   await user.click(screen.getByRole("button", { name: "Editar" }));
@@ -50,7 +51,7 @@ it("exibe confirmação para lote repetido antes de aceitar a segunda ocorrênci
   await user.type(screen.getByLabelText("Lote"), "2712345678");
   await user.type(screen.getByLabelText("Quantidade de peças"), "19");
   await user.click(screen.getByRole("button", { name: "Adicionar" }));
-  await waitFor(() => expect(screen.getAllByText("Lote 2712345678")).toHaveLength(1), { timeout: 5_000 });
+  await waitFor(() => expect(screen.getByText("1 registro(s)", { exact: true })).toBeInTheDocument(), { timeout: 5_000 });
 
   await user.click(screen.getByRole("button", { name: "LE" }));
   await user.clear(screen.getByLabelText("Vão"));
@@ -62,5 +63,5 @@ it("exibe confirmação para lote repetido antes de aceitar a segunda ocorrênci
   expect(await screen.findByRole("dialog", { name: "Lote já registrado" })).toBeInTheDocument();
 
   await user.click(screen.getByRole("button", { name: "Adicionar mesmo assim" }));
-  await waitFor(() => expect(screen.getAllByText("Lote 2712345678")).toHaveLength(2), { timeout: 5_000 });
+  await waitFor(() => expect(screen.getByText("2 registro(s)", { exact: true })).toBeInTheDocument(), { timeout: 5_000 });
 });

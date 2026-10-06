@@ -17,6 +17,7 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
   await login(page, ownerEmail);
   await page.getByRole("button", { name: /Iniciar novo inventário/ }).click();
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Abrir lista completa de lançamentos" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Referência SAP / SICLA", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Importar planilha SAP / SICLA", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Continuar sem planilha SAP / SICLA", exact: true })).toBeVisible();

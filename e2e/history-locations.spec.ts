@@ -39,9 +39,11 @@ test("apresenta locais consolidados sem overflow nos viewports móveis", async (
   await page.getByRole("button", { name: "Sincronizar agora", exact: true }).click();
   await expect(page.getByText("Sincronização concluída.", { exact: true })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Atualizar análise", exact: true }).click();
+  await page.getByRole("link", { name: "Acessar análise completa" }).click();
   await expect(page.getByText("1 PEÇA FORA DO LOCAL PRINCIPAL", { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("5 PEÇAS FORA DO LOCAL PRINCIPAL", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("link", { name: /Voltar ao inventário/ }).click();
   await page.getByRole("button", { name: "Finalizar inventário", exact: true }).click();
   await page.getByRole("dialog", { name: "Finalizar inventário?" }).getByRole("button", { name: "Finalizar inventário", exact: true }).click();
   await expect(page.getByText("Inventário finalizado. O relatório e as exportações estão preservados.", { exact: true })).toBeVisible({ timeout: 30_000 });

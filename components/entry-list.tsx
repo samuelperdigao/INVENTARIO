@@ -1,18 +1,48 @@
 "use client";
 
+import Link from "next/link";
+
 import { groupEntries } from "@/lib/grouping";
 import { formatSideLabel, type InventoryEntry } from "@/lib/models";
 
 interface EntryListProps {
+  inventoryId: string;
   entries: InventoryEntry[];
   onEdit: (entry: InventoryEntry) => void;
   onDelete: (entry: InventoryEntry) => void;
   readOnly?: boolean;
   highlightedEntryId?: string;
+  compact?: boolean;
 }
 
-export function EntryList({ entries, onEdit, onDelete, readOnly = false, highlightedEntryId }: EntryListProps) {
+export function EntryList({ inventoryId, entries, onEdit, onDelete, readOnly = false, highlightedEntryId, compact = false }: EntryListProps) {
   const groups = groupEntries(entries);
+
+  if (compact) {
+    return (
+      <section className="card section-card panel-card stack entries-section entries-section--compact" aria-label="Lançamentos registrados">
+        <div className="section-header">
+          <div className="panel-heading">
+            <span className="panel-index" aria-hidden="true">02</span>
+            <div className="panel-copy">
+              <p className="eyebrow">Conferência</p>
+              <h2>Lançamentos</h2>
+              <p className="muted">A lista fica compacta nesta tela. Abra a conferência para consultar, editar ou excluir os registros.</p>
+            </div>
+          </div>
+          <span className="status-pill">{entries.length} registro(s)</span>
+        </div>
+        <Link className="entry-list-preview" href={`/inventarios/${inventoryId}/lancamentos`} aria-label="Abrir lista completa de lançamentos">
+          <span className="entry-list-preview-copy">
+            <strong>{entries.length ? `${entries.length} registro(s) pronto(s) para consulta` : "Nenhum lançamento registrado ainda"}</strong>
+            <span>{entries.length ? "Lotes organizados por lado e vão, sem ocupar toda a tela principal." : "A lista detalhada aparecerá aqui depois do primeiro lançamento."}</span>
+          </span>
+          <span className="entry-list-preview-cta">Abrir lançamentos <span aria-hidden="true">→</span></span>
+        </Link>
+      </section>
+    );
+  }
+
   return (
     <section className="card section-card panel-card stack entries-section" aria-label="Lançamentos registrados">
       <div className="section-header">

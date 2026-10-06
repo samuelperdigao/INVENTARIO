@@ -8,6 +8,7 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
   await login(page, ownerEmail);
   await page.getByRole("button", { name: /^Iniciar novo inventário/ }).click();
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
+  const recordMetric = page.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value');
 
   const entries: Array<{ side: "EF" | "DE"; bay: string; layer?: string; lot: string; quantity: number }> = [
     { side: "EF", bay: "15", layer: "A1", lot: "2710000001", quantity: 19 },
@@ -42,7 +43,7 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
       await expect(page.getByRole("dialog", { name: "Lote já registrado" })).toBeVisible({ timeout: 30_000 });
       await page.getByRole("dialog", { name: "Lote já registrado" }).getByRole("button", { name: "Adicionar mesmo assim", exact: true }).click();
     }
-    await expect(page.locator(".entry-row")).toHaveCount(index + 1);
+    await expect(recordMetric).toHaveText(String(index + 1));
   }
 
   const metrics = page.locator('[aria-label="Resumo do inventário"] .metric-card .metric-value');
@@ -53,8 +54,10 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
   await page.getByRole("button", { name: "Sincronizar agora", exact: true }).click();
   await expect(page.getByText("Sincronização concluída.", { exact: true })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Atualizar análise", exact: true }).click();
+  await page.getByRole("link", { name: "Acessar análise completa" }).click();
   await expect(page.getByText("1 PEÇA FORA DO LOCAL PRINCIPAL", { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("PEÇA_SOLTEIRA", { exact: true })).toHaveCount(0);
+  await page.getByRole("link", { name: /Voltar ao inventário/ }).click();
 
   await page.getByRole("button", { name: "Finalizar inventário", exact: true }).click();
   const finishDialog = page.getByRole("dialog", { name: "Finalizar inventário?" });

@@ -383,7 +383,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
         <div className="entry-workspace">
           {remoteFinalized && inventory.status === "OPEN" ? <p className="notice" role="status">Este inventário foi finalizado no servidor. Os dados locais pendentes foram preservados para decisão.</p> : null}
           {showEntryForm ? <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => { setEditing(undefined); setFormDirty(false); }} referenceChecker={createReferenceLotChecker(displayedInventory)} readOnly={readOnly} onDirtyChange={setFormDirty} /> : <p className="notice">Inventário finalizado: lançamentos preservados em modo somente leitura.</p>}
-          <EntryList entries={entries} onEdit={(entry) => { setEditing(entry); setFormDirty(false); }} onDelete={setPendingDeletion} readOnly={readOnly} highlightedEntryId={highlightedEntryId} />
+          <EntryList inventoryId={inventory.id} entries={entries} onEdit={(entry) => { setEditing(entry); setFormDirty(false); }} onDelete={setPendingDeletion} readOnly={readOnly} highlightedEntryId={highlightedEntryId} compact />
         </div>
         <InventoryControlPanel inventory={displayedInventory} entries={entries} onChanged={refresh} />
         {displayedInventory.status === "OPEN" && entries.length === 0 && displayedInventory.isOwner !== false ? <section className="card section-card stack" aria-label="Excluir inventário vazio">

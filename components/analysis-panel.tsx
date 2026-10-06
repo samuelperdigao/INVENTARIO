@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { getCachedReport, requestAnalysis } from "@/lib/analysis-client";
@@ -74,7 +75,7 @@ export function AnalysisPanel({ inventory, entries, embedded = false, onStateCha
           </div>
         </div>
         <button className="secondary" type="button" onClick={() => void handleAnalysis()} disabled={loading}>{loading ? "Analisando…" : "Atualizar análise"}</button>
-      </div> : <div className="control-stage-inline-action"><p className="muted">Atualize a análise online para revisar os lotes que precisam de conferência física.</p><button className="secondary" type="button" onClick={() => void handleAnalysis()} disabled={loading} aria-busy={loading}>{loading ? "Analisando…" : "Atualizar análise"}</button></div>}
+      </div> : <div className="control-stage-inline-action"><p className="muted">Atualize a análise online para revisar os lotes que precisam de conferência física.</p><div className="analysis-stage-actions"><button className="secondary" type="button" onClick={() => void handleAnalysis()} disabled={loading} aria-busy={loading}>{loading ? "Analisando…" : "Atualizar análise"}</button>{report ? <Link className="secondary button-link" href={`/inventarios/${inventory.id}/analise`}>Acessar análise completa</Link> : null}</div></div>}
       {fromCache && report ? <p className="notice">Resultado em cache{possiblyStale ? ", possivelmente desatualizado" : ""}.</p> : null}
       {message && !fromCache ? <p className="error" role="alert">{message}</p> : null}
       {!report ? <p className="muted">Conecte-se à internet para atualizar a análise. Os lançamentos locais continuam disponíveis sem internet.</p> : null}
@@ -83,12 +84,12 @@ export function AnalysisPanel({ inventory, entries, embedded = false, onStateCha
           <span className="micro-pill good">{report.summary.lotsOk ?? report.summary.regularLots} lote(s) OK</span>
           <span className={`micro-pill ${(report.summary.lotsForConference ?? report.summary.fragmentedLots) === 0 ? "good" : ""}`}>{report.summary.lotsForConference ?? report.summary.fragmentedLots} lote(s) para conferência</span>
         </div>
-        <ul className="report-list">
+        {embedded ? <p className="muted analysis-summary-hint">A análise completa foi separada para uma tela própria, com todos os lotes e recomendações.</p> : <ul className="report-list">
           {report.lots.map((lot) => <li key={lot.lot}>
             <strong>Lote {lot.lot}</strong> · {lot.totalQuantity} peça(s) · <span className={`classification-tag ${lot.presentation?.tone ?? (lot.classification === "OK" ? "ok" : "review")}`}>{lot.presentation?.situation ?? (lot.classification === "OK" ? "OK" : "LOTE PARA CONFERÊNCIA")}</span>
             {lot.presentation?.action && lot.presentation.requiresConference ? <><br /><span className="muted">{lot.presentation.action}</span></> : null}
           </li>)}
-        </ul>
+        </ul>}
       </> : null}
     </section>
   );

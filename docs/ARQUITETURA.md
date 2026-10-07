@@ -74,15 +74,18 @@ essa mesma fonte; sem referência, o contrato histórico permanece inalterado.
 
 Uma tabela independente `system_admins` autoriza as rotas `/api/v1/admin/*`.
 O painel consulta o banco central e não modifica os direitos dos operadores.
-Cada ação persiste autor, justificativa, antes/depois, revisão e geração em
-`admin_audit`. O inventário é bloqueado na transação, e revisões esperadas
-impedem correções administrativas simultâneas com base desatualizada.
+Cada ação persiste autor, justificativa quando aplicável, antes/depois, revisão
+e geração em `admin_audit`. O inventário é bloqueado na transação, e revisões
+esperadas impedem alterações administrativas simultâneas com base desatualizada.
 
 Reabertura cria uma geração operacional nova. O contrato de sincronização
 rejeita escritas das gerações anteriores, preserva conflitos locais e permite
 leitura para atualização. Exclusão administrativa mantém tombstone e impede
 recriação por dispositivos offline. Finalizações e correções guardam snapshots
 imutáveis em `admin_report_versions` para exportação histórica.
+Finalização operacional e administrativa compartilham a mesma regra de domínio
+e o mesmo gerador de relatório. Transferência muda somente o proprietário; a
+reabertura muda somente o estado operacional e a geração.
 
 ## Identidade e autorização
 
@@ -96,7 +99,7 @@ imutáveis em `admin_report_versions` para exportação histórica.
 
 ## Análise e relatórios
 
-`backend/app/engine.py` recebe lançamentos e produz classificações determinísticas internas. `backend/app/presentation.py` traduz essa saída para a linguagem operacional única, sem recalcular o motor. `backend/app/reports.py` prepara a fonte única em `build_inventory_report_data()` e deriva `.xls` BIFF8, `.xlsx`, PDF e Word desse modelo, incluindo a aba/seção condicional de conciliação quando há referência SAP. A finalização salva o snapshot oficial e bloqueia novas mutações. Os detalhes do contrato de exportação estão em `docs/EXPORTACOES.md`.
+`backend/app/engine.py` recebe lançamentos e produz classificações determinísticas internas. `backend/app/presentation.py` traduz essa saída para a linguagem operacional única, sem recalcular o motor. `backend/app/reports.py` prepara a fonte única em `build_inventory_report_data()` e deriva `.xls` BIFF8, `.xlsx`, PDF e Word desse modelo, incluindo a aba/seção condicional de conciliação quando há referência SAP. A finalização salva o snapshot oficial e bloqueia novas mutações até eventual reabertura explícita por administrador. Os detalhes do contrato de exportação estão em `docs/EXPORTACOES.md`.
 
 ## Banco e migrations
 

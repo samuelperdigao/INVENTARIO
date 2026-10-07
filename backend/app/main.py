@@ -662,37 +662,8 @@ def finalize_inventory(
         return _history_item(inventory)
     if payload.revision != inventory.revision or payload.operationalGeneration != inventory.operational_generation:
         raise HTTPException(status_code=409, detail="O inventário central mudou; sincronize antes de finalizar.")
-    rows = session.scalars(
-        select(InventoryEntryRow).where(
-            InventoryEntryRow.inventory_id == inventory.id,
-            InventoryEntryRow.tombstone.is_(False),
-        )
-    ).all()
-    now = datetime.now(timezone.utc)
-    reference_lots, reference_info = _report_reference(session, inventory.id)
-    inventory.report_snapshot = build_consolidated_report(
-        inventory.id,
-        inventory.date.isoformat(),
-        inventory.revision + 1,
-        (
-            AnalysisEntry(side=row.side, bay=row.bay, layer=row.layer, lot=row.lot, quantity=row.quantity)
-            for row in rows
-        ),
-        now,
-        reference_lots=reference_lots,
-        reference_metadata=reference_info,
-    )
-    inventory.status = "FINISHED"
-    inventory.finalized_at = now
-    inventory.finalized_by_user_id = user.id
-    inventory.participation_code = None
-    inventory.updated_at = now
-    inventory.revision += 1
-    from app.admin_service import preserve_report_version
-    preserve_report_version(session, inventory, now)
-    from app.sync_service import _append_event
-
-    _append_event(session, inventory.id, "inventory", inventory.id)
+    from app.admin_service import finalize_inventory as finalize_inventory_domain
+    finalize_inventory_domain(session, inventory, user.id)
     session.commit()
     return _history_item(inventory)
 

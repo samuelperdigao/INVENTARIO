@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { refreshAuthenticatedSession } from "@/lib/auth-client";
 import { db } from "@/lib/db";
 import { createEntry, createInventory as createLocalInventory, updateEntry } from "@/lib/inventory-repository";
-import { joinInventoryByCode, listSyncConflicts, resolveConflict, syncInventory } from "@/lib/sync-client";
+import { connectAssignedInventory, joinInventoryByCode, listSyncConflicts, resolveConflict, syncInventory } from "@/lib/sync-client";
 import type { Inventory, InventoryEntry } from "@/lib/models";
 
 vi.mock("@/lib/auth-client", () => ({
@@ -398,6 +398,72 @@ it("preserva lançamento de ciclo anterior e só o incorpora após decisão expl
   await resolveConflict(inventory.id, inventoryConflict!.id, "server");
   await resolveConflict(inventory.id, entryConflict!.id, "local");
   expect((await db.entries.get(pending.id))).toMatchObject({ operationalGeneration: 2, syncStatus: "PENDING", syncBaseRevision: 0 });
+});
+
+it("atualiza uma cópia FINISHED antiga para a geração OPEN recebida pela conta", async () => {
+  const inventory = await createInventory("2026-09-23");
+  const entry = await createEntry(inventory.id, { side: "DE", bay: "15", lot: "2712345691", quantity: 3 });
+  await db.inventories.put({ ...inventory, status: "FINISHED", revision: 3, syncBaseRevision: 3,
+    syncStatus: "SYNCED", operationalGeneration: 1, isOwner: false, syncToken: "old-participant-token" });
+  await db.entries.put({ ...entry, revision: 2, syncBaseRevision: 2, syncStatus: "SYNCED", operationalGeneration: 1 });
+
+  const timestamp = "2026-09-23T15:00:00.000Z";
+  const reopened = {
+    cursor: 8,
+    inventory: { ...inventoryRecord(inventory, 6), status: "OPEN" as const, updatedAt: timestamp,
+      operationalGeneration: 2, tombstone: false, deletedAt: null },
+    entries: [{ ...entryRecord(entry), revision: 4, syncBaseRevision: 4, updatedAt: timestamp, operationalGeneration: 2 }],
+    acknowledged: { inventory: false, entryIds: [] },
+    conflicts: [],
+    participationCode: "123456",
+  };
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(reopened), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const result = await connectAssignedInventory(inventory.id, "current-owner-access-token", 2);
+
+  const request = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as { operationalGeneration: number; inventory: unknown; entries: unknown[] };
+  expect(request).toMatchObject({ operationalGeneration: 2, inventory: null, entries: [] });
+  expect(result).toMatchObject({ conflicts: 0, serverStatus: "OPEN", remoteChanged: true });
+  expect(await db.inventories.get(inventory.id)).toMatchObject({
+    status: "OPEN", operationalGeneration: 2, revision: 6, syncBaseRevision: 6,
+    syncStatus: "SYNCED", isOwner: true, syncToken: "current-owner-access-token", participationCode: "123456",
+  });
+  expect(await db.entries.get(entry.id)).toMatchObject({
+    operationalGeneration: 2, revision: 4, syncBaseRevision: 4, syncStatus: "SYNCED", quantity: 3,
+  });
+  expect(await listSyncConflicts(inventory.id)).toHaveLength(0);
+});
+
+it("registra uma única vez o conflito de lançamento pendente da geração encerrada", async () => {
+  const inventory = await createInventory("2026-09-23");
+  const pending = await createEntry(inventory.id, { side: "DE", bay: "15", lot: "2712345692", quantity: 3 });
+  await db.inventories.put({ ...inventory, status: "FINISHED", revision: 3, syncBaseRevision: 3,
+    syncStatus: "SYNCED", operationalGeneration: 1, isOwner: false, syncToken: "old-owner-token" });
+  await db.entries.put({ ...pending, revision: 2, syncBaseRevision: 2,
+    syncStatus: "PENDING", operationalGeneration: 1 });
+
+  const timestamp = "2026-09-23T16:00:00.000Z";
+  const reopened = {
+    cursor: 9,
+    inventory: { ...inventoryRecord(inventory, 6), status: "OPEN" as const, updatedAt: timestamp,
+      operationalGeneration: 2, tombstone: false, deletedAt: null },
+    entries: [{ ...entryRecord(pending), revision: 4, syncBaseRevision: 4,
+      updatedAt: timestamp, operationalGeneration: 2 }],
+    acknowledged: { inventory: false, entryIds: [] },
+    conflicts: [],
+    participationCode: "123457",
+  };
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(reopened), { status: 200 })));
+
+  const result = await connectAssignedInventory(inventory.id, "current-owner-access-token", 2);
+  const conflicts = await listSyncConflicts(inventory.id);
+
+  expect(result.conflicts).toBe(1);
+  expect(await db.inventories.get(inventory.id)).toMatchObject({ status: "OPEN", operationalGeneration: 2 });
+  expect(await db.entries.get(pending.id)).toMatchObject({ syncStatus: "ERROR", operationalGeneration: 1 });
+  expect(conflicts).toHaveLength(1);
+  expect(conflicts[0]).toMatchObject({ entityType: "entry", entityId: pending.id });
 });
 
 it("mantém lançamentos locais mesmo depois da exclusão administrativa central", async () => {

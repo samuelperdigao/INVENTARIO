@@ -9,7 +9,12 @@ const entryId = "00000000-0000-4000-8000-000000000522";
 async function mockAdmin(page: Page, systemAdmin = true) {
   const user = { id: "00000000-0000-4000-8000-000000000523", email: "admin@example.com",
     displayName: "Administração", systemAdmin, recoveryPinConfigured: true, teams: [] };
-  const inventory = {
+  let inventory: {
+    id: string; date: string; status: "OPEN" | "FINISHED"; revision: number; operationalGeneration: number;
+    tombstone: boolean; deletedAt?: string; finalizedAt?: string; recordCount: number; lotCount: number;
+    pieceCount: number; reportVersion: number; ownerName: string; ownerEmail: string; ownerUserId: string;
+    createdAt: string;
+  } = {
     id: inventoryId, date: "2026-09-23", status: "OPEN", revision: 4,
     operationalGeneration: 1, tombstone: false, recordCount: 1,
     lotCount: 1, pieceCount: 8, reportVersion: 0, ownerName: "Operador A",
@@ -20,12 +25,22 @@ async function mockAdmin(page: Page, systemAdmin = true) {
       outsideReferenceLots: 0, fragmentedLots: 0, physicalDistinctLots: 1 },
     lots: [], outsideLots: [], page: 1, pageSize: 50, totalMatchingLots: 0, totalPages: 0,
   };
+  const adminActions: { path: string; body: unknown }[] = [];
   await page.route("**/backend-api/**", async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^.*\/backend-api/, "");
     let body: object = {};
     let status = 200;
-    if (path === "/api/v1/auth/refresh") body = { user, accessToken: "session-for-ui-test" };
+    if (route.request().method() === "POST" && (path === `/api/v1/admin/inventories/${inventoryId}/delete`
+      || path === `/api/v1/admin/inventories/${inventoryId}/finalize`)) {
+      const payload = route.request().postDataJSON() as Record<string, unknown>;
+      adminActions.push({ path, body: payload });
+      if (path.endsWith("/delete")) inventory = { ...inventory, tombstone: true, deletedAt: "2026-09-23T13:00:00Z" };
+      else inventory = { ...inventory, status: "FINISHED", revision: inventory.revision + 1,
+        reportVersion: inventory.reportVersion + 1, finalizedAt: "2026-09-23T13:00:00Z" };
+      body = inventory;
+    }
+    else if (path === "/api/v1/auth/refresh") body = { user, accessToken: "session-for-ui-test" };
     else if (path === "/api/v1/auth/me") body = user;
     else if (!systemAdmin) { body = { detail: "Acesso administrativo não autorizado." }; status = 403; }
     else if (path === "/api/v1/admin/overview") body = {
@@ -41,10 +56,21 @@ async function mockAdmin(page: Page, systemAdmin = true) {
       participants: [], reference,
     };
     else if (path === `/api/v1/admin/inventories/${inventoryId}/reference`) body = reference;
-    else if (path === `/api/v1/admin/inventories/${inventoryId}/versions`) body = [];
+    else if (path === `/api/v1/admin/inventories/${inventoryId}/versions`) body = inventory.reportVersion ? [
+      { version: inventory.reportVersion, createdAt: inventory.finalizedAt, revision: inventory.revision,
+        operationalGeneration: inventory.operationalGeneration },
+    ] : [];
     else if (path === "/api/v1/admin/audit") body = { items: [], total: 0 };
     await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
   });
+  return adminActions;
+}
+
+async function openAdminInventory(page: Page) {
+  await page.goto("/admin");
+  await expect(page.getByRole("heading", { name: "Visão geral" })).toBeVisible();
+  await page.getByRole("link", { name: /Operador A.*1 lotes/ }).click();
+  await expect(page.getByRole("heading", { name: "Lançamentos" })).toBeVisible();
 }
 
 for (const width of [390, 1366]) {
@@ -79,4 +105,45 @@ test("conta comum recebe acesso negado mesmo ao abrir a rota diretamente", async
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "Acesso não autorizado" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Excluir inventário" })).toHaveCount(0);
+});
+
+test("exclusão administrativa usa somente Sim ou Cancelar e envia revisão esperada", async ({ page }) => {
+  const actions = await mockAdmin(page);
+  await openAdminInventory(page);
+  await page.getByRole("button", { name: "Excluir inventário" }).click();
+  let dialog = page.getByRole("dialog", { name: "Excluir inventário" });
+  await expect(dialog.getByText("Tem certeza que deseja excluir este inventário?", { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("textbox")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Cancelar" }).click();
+  expect(actions.filter((action) => action.path.endsWith("/delete"))).toHaveLength(0);
+
+  await page.getByRole("button", { name: "Excluir inventário" }).click();
+  dialog = page.getByRole("dialog", { name: "Excluir inventário" });
+  await dialog.getByRole("button", { name: "Sim, excluir" }).click();
+  await expect.poll(() => actions.filter((action) => action.path.endsWith("/delete")).length).toBe(1);
+  expect(actions.find((action) => action.path.endsWith("/delete"))?.body).toEqual({
+    expectedRevision: 4, expectedGeneration: 1,
+  });
+  await expect(page.getByText("Excluído", { exact: true })).toBeVisible();
+});
+
+test("administrador finaliza somente inventário aberto com confirmação simples", async ({ page }) => {
+  const actions = await mockAdmin(page);
+  await openAdminInventory(page);
+  await page.getByRole("button", { name: "Finalizar inventário" }).click();
+  let dialog = page.getByRole("dialog", { name: "Finalizar inventário" });
+  await expect(dialog.getByText("Tem certeza que deseja finalizar este inventário?", { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("textbox")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Cancelar" }).click();
+  expect(actions.filter((action) => action.path.endsWith("/finalize")).length).toBe(0);
+
+  await page.getByRole("button", { name: "Finalizar inventário" }).click();
+  dialog = page.getByRole("dialog", { name: "Finalizar inventário" });
+  await dialog.getByRole("button", { name: "Sim, finalizar" }).click();
+  await expect.poll(() => actions.filter((action) => action.path.endsWith("/finalize")).length).toBe(1);
+  expect(actions.find((action) => action.path.endsWith("/finalize"))?.body).toEqual({
+    expectedRevision: 4, expectedGeneration: 1,
+  });
+  await expect(page.getByRole("button", { name: "Reabrir inventário" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Finalizar inventário" })).toHaveCount(0);
 });

@@ -41,7 +41,7 @@
 ## Operação
 
 - Um inventário novo começa sem lado selecionado.
-- Depois de salvar um lançamento, lado e vão ficam selecionados. Se houver camada selecionada, ela também permanece; lote e quantidade são limpos e o foco retorna ao lote.
+- Depois de salvar um lançamento, lado e vão ficam selecionados; a camada retorna para `Sem camada` no próximo lançamento. Lote e quantidade são limpos e o foco retorna ao lote.
 - A lista sempre apresenta EF antes de DE; vãos e lotes usam ordenação natural.
 
 ## Motor determinístico

@@ -1168,7 +1168,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
   .control-stage-content { padding-inline: 12px; }
   .control-stage-content .actions { display: grid; grid-template-columns: 1fr; }
   .control-stage-content .participation-box .secondary { width: 100%; }
-  .entry-form-submit { position: sticky; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 3; min-height: 48px; box-shadow: 0 8px 22px rgba(13, 86, 180, .2); }
+  .entry-form-submit {
+    position: static;
+    inset: auto;
+    z-index: auto;
+    align-self: stretch;
+    width: 100%;
+    min-height: 48px;
+    box-shadow: 0 8px 22px rgba(13, 86, 180, .2);
+  }
   .unavailable-actions { display: grid; }
   .unavailable-actions > * { width: 100%; }
   .unavailable-card { padding-inline: 18px; }

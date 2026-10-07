@@ -39,7 +39,10 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
       const workflow = document.querySelector<HTMLElement>(".workflow-strip");
       const workspace = document.querySelector<HTMLElement>(".entry-workspace");
       const currentStep = document.querySelector<HTMLElement>(".inventory-current-step");
+      const quantity = document.querySelector<HTMLElement>("#quantity");
       const submit = document.querySelector<HTMLElement>(".entry-form-submit");
+      const quantityRect = quantity?.getBoundingClientRect();
+      const submitRect = submit?.getBoundingClientRect();
       return {
         viewport: window.innerWidth,
         scrollWidth: document.documentElement.scrollWidth,
@@ -48,6 +51,9 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
         workspaceColumns: workspace ? getComputedStyle(workspace).gridTemplateColumns : "missing",
         currentStepVisible: currentStep ? getComputedStyle(currentStep).display !== "none" : false,
         submitHeight: submit?.getBoundingClientRect().height ?? 0,
+        submitPosition: submit ? getComputedStyle(submit).position : "missing",
+        quantityBottom: quantityRect?.bottom ?? 0,
+        submitTop: submitRect?.top ?? 0,
         controlStages: document.querySelectorAll(".control-stage-details").length,
       };
     });
@@ -55,6 +61,7 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
     expect(layout.scrollWidth, `overflow horizontal em ${viewport.width}px`).toBeLessThanOrEqual(viewport.width + 1);
     expect(layout.workflowDisplay).toBe("removed");
     expect(layout.controlStages).toBe(3);
+    expect(layout.submitTop).toBeGreaterThanOrEqual(layout.quantityBottom);
 
     if (viewport.width >= 1180) {
       expect(layout.railPosition).toBe("sticky");
@@ -67,8 +74,49 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
       expect(layout.currentStepVisible).toBe(true);
       expect(layout.workspaceColumns.split(" ")).toHaveLength(1);
       expect(layout.submitHeight).toBeGreaterThanOrEqual(48);
+      expect(layout.submitPosition).toBe("static");
     }
   }
+});
+
+test("mantém o botão de lançamento no fluxo quando o viewport mobile é reduzido", async ({ page }) => {
+  const { ownerEmail } = seedUsers("mobile-entry-form");
+  await login(page, ownerEmail);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: /Iniciar novo inventário/ }).click();
+  await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
+
+  const quantity = page.getByLabel("Quantidade de peças");
+  const submit = page.locator(".entry-form-submit");
+  const measure = () => page.evaluate(() => {
+    const quantityElement = document.querySelector<HTMLElement>("#quantity");
+    const submitElement = document.querySelector<HTMLElement>(".entry-form-submit");
+    if (!quantityElement || !submitElement) throw new Error("Campos do formulário não encontrados.");
+    const quantityRect = quantityElement.getBoundingClientRect();
+    const submitRect = submitElement.getBoundingClientRect();
+    return {
+      quantityBottom: quantityRect.bottom,
+      submitTop: submitRect.top,
+      submitPosition: getComputedStyle(submitElement).position,
+    };
+  });
+
+  await quantity.scrollIntoViewIfNeeded();
+  const closedKeyboard = await measure();
+  expect(closedKeyboard.submitPosition).toBe("static");
+  expect(closedKeyboard.submitTop).toBeGreaterThanOrEqual(closedKeyboard.quantityBottom);
+
+  await page.setViewportSize({ width: 390, height: 520 });
+  await quantity.scrollIntoViewIfNeeded();
+  const openKeyboard = await measure();
+  expect(openKeyboard.submitPosition).toBe("static");
+  expect(openKeyboard.submitTop).toBeGreaterThanOrEqual(openKeyboard.quantityBottom);
+
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const afterScroll = await measure();
+  expect(afterScroll.submitPosition).toBe("static");
+  expect(afterScroll.submitTop).toBeGreaterThanOrEqual(afterScroll.quantityBottom);
+  await expect(submit).toBeVisible();
 });
 
 test("mantém todas as ações do diálogo de finalização dentro do viewport mobile", async ({ page }) => {

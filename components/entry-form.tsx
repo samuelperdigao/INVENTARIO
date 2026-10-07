@@ -83,6 +83,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker, rea
     setError(undefined);
     try {
       await onSave(draft, editing?.id, allowDuplicate);
+      if (!editing) setLayer("");
       setDuplicates([]);
       setFeedback(editing ? "Registro atualizado." : "Registro adicionado. Próximo lote.");
       setLot("");
@@ -129,7 +130,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker, rea
             <div className="panel-copy">
               <p className="eyebrow">Lançamento</p>
               <h2>{editing ? "Editar registro" : "Novo registro"}</h2>
-              <p className="muted">Informe a posição física, o lote e a quantidade encontrada. Lado e vão permanecem selecionados após salvar; a camada é opcional e, quando informada, também permanece selecionada.</p>
+              <p className="muted">Informe a posição física, o lote e a quantidade encontrada. Lado e vão permanecem selecionados após salvar; a camada volta para Sem camada no próximo lançamento.</p>
             </div>
           </div>
           {editing && <button className="secondary" type="button" onClick={onCancelEdit}>Cancelar edição</button>}

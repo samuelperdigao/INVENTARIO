@@ -59,8 +59,9 @@ class ExplainedRequest(RevisionRequest):
     reason: str = Field(min_length=8, max_length=1000)
 
 
-class DeleteRequest(ExplainedRequest):
-    confirmation: Literal["EXCLUIR INVENTÁRIO"]
+class DeleteRequest(ApiModel):
+    expectedRevision: StrictInt = Field(ge=1)
+    expectedGeneration: StrictInt = Field(ge=1)
 
 
 class TransferRequest(ExplainedRequest):
@@ -136,14 +137,16 @@ def _owner_token(inventory: InventoryRow, user_id: str) -> str:
 def assigned_inventories(
     user: UserRow = Depends(get_current_user),
     session: Session = Depends(get_session),
-) -> list[dict[str, str]]:
+) -> list[dict[str, object]]:
     inventories = session.scalars(select(InventoryRow).where(
         InventoryRow.owner_user_id == user.id, InventoryRow.tombstone.is_(False),
         InventoryRow.owner_access_hash.is_not(None),
-    )).all()
+    ).order_by(InventoryRow.created_at.desc())).all()
     return [
         {"inventoryId": inventory.id, "date": inventory.date.isoformat(),
-         "status": inventory.status, "accessToken": _owner_token(inventory, user.id)}
+         "status": inventory.status, "revision": inventory.revision,
+         "operationalGeneration": inventory.operational_generation,
+         "accessToken": _owner_token(inventory, user.id)}
         for inventory in inventories
         if hmac.compare_digest(inventory.owner_access_hash, _hash_token(_owner_token(inventory, user.id)))
     ]
@@ -441,6 +444,8 @@ def reopen_inventory(
     inventory.status, inventory.report_snapshot = "OPEN", None
     inventory.finalized_at, inventory.finalized_by_user_id = None, None
     inventory.participation_code = None  # Novo código é emitido no próximo sync autorizado.
+    if inventory.owner_user_id:
+        inventory.owner_access_hash = _hash_token(_owner_token(inventory, inventory.owner_user_id))
     touch_inventory(session, inventory, when)
     entries = session.scalars(select(InventoryEntryRow).where(InventoryEntryRow.inventory_id == inventory.id)).all()
     for entry in entries:
@@ -449,7 +454,29 @@ def reopen_inventory(
         entry.updated_at = when
         _append_event(session, inventory.id, "entry", entry.id)
     audit(session, inventory, admin.id, "REOPENED", reason=payload.reason,
-          before=before, after={"status": "OPEN", "operationalGeneration": inventory.operational_generation})
+          before=before, after={"status": "OPEN", "operationalGeneration": inventory.operational_generation,
+                               "ownerUserId": inventory.owner_user_id})
+    session.commit()
+    return _detail(session, inventory)
+
+
+@router.post("/inventories/{inventory_id}/finalize")
+def finalize_inventory_admin(
+    inventory_id: str, payload: RevisionRequest,
+    admin: UserRow = Depends(require_admin), session: Session = Depends(get_session),
+) -> dict:
+    inventory = lock_inventory(session, inventory_id, payload.expectedRevision, payload.expectedGeneration)
+    if inventory.status != "OPEN":
+        raise HTTPException(status_code=409, detail="Este inventário já está finalizado.")
+    before = _visible_item(session, inventory)
+    from app.admin_service import finalize_inventory as finalize_inventory_domain
+    finalize_inventory_domain(session, inventory, admin.id)
+    audit(session, inventory, admin.id, "FINALIZED_BY_ADMIN", before=before, after={
+        "status": inventory.status,
+        "finalizedAt": inventory.finalized_at.isoformat() if inventory.finalized_at else None,
+        "finalizedByUserId": inventory.finalized_by_user_id,
+        "reportVersion": inventory.report_version,
+    })
     session.commit()
     return _detail(session, inventory)
 
@@ -465,7 +492,7 @@ def delete_inventory(
     inventory.tombstone, inventory.deleted_at = True, when
     inventory.participation_code = None
     touch_inventory(session, inventory, when)
-    audit(session, inventory, admin.id, "INVENTORY_DELETED", reason=payload.reason,
+    audit(session, inventory, admin.id, "INVENTORY_DELETED",
           before=before, after={"tombstone": True, "deletedAt": when.isoformat()})
     session.commit()
     return _detail(session, inventory)

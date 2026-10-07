@@ -17,17 +17,18 @@ import { formatBrazilianDate } from "@/lib/local-date";
 import { formatSideLabel, INVENTORY_LAYERS, type InventoryEntry } from "@/lib/models";
 
 type Section = "overview" | "inventories" | "deleted" | "audit";
-type Action = "create" | "edit" | "remove" | "reopen" | "delete" | "transfer" | "reference" | "removeReference";
+type Action = "create" | "edit" | "remove" | "reopen" | "finalize" | "delete" | "transfer" | "reference" | "removeReference";
 
 const labels: Record<AdminAudit["action"], string> = {
   ENTRY_CREATED: "Lançamento incluído", ENTRY_UPDATED: "Lançamento corrigido",
   ENTRY_REMOVED: "Lançamento removido", REOPENED: "Inventário reaberto",
   INVENTORY_DELETED: "Inventário excluído", OWNER_TRANSFERRED: "Responsável alterado",
+  FINALIZED_BY_ADMIN: "Inventário finalizado pelo administrador",
   REFERENCE_IMPORTED: "Referência SAP / SICLA atualizada", REFERENCE_REMOVED: "Referência SAP / SICLA removida",
 };
 const actionLabels: Record<Action, string> = {
   create: "Adicionar lançamento", edit: "Corrigir lançamento", remove: "Remover lançamento",
-  reopen: "Reabrir inventário", delete: "Excluir inventário", transfer: "Transferir responsabilidade",
+  reopen: "Reabrir inventário", finalize: "Finalizar inventário", delete: "Excluir inventário", transfer: "Transferir responsabilidade",
   reference: "Importar referência SAP / SICLA", removeReference: "Remover referência SAP / SICLA",
 };
 
@@ -84,7 +85,6 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
   const [quantity, setQuantity] = useState(1);
   const [duplicateConfirmed, setDuplicateConfirmed] = useState(false);
   const [reason, setReason] = useState("");
-  const [confirmation, setConfirmation] = useState("");
   const [newOwner, setNewOwner] = useState("");
   const [file, setFile] = useState<File>();
   const [preview, setPreview] = useState<{ uniqueLots: number; ignoredRows: number; warnings: string[] }>();
@@ -179,7 +179,7 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
     setSide(entry?.side ?? "DE"); setBay(entry?.bay ?? ""); setLayer(entry?.layer ?? "");
     setLot(entry?.lot ?? ""); setQuantity(entry?.quantity ?? 1);
     setDuplicateConfirmed(Boolean(entry?.duplicateConfirmed));
-    setReason(""); setConfirmation(""); setNewOwner(""); setFile(undefined); setPreview(undefined);
+    setReason(""); setNewOwner(""); setFile(undefined); setPreview(undefined);
     setError(""); setAction(next);
   }
 
@@ -196,7 +196,8 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
     if (!detail || !action || busy) return;
     setBusy(true); setError("");
     const path = `/inventories/${detail.id}`;
-    const common = { expectedRevision: detail.revision, expectedGeneration: detail.operationalGeneration, reason: reason.trim() || null };
+    const revision = { expectedRevision: detail.revision, expectedGeneration: detail.operationalGeneration };
+    const common = { ...revision, reason: reason.trim() || null };
     try {
       if (action === "create" || action === "edit") {
         const body = { ...common, side, bay: bay.trim(), layer: layer || null, lot: lot.trim(), quantity, duplicateConfirmed };
@@ -209,10 +210,12 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
         form.append("file", file); form.append("expectedRevision", String(detail.revision));
         form.append("expectedGeneration", String(detail.operationalGeneration)); form.append("reason", reason.trim());
         await adminUpload(`${path}/reference`, form);
+      } else if (action === "delete" || action === "finalize") {
+        await adminPost(`${path}/${action}`, revision);
       } else {
-        const destination = { reopen: "reopen", delete: "delete", transfer: "transfer", removeReference: "reference/remove" }[action];
+        const destination = { reopen: "reopen", transfer: "transfer", removeReference: "reference/remove" }[action];
         await adminPost(`${path}/${destination}`, {
-          ...common, ...(action === "delete" ? { confirmation } : {}),
+          ...common,
           ...(action === "transfer" ? { newOwnerUserId: newOwner } : {}),
         });
       }
@@ -353,7 +356,7 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
         </section>
         <div className={styles.twoColumns}><section className={styles.card}><h2>Administração</h2>
           <div className={styles.actionGrid}>{!detail.tombstone ? <>
-            {detail.status === "FINISHED" ? <button type="button" onClick={() => openAction("reopen")}>Reabrir inventário</button> : null}
+            {detail.status === "FINISHED" ? <button type="button" onClick={() => openAction("reopen")}>Reabrir inventário</button> : <button type="button" onClick={() => openAction("finalize")}>Finalizar inventário</button>}
             <button type="button" onClick={() => openAction("transfer")}>Transferir responsável</button>
             <button className={styles.danger} type="button" onClick={() => openAction("delete")}>Excluir inventário</button>
           </> : <p className={styles.empty}>Este inventário foi excluído e permanece disponível para auditoria.</p>}</div></section>
@@ -379,15 +382,16 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
             <label>Novo responsável <select required value={newOwner} onChange={(event) => setNewOwner(event.target.value)}><option value="">Selecione uma conta</option>{users.filter((candidate) => candidate.id !== detail.ownerUserId).map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.name} · {candidate.email}</option>)}</select></label></> : null}
           {action === "reference" ? <><label>Planilha SAP / SICLA (.xlsx) <input required type="file" accept=".xlsx" onChange={(event) => { const chosen = event.target.files?.[0]; if (chosen) void handlePreview(chosen); }} /></label>
             {preview ? <p className={styles.notice}>Prévia: {preview.uniqueLots} lote(s) válido(s), {preview.ignoredRows} linha(s) ignorada(s). {preview.warnings.slice(0, 2).join(" ")}</p> : null}</> : null}
-          <label>Justificativa {detail.status === "OPEN" && (action === "create" || action === "edit" || action === "remove") ? "(opcional)" : ""}
+          {action === "delete" || action === "finalize" ? <p className={styles.notice}>
+            {action === "delete" ? "Tem certeza que deseja excluir este inventário?" : "Tem certeza que deseja finalizar este inventário?"}
+          </p> : <label>Justificativa {detail.status === "OPEN" && (action === "create" || action === "edit" || action === "remove") ? "(opcional)" : ""}
             <textarea required={detail.status === "FINISHED" || !["create", "edit", "remove"].includes(action)}
               minLength={8} maxLength={1000} rows={3} value={reason} onChange={(event) => setReason(event.target.value)}
-              placeholder="Descreva o motivo desta alteração" /></label>
-          {action === "delete" ? <label>Digite EXCLUIR INVENTÁRIO para confirmar <input required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label> : null}
+              placeholder="Descreva o motivo desta alteração" /></label>}
           {error ? <p className={styles.error} role="alert">{error}</p> : null}
           <div className={styles.modalActions}><button className={styles.secondary} type="button" onClick={() => setAction(undefined)} disabled={busy}>Cancelar</button>
-            <button className={action === "delete" ? styles.danger : styles.primary} disabled={busy || (action === "reference" && !preview?.uniqueLots) || (action === "delete" && confirmation !== "EXCLUIR INVENTÁRIO")} type="submit">
-              {busy ? "Salvando…" : "Confirmar alteração"}</button></div>
+            <button className={action === "delete" ? styles.danger : styles.primary} disabled={busy || (action === "reference" && !preview?.uniqueLots)} type="submit">
+              {busy ? "Processando…" : action === "delete" ? "Sim, excluir" : action === "finalize" ? "Sim, finalizar" : "Confirmar alteração"}</button></div>
         </form>
       </section>
     </div> : null}

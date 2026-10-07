@@ -389,6 +389,7 @@ async function applyResponse(
   let conflicts = 0;
   let followUpRequired = false;
   const serverConflictKeys = new Set(response.conflicts.map(({ entityType, entityId }) => `${entityType}:${entityId}`));
+  const staleGenerationEntryIds = new Set<string>();
   await db.transaction("rw", db.inventories, db.entries, db.syncMetadata, db.syncConflicts, async () => {
     let receivedRemoteEntry = false;
     const localInventory = await db.inventories.get(inventoryId);
@@ -482,6 +483,21 @@ async function applyResponse(
         received += 1;
         changed = true;
         remoteChanged = true;
+      } else if (remote.status === "OPEN" && local.status === "FINISHED"
+        && (remote.operationalGeneration ?? 1) > (local.operationalGeneration ?? 1) && !remote.tombstone) {
+        // A newer central generation is an explicit administrative re-open.
+        // The finished local snapshot is immutable history, not a pending write.
+        const nextInventory = {
+          ...remote,
+          syncToken: storedSyncToken(local),
+          isOwner: storedOwner(local),
+          accountUserId: storedAccount(local),
+          accountQuarantined: false,
+        };
+        await db.inventories.put(nextInventory);
+        received += 1;
+        changed = true;
+        remoteChanged = true;
       } else if (response.acknowledged.inventory) {
         // Acknowledgement belongs to the request snapshot; keep newer local data untouched.
       } else if (local.syncStatus === "SYNCED") {
@@ -532,6 +548,7 @@ async function applyResponse(
         for (const item of pending) {
           const serverRecord = response.entries.find((candidate) => candidate.id === item.id);
           await recordConflict(inventoryId, "entry", item, serverRecord ? remoteEntry(serverRecord) : { ...item, operationalGeneration: remote.operationalGeneration, revision: 0 });
+          staleGenerationEntryIds.add(item.id);
           await db.entries.put({ ...item, syncStatus: "ERROR" });
           changed = true;
           conflicts += 1;
@@ -542,6 +559,10 @@ async function applyResponse(
     for (const record of response.entries) {
       if (acknowledgedEntryIds.has(record.id)) {
         // An acknowledgement for a stale snapshot must never overwrite a newer edit.
+        continue;
+      }
+      if (staleGenerationEntryIds.has(record.id)) {
+        // Preserve the pending previous-generation value until the user resolves its conflict.
         continue;
       }
       const remote = remoteEntry(record);
@@ -697,9 +718,11 @@ export function cancelSync(inventoryId: string): void {
   syncControllers.get(inventoryId)?.abort();
 }
 
-export async function connectRemoteInventory(inventoryId: string, syncToken: string, options: { isOwner?: boolean } = {}): Promise<SyncResult> {
+export async function connectRemoteInventory(inventoryId: string, syncToken: string, options: { isOwner?: boolean; operationalGeneration?: number } = {}): Promise<SyncResult> {
   const auth = await getAuthenticatedContext();
-  const requested = await requestSync(inventoryId, syncToken, { inventory: null, entries: [], cursor: 0, generation: 1 }, undefined, auth);
+  const requested = await requestSync(inventoryId, syncToken, {
+    inventory: null, entries: [], cursor: 0, generation: options.operationalGeneration ?? 1,
+  }, undefined, auth);
   if (!requested.response.inventory) throw new Error("Inventário não encontrado no servidor.");
   return applyResponse(inventoryId, syncToken, requested.response, { entries: new Map() }, {
     accountUserId: requested.accountUserId,
@@ -708,8 +731,8 @@ export async function connectRemoteInventory(inventoryId: string, syncToken: str
   });
 }
 
-export async function connectAssignedInventory(inventoryId: string, syncToken: string): Promise<SyncResult> {
-  return connectRemoteInventory(inventoryId, syncToken, { isOwner: true });
+export async function connectAssignedInventory(inventoryId: string, syncToken: string, operationalGeneration?: number): Promise<SyncResult> {
+  return connectRemoteInventory(inventoryId, syncToken, { isOwner: true, operationalGeneration });
 }
 
 export async function joinInventoryByCode(code: string): Promise<{ inventoryId: string; result: SyncResult }> {

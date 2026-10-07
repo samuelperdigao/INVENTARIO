@@ -73,6 +73,22 @@ def refresh_official_report(session: Session, inventory: InventoryRow, when: dat
         preserve_report_version(session, inventory, when)
 
 
+def finalize_inventory(session: Session, inventory: InventoryRow, actor_user_id: str, when: datetime | None = None) -> None:
+    """Finaliza um ciclo OPEN usando o mesmo relatório para qualquer ator."""
+    if inventory.status != "OPEN":
+        raise ValueError("Somente inventários abertos podem ser finalizados.")
+    finalized_at = when or now_utc()
+    inventory.revision += 1
+    inventory.updated_at = finalized_at
+    inventory.status = "FINISHED"
+    inventory.finalized_at = finalized_at
+    inventory.finalized_by_user_id = actor_user_id
+    inventory.participation_code = None
+    inventory.report_snapshot = current_report(session, inventory, finalized_at)
+    preserve_report_version(session, inventory, finalized_at)
+    _append_event(session, inventory.id, "inventory", inventory.id)
+
+
 def audit(
     session: Session, inventory: InventoryRow, actor_id: str, action: str,
     *, reason: str | None = None, before: dict | None = None,

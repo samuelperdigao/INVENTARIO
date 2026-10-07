@@ -62,7 +62,14 @@ export interface AdminOverview {
 export interface AdminPage<T> { items: T[]; total: number; page?: number; pageSize?: number }
 export interface AdminUser { id: string; name: string; email: string }
 export interface ReportVersion { version: number; createdAt: string; revision: number; operationalGeneration: number }
-export interface AssignedInventory { inventoryId: string; date: string; status: string; accessToken: string }
+export interface AssignedInventory {
+  inventoryId: string;
+  date: string;
+  status: "OPEN" | "FINISHED";
+  revision: number;
+  operationalGeneration: number;
+  accessToken: string;
+}
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
   const { accessToken } = await getAuthenticatedSession();

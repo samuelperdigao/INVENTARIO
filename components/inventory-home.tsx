@@ -54,6 +54,8 @@ export function InventoryHome() {
   const [user, setUser] = useState<AuthUser>();
   const [inventories, setInventories] = useState<Inventory[]>([]);
   const [assigned, setAssigned] = useState<AssignedInventory[]>([]);
+  const [assignedError, setAssignedError] = useState<string>();
+  const [assignedLoading, setAssignedLoading] = useState(true);
   const [openingAssigned, setOpeningAssigned] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -72,7 +74,16 @@ export function InventoryHome() {
         const items = await listOpenInventories(restored.id);
         if (!active) return;
         setUser(restored); setInventories(items);
-        void assignedInventories().then((data) => { if (active) setAssigned(data.filter((item) => item.status === "OPEN")); }).catch(() => undefined);
+        void assignedInventories().then((data) => {
+          if (active) {
+            setAssigned(data.filter((item) => item.status === "OPEN" && !items.some((local) =>
+              local.id === item.inventoryId && local.isOwner && (local.operationalGeneration ?? 1) === item.operationalGeneration,
+            )));
+            setAssignedError(undefined);
+          }
+        }).catch(() => {
+          if (active) setAssignedError("Não foi possível consultar os inventários disponíveis na conta.");
+        }).finally(() => { if (active) setAssignedLoading(false); });
       } catch {
         if (active) setError("Não foi possível carregar o painel.");
       } finally {
@@ -85,6 +96,19 @@ export function InventoryHome() {
 
   const labels = useMemo(() => visualLabels(inventories), [inventories]);
   const isTeamAdmin = user?.teams.some((team) => team.role === "ADMIN") ?? false;
+
+  async function refreshAssigned(): Promise<void> {
+    if (!user) return;
+    setAssignedLoading(true); setAssignedError(undefined);
+    try {
+      const data = await assignedInventories();
+      setAssigned(data.filter((item) => item.status === "OPEN" && !inventories.some((local) =>
+        local.id === item.inventoryId && local.isOwner && (local.operationalGeneration ?? 1) === item.operationalGeneration,
+      )));
+    } catch {
+      setAssignedError("Não foi possível consultar os inventários disponíveis na conta.");
+    } finally { setAssignedLoading(false); }
+  }
 
   async function handleCreate(): Promise<void> {
     setCreating(true); setError(undefined);
@@ -114,7 +138,7 @@ export function InventoryHome() {
   async function openAssigned(item: AssignedInventory): Promise<void> {
     setOpeningAssigned(item.inventoryId); setError(undefined);
     try {
-      await connectAssignedInventory(item.inventoryId, item.accessToken);
+      await connectAssignedInventory(item.inventoryId, item.accessToken, item.operationalGeneration);
       router.push(`/inventarios/${item.inventoryId}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível abrir o inventário atribuído.");
@@ -157,16 +181,22 @@ export function InventoryHome() {
       </section>
 
       {error ? <p className="error" role="alert">{error}</p> : null}
-      {assigned.length > 0 ? <section className={`card section-card stack ${styles.assignedSection}`} aria-label="Inventários atribuídos">
+      <section className={`card section-card stack ${styles.assignedSection}`} aria-label="Inventários disponíveis na conta">
         <div className="section-header"><div><p className="eyebrow">Responsabilidade atribuída</p><h2>Inventários recebidos</h2>
-          <p className="muted">Abra o inventário para sincronizar os dados centrais neste dispositivo.</p></div></div>
+          <p className="muted">Inventários atribuídos à sua conta que ainda precisam ser sincronizados neste dispositivo.</p></div>
+          <button className="secondary" type="button" onClick={() => void refreshAssigned()} disabled={assignedLoading}>
+            {assignedLoading ? "Consultando…" : "Atualizar"}
+          </button></div>
+        {assignedError ? <p className="notice" role="status">{assignedError} Seus inventários neste dispositivo continuam disponíveis. <button className="text-button" type="button" onClick={() => void refreshAssigned()} disabled={assignedLoading}>Tentar novamente</button></p> : null}
+        {assignedLoading && assigned.length === 0 && !assignedError ? <p className="muted" role="status">Consultando inventários disponíveis na conta…</p> : null}
+        {!assignedLoading && assigned.length === 0 && !assignedError ? <p className="muted">Nenhum inventário recebido precisa ser baixado neste dispositivo.</p> : null}
         <div className={`stack ${styles.assignedList}`}>
           {assigned.map((item) => <div className="card inventory-card" key={item.inventoryId}>
             <strong>Inventário de {formatBrazilianDate(item.date)}</strong>
             <button className="secondary" type="button" disabled={openingAssigned === item.inventoryId} onClick={() => void openAssigned(item)}>
               {openingAssigned === item.inventoryId ? "Abrindo…" : "Abrir inventário"}</button></div>)}
         </div>
-      </section> : null}
+      </section>
 
       <section className="quick-actions" aria-labelledby="quick-actions-title">
         <div className="section-header"><div><p className="eyebrow">Acesso rápido</p><h2 id="quick-actions-title">O que você precisa fazer?</h2></div></div>

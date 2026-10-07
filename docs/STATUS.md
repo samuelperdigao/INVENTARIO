@@ -1,5 +1,20 @@
 # Status do projeto
 
+## Ciclo administrativo e responsabilidade
+
+Validação local em 07/10/2026 na branch `fix/admin-inventory-lifecycle`.
+
+- A exclusão administrativa pede confirmação Sim/Cancelar, continua usando revisão e geração esperadas e grava tombstone e auditoria sem justificativa fictícia.
+- Reabertura incrementa a geração, restaura o acesso do responsável atual por meio de um hash de credencial, e sincroniza snapshots centrais sobre cópias locais finalizadas. Pendências da geração encerrada permanecem em conflito explícito, sem duplicação automática.
+- Finalização operacional e administrativa usam a mesma regra para relatório, revisão e versão oficial. Transferência altera somente o responsável; inventários FINISHED permanecem no histórico.
+- Sem migration de banco. A dependência `httpx2` foi declarada para o `TestClient` da versão atual de Starlette.
+- ESLint e TypeScript: aprovados. Vitest: 14 arquivos, 85 testes aprovados. Pytest: 76 testes aprovados, com 2 avisos de configuração Alembic já existentes. `git diff --check`: aprovado.
+- Build de produção: aprovado. Playwright/Chromium: 15 cenários aprovados, incluindo confirmação administrativa, falha de consulta de atribuídos, operação offline, 100 lançamentos e quatro formatos de exportação. A migration local foi aplicada até `0010_participant_sync_sessions` no banco SQLite isolado do E2E.
+- As rotas administrativas e a sincronização foram testadas com fixtures locais; nenhuma conta ou dado de produção foi usado. Validação física em Android e Safari/iPhone permanece pendente. O check do GitHub Actions será executado pela PR.
+- A `main` foi consultada novamente em 07/10/2026 e segue em `e118646`. A PR paralela #37 continua aberta; somente `docs/REGRAS_NEGOCIO.md` é compartilhado, com alterações em seções diferentes preservadas.
+
+Atualizado em 07/10/2026.
+
 ## Resultado pós-publicação
 
 Validação final em 05/10/2026 após os merges `e687f63` e `881bb1b` na `main`.

@@ -3,9 +3,11 @@
 ## Relatório, finalização e histórico
 
 - O modelo consolidado único contém registros individuais ordenados, lotes consolidados, locais, classificação interna, apresentação operacional, local principal, peças fora, recomendações e resumo. Excel, PDF e Word apenas o apresentam.
-- A finalização é central e exige uma revisão sincronizada. Ela gera e preserva o snapshot do relatório, registra `finalized_at`, muda o estado para `FINISHED` e bloqueia novas alterações por sincronização.
-- A V1 não define reabertura. Um inventário `FINISHED` é somente leitura no dispositivo e no servidor; os registros históricos permanecem preservados.
-- Histórico possui dois escopos: inventários criados ou acessados pelo usuário e inventários finalizados da equipe selecionada. Relatório e exportação de item `FINISHED` exigem autenticação e autorização, mas não solicitam token manual ao usuário.
+- A finalização operacional exige uma revisão sincronizada. A finalização operacional e a administrativa usam a mesma regra central para consolidar e preservar o relatório, registrar `finalized_at`, identificar o autor e mudar o estado para `FINISHED`.
+- A finalização bloqueia novas alterações. Um administrador do sistema pode reabrir explicitamente um inventário `FINISHED`; cada reabertura incrementa `operationalGeneration`, preserva os relatórios anteriores e devolve a operação ao responsável atual. Escritas de gerações antigas continuam rejeitadas.
+- Transferir responsabilidade não altera o estado do inventário. Um inventário `OPEN` fica disponível para sincronização do novo responsável; um inventário `FINISHED` permanece finalizado e entra no histórico do novo responsável.
+- Exclusão administrativa é lógica, preserva o tombstone e registra auditoria. A confirmação na interface pergunta somente se o administrador deseja excluir; justificativa não é exigida.
+- Histórico possui dois escopos: inventários atribuídos ou acessados pelo usuário e inventários finalizados da equipe selecionada. Relatório e exportação de item `FINISHED` exigem autenticação e autorização, mas não solicitam token manual ao usuário.
 
 ## Produção e transporte
 

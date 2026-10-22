@@ -9,9 +9,10 @@ import { EntryForm } from "@/components/entry-form";
 import { EntryList } from "@/components/entry-list";
 import { InventoryControlPanel } from "@/components/inventory-control-panel";
 import { ReferencePanel, createReferenceLotChecker } from "@/components/reference-panel";
+import { AppRail } from "@/components/app-rail";
 import { BrandLogo } from "@/components/brand-logo";
 import { Icon } from "@/components/icon";
-import { getCurrentUser, restoreSession } from "@/lib/auth-client";
+import { getCurrentUser, restoreSession, type AuthUser } from "@/lib/auth-client";
 import { findRemoteDuplicateLotEntries } from "@/lib/duplicate-client";
 import { formatBrazilianDate } from "@/lib/local-date";
 import { createEntry, DuplicateLotError, findDuplicateLotEntries, getInventory, listActiveEntries, purgeInventory, restoreInventoryAfterDeletionFailure, tombstoneEmptyInventory, tombstoneEntry, updateEntry } from "@/lib/inventory-repository";
@@ -60,6 +61,7 @@ function entriesScreenKey(value: InventoryEntry[]): string {
 export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const router = useRouter();
   const [inventory, setInventory] = useState<Inventory>();
+  const [sessionUser, setSessionUser] = useState<AuthUser>();
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
   const [editing, setEditing] = useState<InventoryEntry>();
   const [error, setError] = useState<string>();
@@ -107,6 +109,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       if (!currentUser) {
         return Promise.reject(new Error("Entre na sua conta para abrir este inventário."));
       }
+      setSessionUser(currentUser);
       accountUserIdRef.current = currentUser.id;
       return Promise.all([getInventory(inventoryId, currentUser.id), listActiveEntries(inventoryId)]);
     })()
@@ -345,16 +348,8 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const currentStep = readOnly ? "Finalizar" : entries.length > 0 ? "Conferir" : "Lançar";
 
   return (
-    <main className="shell inventory-shell">
-      <aside className="inventory-rail" aria-label="Etapas do inventário">
-        <Link className="brand-link" href="/dashboard" aria-label="INVENTÁRIO, painel"><BrandLogo compact subtitle="Beam Blanks e Blocos" /></Link>
-        <p className="inventory-rail-kicker">Operação de campo</p>
-        <p className="inventory-rail-label"><span>Inventário ativo</span><span className="inventory-current-step">Etapa atual: {currentStep}</span></p>
-        <nav className="inventory-rail-steps">
-           {workflowSteps.map(([number, label, description]) => <span className={`inventory-rail-step ${label === currentStep ? "active" : ""}`} key={number}><b>{number}</b><span><strong>{label}</strong><small>{description}</small></span></span>)}
-        </nav>
-        <p className="inventory-rail-foot"><span className="inventory-rail-foot-icon"><Icon name="cloud" size={15} /></span><span><strong>Local ativo</strong><small>Salvo neste dispositivo</small></span></p>
-      </aside>
+    <main className="shell app-page-shell inventory-shell">
+      <AppRail active="home" showTeam={sessionUser?.teams.some((team) => team.role === "ADMIN")} showAdmin={sessionUser?.systemAdmin} />
       <div className="inventory-content">
       <header className="inventory-header">
         <div className="inventory-header-row">
@@ -368,6 +363,12 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
           <span className="status-pill">{readOnly ? "Finalizado" : inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span>
         </div>
       </header>
+
+      <ol className="inventory-process" aria-label={`Etapas do inventário. Etapa atual: ${currentStep}`}>
+        {workflowSteps.map(([number, label]) => <li className={label === currentStep ? "active" : ""} key={number} aria-current={label === currentStep ? "step" : undefined}>
+          <span>{number}</span><strong>{label}</strong>
+        </li>)}
+      </ol>
 
       <section className="metric-grid" aria-label="Resumo do inventário">
         <div className="metric-card metric-card--records"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="boxes" size={18} /></span><span className="metric-card-kicker">Coleta</span></div><div className="metric-card-copy"><span className="metric-label">Registros</span><span className="metric-value">{entries.length}</span></div></div>

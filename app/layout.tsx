@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 
 import "./globals.css";
+import "./app-redesign.css";
 
 export const metadata: Metadata = {
   title: "INVENTARIO | Beam Blanks e Blocos",

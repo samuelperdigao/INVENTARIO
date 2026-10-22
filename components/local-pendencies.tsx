@@ -55,7 +55,7 @@ export function LocalPendencies() {
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
-  return <main className="shell app-page-shell"><AppRail active="home" showAdmin={user?.systemAdmin} />
+  return <main className="shell app-page-shell"><AppRail active="pending" showTeam={user?.teams.some((team) => team.role === "ADMIN")} showAdmin={user?.systemAdmin} />
     <div className="app-page-content"><header className="page-topbar"><Link className="back-link" href="/dashboard">‹ Voltar ao painel</Link>
       <div><p className="eyebrow">Dados deste dispositivo</p><h1>Pendências locais</h1><p className="muted">Confira lançamentos que exigem decisão antes de seguir.</p></div></header>
       <section className="card section-card stack"><div className="section-header"><div><h2>Lançamentos preservados</h2>

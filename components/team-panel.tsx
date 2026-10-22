@@ -54,7 +54,7 @@ export function TeamPanel() {
 
   return (
     <main className="shell app-page-shell">
-      <AppRail active="team" showTeam />
+      <AppRail active="team" showTeam showAdmin={user.systemAdmin} />
       <div className="app-page-content">
       <header className="dashboard-topbar">
         <Link className="text-button" href="/dashboard">‹ Voltar ao painel</Link>

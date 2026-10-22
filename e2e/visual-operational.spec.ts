@@ -22,7 +22,7 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
   await expect(page.getByRole("button", { name: "Importar planilha SAP / SICLA", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Continuar sem planilha SAP / SICLA", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Controle do inventário", exact: true })).toBeVisible();
-  await expect(page.locator(".inventory-rail-label")).toHaveText(/Inventário ativo/);
+  await expect(page.locator(".inventory-process")).toHaveAttribute("aria-label", /Etapa atual: Lançar/);
   await expect(page.locator(".control-stage-summary").filter({ hasText: "Sincronização" })).toBeVisible();
   await expect(page.locator(".control-stage-summary").filter({ hasText: "Análise" })).toBeVisible();
   await expect(page.locator(".control-stage-summary").filter({ hasText: "Finalização" })).toBeVisible();
@@ -35,10 +35,10 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     const layout = await page.evaluate(() => {
-      const rail = document.querySelector<HTMLElement>(".inventory-rail");
+      const rail = document.querySelector<HTMLElement>(".app-rail");
       const workflow = document.querySelector<HTMLElement>(".workflow-strip");
       const workspace = document.querySelector<HTMLElement>(".entry-workspace");
-      const currentStep = document.querySelector<HTMLElement>(".inventory-current-step");
+      const currentStep = document.querySelector<HTMLElement>(".inventory-process li.active");
       const quantity = document.querySelector<HTMLElement>("#quantity");
       const submit = document.querySelector<HTMLElement>(".entry-form-submit");
       const quantityRect = quantity?.getBoundingClientRect();
@@ -47,7 +47,7 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
         viewport: window.innerWidth,
         scrollWidth: document.documentElement.scrollWidth,
         workflowDisplay: workflow ? getComputedStyle(workflow).display : "removed",
-        railPosition: rail ? getComputedStyle(rail).position : "missing",
+      railPosition: rail ? getComputedStyle(rail).position : "missing",
         workspaceColumns: workspace ? getComputedStyle(workspace).gridTemplateColumns : "missing",
         currentStepVisible: currentStep ? getComputedStyle(currentStep).display !== "none" : false,
         submitHeight: submit?.getBoundingClientRect().height ?? 0,
@@ -64,11 +64,11 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
     expect(layout.submitTop).toBeGreaterThanOrEqual(layout.quantityBottom);
 
     if (viewport.width >= 1180) {
-      expect(layout.railPosition).toBe("sticky");
+      expect(layout.railPosition).toBe("fixed");
       expect(layout.workspaceColumns.split(" ")).toHaveLength(2);
-      expect(layout.currentStepVisible).toBe(false);
+      expect(layout.currentStepVisible).toBe(true);
     } else if (viewport.width >= 640) {
-      expect(layout.railPosition).toBe("sticky");
+      expect(layout.railPosition).toBe("fixed");
       expect(layout.workspaceColumns.split(" ")).toHaveLength(viewport.width >= 901 ? 2 : 1);
     } else {
       expect(layout.currentStepVisible).toBe(true);

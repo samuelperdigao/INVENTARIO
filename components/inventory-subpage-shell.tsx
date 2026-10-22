@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import { AppRail } from "@/components/app-rail";
 import { formatBrazilianDate } from "@/lib/local-date";
 import type { Inventory } from "@/lib/models";
+import { restoreSession, type AuthUser } from "@/lib/auth-client";
 
 interface InventorySubpageShellProps {
   inventory: Inventory;
@@ -15,9 +17,11 @@ interface InventorySubpageShellProps {
 }
 
 export function InventorySubpageShell({ inventory, eyebrow, title, description, children }: InventorySubpageShellProps) {
+  const [user, setUser] = useState<AuthUser>();
+  useEffect(() => { void restoreSession().then(setUser); }, []);
   return (
     <main className="shell app-page-shell inventory-subpage-shell">
-      <AppRail active="home" />
+      <AppRail active="home" showTeam={user?.teams.some((team) => team.role === "ADMIN")} showAdmin={user?.systemAdmin} />
       <div className="app-page-content">
         <header className="page-topbar">
           <Link className="back-link" href={`/inventarios/${inventory.id}`}>‹ Voltar ao inventário</Link>

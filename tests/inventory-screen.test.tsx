@@ -7,7 +7,9 @@ import { InventoryEntriesScreen } from "@/components/inventory-entries-screen";
 import { db } from "@/lib/db";
 import { createEntry, createInventory } from "@/lib/inventory-repository";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
+const { mockRouter } = vi.hoisted(() => ({ mockRouter: { replace: vi.fn() } }));
+
+vi.mock("next/navigation", () => ({ useRouter: () => mockRouter }));
 
 vi.mock("@/lib/auth-client", () => ({
   getCurrentUser: vi.fn(() => ({ id: "screen-user", email: "screen@example.com", displayName: "Screen", recoveryPinConfigured: true, teams: [] })),

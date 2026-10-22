@@ -159,7 +159,6 @@ export function InventoryHome() {
         </div>
         <Link className="brand-link mobile-dashboard-brand" href="/dashboard" aria-label="INVENTÁRIO, painel"><BrandLogo compact subtitle="Beam Blanks e Blocos" /></Link>
         <div className="account-actions">
-          {isTeamAdmin ? <Link className="text-button" href="/equipe">Equipe</Link> : null}
           <span className="user-chip"><span>{firstName(user.displayName).slice(0, 1).toUpperCase()}</span>{user.displayName}</span>
           <button className="text-button" type="button" onClick={() => void signOut()}>Sair</button>
         </div>

@@ -67,5 +67,5 @@ export function HistoryPanel({ standalone = false }: { standalone?: boolean }) {
   </section>;
 
   if (!standalone) return content;
-  return <main className="shell app-page-shell"><AppRail active="history" showTeam={user?.teams.some((team) => team.role === "ADMIN")} /><div className="app-page-content"><header className="page-topbar"><Link className="back-link" href="/dashboard">‹ Voltar ao painel</Link><div><p className="eyebrow">Arquivo central</p><h1>Histórico de inventários</h1><p className="muted">{user ? `Consulta autorizada para ${user.displayName}` : "Carregando conta…"}</p></div></header>{content}</div></main>;
+  return <main className="shell app-page-shell"><AppRail active="history" showTeam={user?.teams.some((team) => team.role === "ADMIN")} showAdmin={user?.systemAdmin} /><div className="app-page-content"><header className="page-topbar"><Link className="back-link" href="/dashboard">‹ Voltar ao painel</Link><div><p className="eyebrow">Arquivo central</p><h1>Histórico de inventários</h1><p className="muted">{user ? `Consulta autorizada para ${user.displayName}` : "Carregando conta…"}</p></div></header>{content}</div></main>;
 }

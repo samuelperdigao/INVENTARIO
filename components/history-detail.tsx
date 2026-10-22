@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { apiBaseUrl } from "@/lib/api-config";
-import { getAuthenticatedSession, restoreSession } from "@/lib/auth-client";
+import { getAuthenticatedSession, restoreSession, type AuthUser } from "@/lib/auth-client";
 import { formatBrazilianDate } from "@/lib/local-date";
 import {
   downloadReport,
@@ -57,6 +57,7 @@ function requiresConference(lot: LotAnalysis): boolean {
 
 export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
   const router = useRouter();
+  const [user, setUser] = useState<AuthUser>();
   const [report, setReport] = useState<ConsolidatedReport>();
   const [busy, setBusy] = useState<string>();
   const [message, setMessage] = useState<string>();
@@ -69,6 +70,7 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
     let active = true;
     void restoreSession().then(async (user) => {
       if (!user) { router.replace("/acesso"); return; }
+      if (active) setUser(user);
       try {
         const session = await getAuthenticatedSession();
         const response = await fetch(`${apiBaseUrl}/api/v1/inventories/${inventoryId}/report`, { credentials: "include", headers: { Authorization: `Bearer ${session.accessToken}` } });
@@ -140,7 +142,7 @@ export function HistoryDetail({ inventoryId }: { inventoryId: string }) {
   const distributedLots = report?.summary.distributedLots ?? report?.summary.ambiguousDistributions ?? 0;
 
   return <main className="shell app-page-shell">
-    <AppRail active="history" />
+    <AppRail active="history" showTeam={user?.teams.some((team) => team.role === "ADMIN")} showAdmin={user?.systemAdmin} />
     <div className="app-page-content">
     <header className="page-topbar"><Link className="back-link" href="/historico">‹ Voltar ao histórico</Link><div><p className="eyebrow">Relatório oficial</p><h1>{report ? `Inventário ${formatBrazilianDate(report.inventoryDate)}` : "Abrindo inventário…"}</h1><p className="muted">Modo somente leitura. O snapshot final permanece preservado.</p></div></header>
     {error ? <p className="error" role="alert">{error}</p> : null}

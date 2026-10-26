@@ -65,6 +65,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
   const [editing, setEditing] = useState<InventoryEntry>();
   const [error, setError] = useState<string>();
+  const [loadError, setLoadError] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [pendingDeletion, setPendingDeletion] = useState<InventoryEntry>();
   const [deleting, setDeleting] = useState(false);
@@ -74,11 +75,22 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const [formDirty, setFormDirty] = useState(false);
   const [remoteFinalized, setRemoteFinalized] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string>();
+  const [referenceEnabled, setReferenceEnabled] = useState(false);
   const accountUserIdRef = useRef<string | undefined>(undefined);
   const syncFailureCountRef = useRef(0);
   const nextSyncRetryAtRef = useRef(0);
   const latestInventoryRef = useRef<Inventory | undefined>(undefined);
   const latestEntriesRef = useRef<InventoryEntry[]>([]);
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search).get("reference");
+    const storageKey = `inventory-reference:${inventoryId}`;
+    if (query === "1" || query === "0") window.localStorage.setItem(storageKey, query === "1" ? "enabled" : "disabled");
+    const frame = window.requestAnimationFrame(() => {
+      setReferenceEnabled(query === "1" || (query !== "0" && window.localStorage.getItem(storageKey) === "enabled"));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [inventoryId]);
 
   const refresh = useCallback(async () => {
     const accountUserId = accountUserIdRef.current;
@@ -124,7 +136,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
         setEntries(currentEntries);
       })
       .catch((cause: unknown) => {
-        if (active) setError(cause instanceof Error ? cause.message : "Não foi possível abrir o inventário.");
+        if (active) setLoadError(cause instanceof Error ? cause.message : "Não foi possível abrir o inventário.");
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -325,7 +337,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       <p className="eyebrow">Inventário indisponível</p>
       <h1 id="inventory-unavailable-title">Não encontramos este inventário</h1>
       <p className="muted">Este inventário não foi localizado neste dispositivo. Volte ao painel para abrir uma conferência salva ou participar com um código.</p>
-      {error ? <p className="notice" role="status">{error}</p> : null}
+      {loadError ? <p className="notice" role="status">{loadError}</p> : null}
       <div className="actions unavailable-actions">
         <Link className="primary button-link" href="/dashboard">Voltar ao painel</Link>
         <Link className="secondary button-link" href="/dashboard#participar">Participar com código</Link>
@@ -381,10 +393,10 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       {error && <p className="error" role="alert">{error}</p>}
       {syncMessage ? <p className="notice" role="status">{syncMessage}</p> : null}
       <div className="stack">
-        <ReferencePanel inventory={displayedInventory} onChanged={refresh} />
+        {referenceEnabled ? <ReferencePanel inventory={displayedInventory} onChanged={refresh} /> : null}
         <div className="entry-workspace">
           {remoteFinalized && inventory.status === "OPEN" ? <p className="notice" role="status">Este inventário foi finalizado no servidor. Os dados locais pendentes foram preservados para decisão.</p> : null}
-          {showEntryForm ? <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => { setEditing(undefined); setFormDirty(false); }} referenceChecker={createReferenceLotChecker(displayedInventory)} readOnly={readOnly} onDirtyChange={setFormDirty} /> : <p className="notice">Inventário finalizado: lançamentos preservados em modo somente leitura.</p>}
+          {showEntryForm ? <EntryForm key={editing?.id ?? "new"} editing={editing} onSave={saveEntry} onCancelEdit={() => { setEditing(undefined); setFormDirty(false); }} referenceChecker={referenceEnabled ? createReferenceLotChecker(displayedInventory) : undefined} readOnly={readOnly} onDirtyChange={setFormDirty} /> : <p className="notice">Inventário finalizado: lançamentos preservados em modo somente leitura.</p>}
           <EntryList inventoryId={inventory.id} entries={entries} onEdit={(entry) => { setEditing(entry); setFormDirty(false); }} onDelete={setPendingDeletion} readOnly={readOnly} highlightedEntryId={highlightedEntryId} compact />
         </div>
         <InventoryControlPanel inventory={displayedInventory} entries={entries} onChanged={refresh} />

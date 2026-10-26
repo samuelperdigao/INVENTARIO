@@ -16,6 +16,7 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
   const { ownerEmail } = seedUsers("visual-operational");
   await login(page, ownerEmail);
   await page.getByRole("button", { name: /Iniciar novo inventário/ }).click();
+  await page.getByRole("button", { name: "Importar planilha", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Abrir lista completa de lançamentos" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Referência SAP / SICLA", exact: true })).toBeVisible();
@@ -27,6 +28,10 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
   await expect(page.locator(".control-stage-summary").filter({ hasText: "Análise" })).toBeVisible();
   await expect(page.locator(".control-stage-summary").filter({ hasText: "Finalização" })).toBeVisible();
   await expect(page.getByText(/FastAPI|ID técnico|token/i)).toHaveCount(0);
+  await expect(page.locator(".control-stage-details[open]")).toHaveCount(1);
+  await page.locator(".control-stage-summary").filter({ hasText: "Análise" }).click();
+  await expect(page.locator(".control-stage-details[open]")).toHaveCount(1);
+  await expect(page.locator(".control-stage-details[open] .control-stage-summary")).toContainText("Análise");
 
   const referencePanel = page.locator(".reference-panel");
   const entryWorkspace = page.locator(".entry-workspace");
@@ -84,6 +89,7 @@ test("mantém o botão de lançamento no fluxo quando o viewport mobile é reduz
   await login(page, ownerEmail);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: /Iniciar novo inventário/ }).click();
+  await page.getByRole("button", { name: "Continuar sem planilha", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
 
   const quantity = page.getByLabel("Quantidade de peças");
@@ -124,6 +130,7 @@ test("mantém todas as ações do diálogo de finalização dentro do viewport m
   const { ownerEmail } = seedUsers("mobile-finalization-dialog");
   await login(page, ownerEmail);
   await page.getByRole("button", { name: /Iniciar novo inventário/ }).click();
+  await page.getByRole("button", { name: "Continuar sem planilha", exact: true }).click();
 
   const trigger = page.getByRole("button", { name: "Finalizar inventário", exact: true });
   await trigger.scrollIntoViewIfNeeded();

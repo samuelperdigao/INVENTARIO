@@ -59,6 +59,7 @@ export function InventoryHome() {
   const [openingAssigned, setOpeningAssigned] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [importChoiceOpen, setImportChoiceOpen] = useState(false);
   const [joining, setJoining] = useState(false);
   const [participationCode, setParticipationCode] = useState("");
   const [error, setError] = useState<string>();
@@ -111,12 +112,19 @@ export function InventoryHome() {
   }
 
   async function handleCreate(): Promise<void> {
+    setError(undefined);
+    setImportChoiceOpen(true);
+  }
+
+  async function startInventory(withReference: boolean): Promise<void> {
     setCreating(true); setError(undefined);
     try {
       if (!user) throw new Error("Entre na sua conta antes de criar um inventário.");
-      router.push(`/inventarios/${(await createInventory(undefined, user.id)).id}`);
+      const inventory = await createInventory(undefined, user.id);
+      window.localStorage.setItem(`inventory-reference:${inventory.id}`, withReference ? "enabled" : "disabled");
+      router.push(`/inventarios/${inventory.id}?reference=${withReference ? "1" : "0"}`);
     }
-    catch { setError("Não foi possível criar o inventário local. Nenhum dado foi salvo."); setCreating(false); }
+    catch { setError("Não foi possível criar o inventário local. Nenhum dado foi salvo."); setCreating(false); setImportChoiceOpen(false); }
   }
 
   async function handleJoin(event: React.FormEvent<HTMLFormElement>): Promise<void> {
@@ -233,6 +241,21 @@ export function InventoryHome() {
         </div>
       </section>
       </div>
+      {importChoiceOpen ? <div className="inventory-start-overlay" role="presentation">
+        <section className="inventory-start-dialog" role="dialog" aria-modal="true" aria-labelledby="inventory-start-title">
+          <p className="eyebrow">Antes do primeiro lançamento</p>
+          <h2 id="inventory-start-title">Você quer importar a planilha SAP / SICLA?</h2>
+          <p className="muted">A importação é opcional. Ela ajuda a comparar os lotes previstos com a conferência física, sem bloquear os lançamentos.</p>
+          <div className="inventory-start-choice">
+            <span className="inventory-start-choice-icon" aria-hidden="true"><Icon name="file" size={20} /></span>
+            <div><strong>Escolha como começar</strong><p>Você poderá continuar normalmente sem uma planilha.</p></div>
+          </div>
+          <div className="inventory-start-actions">
+            <button className="secondary" type="button" onClick={() => void startInventory(false)} disabled={creating}>Continuar sem planilha</button>
+            <button className="primary" type="button" onClick={() => void startInventory(true)} disabled={creating}>{creating ? "Abrindo inventário…" : "Importar planilha"}</button>
+          </div>
+        </section>
+      </div> : null}
     </main>
   );
 }

@@ -7,6 +7,7 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
   const { ownerEmail } = seedUsers("volume-export");
   await login(page, ownerEmail);
   await page.getByRole("button", { name: /^Iniciar novo inventário/ }).click();
+  await page.getByRole("button", { name: "Continuar sem planilha", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
   const recordMetric = page.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value');
 

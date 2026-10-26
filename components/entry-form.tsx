@@ -130,7 +130,7 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker, rea
             <div className="panel-copy">
               <p className="eyebrow">Lançamento</p>
               <h2>{editing ? "Editar registro" : "Novo registro"}</h2>
-              <p className="muted">Informe a posição física, o lote e a quantidade encontrada. Lado e vão permanecem selecionados após salvar; a camada volta para Sem camada no próximo lançamento.</p>
+              <p className="muted">Selecione o lado, informe o vão, o lote e a quantidade. Lado e vão permanecem prontos para o próximo lançamento.</p>
             </div>
           </div>
           {editing && <button className="secondary" type="button" onClick={onCancelEdit}>Cancelar edição</button>}
@@ -185,13 +185,14 @@ export function EntryForm({ editing, onSave, onCancelEdit, referenceChecker, rea
               }}
               onBlur={() => checkReference(lot)}
               autoComplete="off"
+              enterKeyHint="next"
               placeholder="Número do lote"
               aria-invalid={Boolean(lotValidationError)}
               disabled={readOnly}
             />
           </label>
           <label className="field" htmlFor="quantity">Quantidade de peças
-            <input id="quantity" name="quantity" value={quantity} onChange={(event) => { setQuantity(event.target.value.replace(/\D/g, "")); markDirty(); }} disabled={readOnly} inputMode="numeric" pattern="[0-9]*" autoComplete="off" placeholder="Ex.: 20" />
+            <input id="quantity" name="quantity" value={quantity} onChange={(event) => { setQuantity(event.target.value.replace(/\D/g, "")); markDirty(); }} disabled={readOnly} inputMode="numeric" pattern="[0-9]*" autoComplete="off" enterKeyHint="done" placeholder="Ex.: 20" />
           </label>
         </div>
         {lotValidationError ? <p className="error" role="alert">{lotValidationError}</p> : null}

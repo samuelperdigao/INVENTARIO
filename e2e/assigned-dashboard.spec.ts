@@ -7,6 +7,7 @@ test("falha ao consultar atribuídos preserva o dashboard local e permite tentar
   const { ownerEmail } = seedUsers("assigned-dashboard");
   await login(page, ownerEmail);
   await page.getByRole("button", { name: "Iniciar novo inventário" }).click();
+  await page.getByRole("button", { name: "Continuar sem planilha", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Novo registro", exact: true })).toBeVisible();
 
   let assignedRequests = 0;

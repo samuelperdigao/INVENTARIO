@@ -1,14 +1,14 @@
 /* Operational workspace: quiet surfaces, readable type, and one clear action per area. */
 :root {
-  --workspace-ink: #202a28;
-  --workspace-muted: #4b5a55;
-  --workspace-line: #d9dfd9;
-  --workspace-canvas: #f5f6f3;
+  --workspace-ink: #102a43;
+  --workspace-muted: #4e6478;
+  --workspace-line: #c9d9e6;
+  --workspace-canvas: #f4f7fb;
   --workspace-surface: #ffffff;
-  --workspace-soft: #eef2ed;
-  --workspace-action: #284f40;
-  --workspace-action-hover: #1c3d31;
-  --workspace-accent: #267454;
+  --workspace-soft: #eaf3fb;
+  --workspace-action: #005596;
+  --workspace-action-hover: #003f73;
+  --workspace-accent: #0a6fbe;
 }
 
 html { background: var(--workspace-canvas); }
@@ -803,4 +803,148 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
   .app-page-shell *,
   .app-page-shell *::before,
   .app-page-shell *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* Gerdau blue and white direction: high contrast, calm surfaces, and one clear action. */
+.auth-aside {
+  background: #005596 !important;
+  color: #fff !important;
+}
+.auth-aside .brand-logo-mark { border-color: #b9d9f2 !important; background: #fff !important; }
+.auth-aside .brand-logo-beam { fill: #102a43 !important; }
+.auth-aside .brand-logo-check { stroke: #005596 !important; }
+.auth-aside .brand-logo-copy small,
+.auth-aside .light-eyebrow { color: #eaf3fb !important; }
+.auth-aside p:not(.eyebrow) { color: #fff !important; }
+.auth-card input,
+.app-page-shell :is(input, select, textarea),
+.app-page-shell .app-page-content form :is(input, select, textarea) { border-color: #9bbbd3 !important; }
+.app-page-shell :is(button, a, input, select, textarea, summary):focus-visible,
+.auth-card :is(button, a, input, select, textarea):focus-visible { outline-color: #0a6fbe !important; }
+.app-page-shell .app-rail .brand-logo-mark { border-color: #c9d9e6 !important; background: #eaf3fb !important; }
+.app-page-shell .app-rail .brand-logo-beam { fill: #102a43 !important; }
+.app-page-shell .app-rail .brand-logo-check { stroke: #005596 !important; }
+.app-page-shell .app-rail .dashboard-nav-link.active,
+.app-page-shell .app-rail .rail-more > summary.active {
+  border-color: #9bc4e1 !important;
+  background: #eaf3fb !important;
+  color: #003f73 !important;
+  box-shadow: inset 3px 0 0 #005596 !important;
+}
+.app-page-shell .app-rail .nav-create,
+.app-page-shell .primary,
+.app-page-shell .primary-action,
+.auth-card .primary { border-color: #005596 !important; background: #005596 !important; }
+.app-page-shell .app-rail .nav-create:hover:not(:disabled),
+.app-page-shell .primary:hover:not(:disabled),
+.app-page-shell .primary-action:hover:not(:disabled),
+.auth-card .primary:hover:not(:disabled) { background: #003f73 !important; }
+.app-page-shell .app-rail .app-rail-foot {
+  align-self: center;
+  width: min(100%, 170px);
+  justify-content: center;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: auto;
+  text-align: center;
+}
+.app-page-shell .app-rail .app-rail-foot > span:last-child { justify-items: center; }
+.app-page-shell .app-rail .app-rail-foot-icon { border-color: #c9d9e6 !important; background: #eaf3fb !important; color: #005596 !important; }
+.app-page-shell .app-rail .app-rail-foot strong { color: #102a43 !important; }
+.app-page-shell .app-rail .app-rail-foot small { color: #4e6478 !important; }
+.app-page-shell .dashboard-hero,
+.inventory-shell .inventory-header { background: #eaf3fb !important; border-color: #b9d4e8 !important; }
+.app-page-shell .dashboard-hero h1,
+.inventory-shell .inventory-header h1,
+.app-page-shell .section-title h2,
+.app-page-shell .panel-copy h2,
+.app-page-shell .action-card strong,
+.app-page-shell .inventory-card-main strong,
+.inventory-shell .entry-title strong { color: #102a43 !important; }
+.app-page-shell .dashboard-hero .eyebrow,
+.app-page-shell .eyebrow,
+.inventory-shell .inventory-header .eyebrow { color: #005596 !important; }
+.app-page-shell .dashboard-status { border-left-color: #9bc4e1 !important; }
+.app-page-shell .dashboard-status .live-dot::before,
+.inventory-shell .inventory-header-topline-dot { background: #0a6fbe !important; }
+.app-page-shell .secondary { border-color: #9bbbd3 !important; color: #005596 !important; }
+.app-page-shell .status-pill,
+.app-page-shell .micro-pill { border-color: #b9d4e8 !important; background: #eaf3fb !important; color: #005596 !important; }
+.app-page-shell .action-icon,
+.inventory-process li > span,
+.inventory-shell .metric-card-icon { border-color: #c9d9e6 !important; background: #eaf3fb !important; color: #005596 !important; }
+.app-page-shell .empty-state { border-color: #b9d4e8 !important; background: #eaf3fb !important; }
+.app-page-shell .dashboard-content .panel-card::before { background: #0a6fbe !important; }
+.inventory-process li.active { border-color: #9bc4e1 !important; background: #eaf3fb !important; color: #005596 !important; }
+.inventory-process li.active > span,
+.inventory-shell .side-button[aria-pressed="true"] { background: #005596 !important; border-color: #005596 !important; }
+.inventory-shell .inventory-control-panel { border-color: #003f73 !important; background: #003f73 !important; }
+.inventory-shell .reference-panel,
+.inventory-shell .entries-section,
+.inventory-shell .entry-workspace > form { border-color: #c9d9e6 !important; }
+.inventory-shell .entry-workspace > form .panel-index,
+.inventory-shell .entries-section .panel-index { border-color: #c9d9e6 !important; background: #eaf3fb !important; color: #005596 !important; }
+.app-page-shell .dashboard-content .code-input { border-color: #9bbbd3 !important; }
+.inventory-start-overlay {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(16 42 67 / 42%);
+}
+.inventory-start-dialog {
+  width: min(100%, 560px);
+  padding: clamp(24px, 4vw, 38px);
+  border: 1px solid #b9d4e8;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgb(16 42 67 / 22%);
+}
+.inventory-start-dialog h2 { margin: 8px 0 10px; color: #102a43; font-size: clamp(1.45rem, 3vw, 2rem); line-height: 1.15; text-wrap: balance; }
+.inventory-start-dialog > .muted { max-width: 55ch; margin: 0; color: #4e6478 !important; }
+.inventory-start-choice { display: flex; align-items: flex-start; gap: 12px; margin: 22px 0; padding: 14px; border: 1px solid #c9d9e6; border-radius: 12px; background: #eaf3fb; color: #102a43; }
+.inventory-start-choice-icon { display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center; border-radius: 9px; background: #005596; color: #fff; }
+.inventory-start-choice strong { display: block; margin-bottom: 3px; }
+.inventory-start-choice p { margin: 0; color: #4e6478; font-size: .88rem; }
+.inventory-start-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.inventory-start-actions button { min-height: 46px; }
+@media (max-width: 639px) {
+  .inventory-start-overlay { align-items: end; padding: 12px; }
+  .inventory-start-dialog { border-radius: 16px; padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); }
+  .inventory-start-actions { display: grid; grid-template-columns: 1fr; }
+  .inventory-start-actions button { width: 100%; }
+}
+
+/* Inventory hierarchy: keep the launch task primary and make control actions progressive. */
+.inventory-shell .metric-grid { margin-bottom: 12px; }
+.inventory-shell .metric-card { min-height: 116px; }
+.inventory-shell .inventory-control-panel {
+  border: 1px solid #b9d4e8 !important;
+  background: #fff !important;
+  box-shadow: 0 8px 24px rgb(16 42 67 / 7%) !important;
+}
+.inventory-shell .inventory-control-panel::before,
+.inventory-shell .inventory-control-panel::after { display: none !important; }
+.inventory-shell .control-panel-header h2 { color: #102a43 !important; }
+.inventory-shell .control-panel-header .eyebrow { color: #005596 !important; }
+.inventory-shell .control-panel-header .muted { color: #4e6478 !important; }
+.inventory-shell .control-panel-hint { border-color: #b9d4e8 !important; background: #eaf3fb !important; color: #005596 !important; }
+.inventory-shell .control-stage-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.inventory-shell .control-stage-details { border-color: #c9d9e6 !important; background: #fff !important; box-shadow: none !important; }
+.inventory-shell .control-stage-details[open] { border-color: #7fb4d8 !important; box-shadow: 0 8px 20px rgb(16 42 67 / 8%) !important; }
+.inventory-shell .control-stage-summary:hover { background: #f4f8fc !important; }
+.inventory-shell .control-stage-index { border-color: #b9d4e8 !important; background: #eaf3fb !important; color: #005596 !important; }
+.inventory-shell .control-stage-details[open] .control-stage-index { box-shadow: 0 0 0 4px rgb(10 111 190 / 12%) !important; }
+.inventory-shell .control-stage-summary-copy strong { color: #102a43 !important; }
+.inventory-shell .control-stage-summary-copy small { color: #4e6478 !important; }
+.inventory-shell .control-stage-summary::after { background: #eaf3fb !important; color: #005596 !important; }
+.inventory-shell .control-stage-details[open] .control-stage-summary::after { background: #d7eaf8 !important; }
+.inventory-shell .control-stage-content::before { background: #c9d9e6 !important; }
+.inventory-shell .control-stage-content > .muted { color: #4e6478 !important; }
+.inventory-shell .control-stage-content .participation-box { border-color: #b9d4e8 !important; background: #eaf3fb !important; }
+.inventory-shell .error { max-width: 100%; margin-block: 12px; }
+@media (max-width: 900px) {
+  .inventory-shell .control-stage-grid { grid-template-columns: 1fr; }
 }

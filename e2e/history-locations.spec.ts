@@ -7,6 +7,7 @@ test("apresenta locais consolidados sem overflow nos viewports móveis", async (
   const { ownerEmail } = seedUsers("history-locations");
   await login(page, ownerEmail);
   await page.getByRole("button", { name: "Iniciar novo inventário" }).click();
+  await page.getByRole("button", { name: "Continuar sem planilha", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
 
   const entries: Array<{ side: "EF" | "DE"; bay: string; lot: string; quantity: number }> = [

@@ -19,6 +19,7 @@ function StageState({ tone, children }: { tone: "good" | "attention" | "neutral"
 
 export function InventoryControlPanel({ inventory, entries, onChanged }: InventoryControlPanelProps) {
   const [analysisState, setAnalysisState] = useState<AnalysisState>("idle");
+  const [openStage, setOpenStage] = useState<"sync" | "analysis" | "finalization">("sync");
   const handleAnalysisStateChange = useCallback((state: AnalysisState) => setAnalysisState(state), []);
   const syncReady = inventory.syncStatus === "SYNCED";
   const analysisReady = analysisState === "ready";
@@ -36,8 +37,8 @@ export function InventoryControlPanel({ inventory, entries, onChanged }: Invento
       </div>
 
       <div className="control-stage-grid">
-        <details className="control-stage-details" open>
-          <summary className="control-stage-summary">
+        <details className="control-stage-details" open={openStage === "sync"}>
+          <summary className="control-stage-summary" onClick={(event) => { event.preventDefault(); setOpenStage("sync"); }}>
             <span className="control-stage-index">03</span>
             <span className="control-stage-summary-copy"><strong>Sincronização</strong><small>Envie os lançamentos e compartilhe o código.</small></span>
             <StageState tone={syncReady ? "good" : "attention"}>{syncReady ? "Concluída" : "Pendente"}</StageState>
@@ -45,8 +46,8 @@ export function InventoryControlPanel({ inventory, entries, onChanged }: Invento
           <SyncPanel inventory={inventory} onSynced={onChanged} embedded />
         </details>
 
-        <details className="control-stage-details" open>
-          <summary className="control-stage-summary">
+        <details className="control-stage-details" open={openStage === "analysis"}>
+          <summary className="control-stage-summary" onClick={(event) => { event.preventDefault(); setOpenStage("analysis"); }}>
             <span className="control-stage-index">04</span>
             <span className="control-stage-summary-copy"><strong>Análise</strong><small>Atualize e confira os lotes com atenção.</small></span>
             <StageState tone={analysisState === "ready" ? "good" : analysisState === "attention" ? "attention" : "neutral"}>{analysisState === "ready" ? "Concluída" : analysisState === "attention" ? "Requer atenção" : analysisState === "loading" ? "Atualizando" : "Disponível"}</StageState>
@@ -54,8 +55,8 @@ export function InventoryControlPanel({ inventory, entries, onChanged }: Invento
           <AnalysisPanel key={`${inventory.id}:${inventory.revision}`} inventory={inventory} entries={entries} onStateChange={handleAnalysisStateChange} embedded />
         </details>
 
-        <details className="control-stage-details" open>
-          <summary className="control-stage-summary">
+        <details className="control-stage-details" open={openStage === "finalization"}>
+          <summary className="control-stage-summary" onClick={(event) => { event.preventDefault(); setOpenStage("finalization"); }}>
             <span className="control-stage-index">05</span>
             <span className="control-stage-summary-copy"><strong>Finalização</strong><small>Congele o relatório e gere os arquivos oficiais.</small></span>
             <StageState tone={inventory.status === "FINISHED" ? "good" : finalizationReady ? "good" : "attention"}>{inventory.status === "FINISHED" ? "Concluída" : finalizationReady ? "Disponível" : "Pendente"}</StageState>

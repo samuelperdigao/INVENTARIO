@@ -7,6 +7,7 @@ test("participa de um inventário com seis dígitos sem expor UUID ou token", as
   await login(page, ownerEmail);
   await expect(page.getByText(/Bem-vindo\(a\)/)).toBeVisible();
   await page.getByRole("button", { name: "Iniciar novo inventário" }).click();
+  await page.getByRole("button", { name: "Continuar sem planilha", exact: true }).click();
   await page.getByRole("button", { name: "LE" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("15");
   await page.getByLabel("Camada").selectOption("A1");

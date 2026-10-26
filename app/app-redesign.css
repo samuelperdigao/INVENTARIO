@@ -22,7 +22,7 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
   justify-content: flex-start;
   gap: 22px;
   border-right: 0 !important;
-  background: linear-gradient(150deg, #203a2e, #182d24) !important;
+  background: linear-gradient(150deg, #005596, #003f73) !important;
 }
 .auth-aside::before,
 .auth-aside::after,
@@ -37,8 +37,8 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
 }
 .auth-aside .brand-logo-beam { fill: var(--workspace-ink) !important; }
 .auth-aside .brand-logo-check { stroke: var(--workspace-accent) !important; }
-.auth-aside .brand-logo-copy small { color: #d5e2d8 !important; }
-.auth-aside .light-eyebrow { color: #c9dfd0 !important; letter-spacing: .1em !important; }
+.auth-aside .brand-logo-copy small { color: #eaf3fb !important; }
+.auth-aside .light-eyebrow { color: #eaf3fb !important; letter-spacing: .1em !important; }
 .auth-aside h1 {
   max-width: 14ch !important;
   margin: 12px 0 16px !important;
@@ -598,8 +598,8 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
   box-shadow: none !important;
 }
 .inventory-shell .inventory-control-panel {
-  border-color: #263d34 !important;
-  background: #263d34 !important;
+  border-color: #003f73 !important;
+  background: #003f73 !important;
   background-image: none !important;
   box-shadow: none !important;
 }
@@ -648,7 +648,7 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
 }
 .app-page-shell .app-page-content .security-note { color: var(--workspace-muted) !important; }
 .app-page-shell :is(button, a, input, select, textarea, summary):focus-visible {
-  outline: 3px solid #267454 !important;
+  outline: 3px solid #0a6fbe !important;
   outline-offset: 3px;
 }
 

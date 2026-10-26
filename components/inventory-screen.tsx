@@ -364,6 +364,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
         </div>
       </header>
 
+      <p className="inventory-progress-label">Etapa atual: <strong>{currentStep}</strong></p>
       <ol className="inventory-process" aria-label={`Etapas do inventário. Etapa atual: ${currentStep}`}>
         {workflowSteps.map(([number, label]) => <li className={label === currentStep ? "active" : ""} key={number} aria-current={label === currentStep ? "step" : undefined}>
           <span>{number}</span><strong>{label}</strong>

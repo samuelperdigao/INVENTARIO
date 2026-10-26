@@ -73,14 +73,14 @@
   }
 
   .topbarContext span {
-    color: #71859f;
+    color: #4b5a55;
     font-size: 0.62rem;
     font-weight: 850;
     letter-spacing: 0.12em;
   }
 
   .topbarContext strong {
-    color: #143a68;
+    color: #202a28;
     font-size: 0.9rem;
     font-weight: 850;
   }
@@ -266,9 +266,9 @@
     gap: 15px;
     min-width: 0;
     padding: 17px;
-    border: 1px solid #d8e7f7;
+    border: 1px solid #d9dfd9;
     border-radius: 15px;
-    background: linear-gradient(112deg, #f8fbff, #eff6ff);
+    background: #f5f7f4;
   }
 
   .emptyIcon {
@@ -276,10 +276,10 @@
     place-items: center;
     width: 48px;
     height: 48px;
-    border: 1px solid #cfe2f8;
+    border: 1px solid #d0ddd2;
     border-radius: 14px;
-    background: #e7f2ff;
-    color: #155eb6;
+    background: #e9f1ea;
+    color: #284f40;
   }
 
   .emptyCopy {
@@ -288,14 +288,14 @@
 
   .emptyCopy strong {
     display: block;
-    color: #17395f;
+    color: #202a28;
     font-size: 0.9rem;
     font-weight: 850;
   }
 
   .emptyCopy p {
     margin: 5px 0 0;
-    color: #71849c;
+    color: #4b5a55;
     font-size: 0.77rem;
     line-height: 1.45;
   }
@@ -330,9 +330,9 @@
   }
 
   .inventoryList :global(.micro-pill.good) {
-    border-color: #d2e4f7;
-    background: #e8f3ff;
-    color: #155eb6;
+    border-color: #c8d5ca;
+    background: #eef2ed;
+    color: #284f40;
   }
 
   .assignedSection {
@@ -387,7 +387,7 @@
   }
 
   .participationPanel :global(.panel-copy h2) {
-    color: #15375f;
+    color: #202a28;
     font-size: 1.08rem;
     line-height: 1.25;
   }
@@ -404,15 +404,15 @@
 
   .participationPanel :global(label) {
     gap: 8px;
-    color: #31506f;
+    color: #202a28;
     font-size: 0.8rem;
   }
 
   .participationPanel :global(.code-input) {
     min-height: 52px;
-    border-color: #cadcf0;
+    border-color: #afc1b4;
     border-radius: 12px;
-    background: #f8fbff;
+    background: #ffffff;
     font-size: 1.28rem;
     letter-spacing: 0.42em;
   }
@@ -424,7 +424,7 @@
 
   .participationPanel :global(.security-note) {
     margin: 0;
-    color: #7186a0;
+    color: #4b5a55;
     font-size: 0.72rem;
     line-height: 1.5;
   }

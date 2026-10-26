@@ -180,30 +180,11 @@ export function InventoryHome() {
       </section>
 
       {error ? <p className="error" role="alert">{error}</p> : null}
-      <section className={`card section-card stack ${styles.assignedSection}`} aria-label="Inventários disponíveis na conta">
-        <div className="section-header"><div><p className="eyebrow">Responsabilidade atribuída</p><h2>Inventários recebidos</h2>
-          <p className="muted">Inventários atribuídos à sua conta que ainda precisam ser sincronizados neste dispositivo.</p></div>
-          <button className="secondary" type="button" onClick={() => void refreshAssigned()} disabled={assignedLoading}>
-            {assignedLoading ? "Consultando…" : "Atualizar"}
-          </button></div>
-        {assignedError ? <p className="notice" role="status">{assignedError} Seus inventários neste dispositivo continuam disponíveis. <button className="text-button" type="button" onClick={() => void refreshAssigned()} disabled={assignedLoading}>Tentar novamente</button></p> : null}
-        {assignedLoading && assigned.length === 0 && !assignedError ? <p className="muted" role="status">Consultando inventários disponíveis na conta…</p> : null}
-        {!assignedLoading && assigned.length === 0 && !assignedError ? <p className="muted">Nenhum inventário recebido precisa ser baixado neste dispositivo.</p> : null}
-        <div className={`stack ${styles.assignedList}`}>
-          {assigned.map((item) => <div className="card inventory-card" key={item.inventoryId}>
-            <strong>Inventário de {formatBrazilianDate(item.date)}</strong>
-            <button className="secondary" type="button" disabled={openingAssigned === item.inventoryId} onClick={() => void openAssigned(item)}>
-              {openingAssigned === item.inventoryId ? "Abrindo…" : "Abrir inventário"}</button></div>)}
-        </div>
-      </section>
-
       <section className="quick-actions" aria-labelledby="quick-actions-title">
-        <div className="section-header"><div><p className="eyebrow">Acesso rápido</p><h2 id="quick-actions-title">O que você precisa fazer?</h2></div></div>
+        <div className="section-header"><div><p className="eyebrow">Próximo passo</p><h2 id="quick-actions-title">Comece uma conferência</h2></div></div>
         <div className="action-grid">
-          <button className="action-card primary-action" type="button" onClick={() => void handleCreate()} disabled={creating}><span className="action-icon"><Icon name="plus" size={20} /></span><span><strong>{creating ? "Criando…" : "Iniciar novo inventário"}</strong><small>Começar uma nova conferência neste dispositivo</small></span></button>
-          <a className="action-card" href="#em-andamento"><span className="action-icon"><Icon name="boxes" size={20} /></span><span><strong>Continuar inventário</strong><small>{inventories.length ? `${inventories.length} em andamento neste dispositivo` : "Nenhum inventário local aberto"}</small></span></a>
-          <button className="action-card" type="button" onClick={() => document.getElementById("participar")?.scrollIntoView({ behavior: "smooth" })}><span className="action-icon"><Icon name="users" size={20} /></span><span><strong>Participar de inventário</strong><small>Entrar com um código de seis números</small></span></button>
-          <Link className="action-card" href="/historico"><span className="action-icon"><Icon name="file" size={20} /></span><span><strong>Histórico</strong><small>Consultar e exportar inventários finalizados</small></span></Link>
+          <button className="action-card primary-action" type="button" onClick={() => void handleCreate()} disabled={creating} aria-label={creating ? "Criando inventário" : "Iniciar novo inventário"}><span className="action-icon"><Icon name="plus" size={20} /></span><span><strong>{creating ? "Criando…" : "Novo inventário"}</strong><small>Começar neste dispositivo</small></span></button>
+          <button className="action-card" type="button" onClick={() => document.getElementById("participar")?.scrollIntoView({ behavior: "smooth" })}><span className="action-icon"><Icon name="users" size={20} /></span><span><strong>Participar</strong><small>Entrar com código da equipe</small></span></button>
         </div>
       </section>
 
@@ -235,6 +216,22 @@ export function InventoryHome() {
 
         </aside>
       </div>
+      <section className={`card section-card stack ${styles.assignedSection}`} aria-label="Inventários disponíveis na conta">
+        <div className="section-header"><div><p className="eyebrow">Responsabilidade atribuída</p><h2>Inventários recebidos</h2>
+          <p className="muted">Inventários atribuídos à sua conta que ainda precisam ser sincronizados neste dispositivo.</p></div>
+          <button className="secondary" type="button" onClick={() => void refreshAssigned()} disabled={assignedLoading}>
+            {assignedLoading ? "Consultando…" : "Atualizar"}
+          </button></div>
+        {assignedError ? <p className="notice" role="status">{assignedError} Seus inventários neste dispositivo continuam disponíveis. <button className="text-button" type="button" onClick={() => void refreshAssigned()} disabled={assignedLoading}>Tentar novamente</button></p> : null}
+        {assignedLoading && assigned.length === 0 && !assignedError ? <p className="muted" role="status">Consultando inventários disponíveis na conta…</p> : null}
+        {!assignedLoading && assigned.length === 0 && !assignedError ? <p className="muted">Nenhum inventário recebido precisa ser baixado neste dispositivo.</p> : null}
+        <div className={`stack ${styles.assignedList}`}>
+          {assigned.map((item) => <div className="card inventory-card" key={item.inventoryId}>
+            <strong>Inventário de {formatBrazilianDate(item.date)}</strong>
+            <button className="secondary" type="button" disabled={openingAssigned === item.inventoryId} onClick={() => void openAssigned(item)}>
+              {openingAssigned === item.inventoryId ? "Abrindo…" : "Abrir inventário"}</button></div>)}
+        </div>
+      </section>
       </div>
     </main>
   );

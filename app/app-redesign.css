@@ -948,3 +948,93 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
 @media (max-width: 900px) {
   .inventory-shell .control-stage-grid { grid-template-columns: 1fr; }
 }
+
+/* Shared blue surfaces give each product area depth without changing the brand colors. */
+:root {
+  --workspace-canvas: #eaf0f6;
+  --workspace-surface: #f8fbfe;
+  --workspace-soft: #e1edf7;
+  --workspace-line: #b9ccdd;
+}
+html,
+body:has(.app-page-shell),
+body:has(.auth-shell),
+body:has(.landing-shell) { background: #eaf0f6 !important; }
+.shell.app-page-shell,
+.shell.app-page-shell.dashboard-shell,
+.shell.app-page-shell.inventory-shell { background: transparent; }
+.app-page-shell .dashboard-topbar,
+.app-page-content .page-topbar { border-bottom-color: #b9ccdd !important; }
+.app-page-shell .dashboard-hero,
+.inventory-shell .inventory-header,
+.app-page-content .page-topbar {
+  background: linear-gradient(115deg, #dce9f5 0%, #eaf2f9 58%, #d7e6f3 100%) !important;
+  border-color: #b4cce0 !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%), 0 8px 24px rgb(16 42 67 / 5%) !important;
+}
+.app-page-shell .dashboard-shell .dashboard-hero,
+.dashboard-shell .dashboard-hero {
+  background: linear-gradient(110deg, #dce9f5, #eaf2f9 62%, #d7e6f3) !important;
+  border: 1px solid #b4cce0 !important;
+  border-radius: 18px !important;
+}
+.app-page-shell .card,
+.app-page-content .card,
+.app-page-shell .dashboard-content .card {
+  background: #f8fbfe !important;
+  border-color: #c1d1df !important;
+  box-shadow: 0 8px 22px rgb(16 42 67 / 5%), inset 0 1px 0 rgb(255 255 255 / 75%) !important;
+}
+.app-page-shell .dashboard-content .section-card:nth-child(odd),
+.app-page-content > .section-card:nth-child(odd) { background: #f1f6fb !important; }
+.app-page-shell .dashboard-content .inventory-card,
+.app-page-content .history-row,
+.app-page-shell .dashboard-content .action-card { background: #eaf2f9 !important; border-color: #bed0df !important; }
+.app-page-shell .dashboard-content .participationPanel,
+.app-page-shell .dashboard-content [id="participar"] { background: linear-gradient(145deg, #e4eef7, #f4f8fc) !important; }
+.app-page-shell .section-card .empty-state,
+.app-page-content .empty-state,
+.app-page-shell .dashboard-content .emptyWorkspace { background: #e5eff8 !important; border-color: #b8cde0 !important; }
+.app-page-shell .status-pill,
+.app-page-shell .micro-pill,
+.app-page-content .status-pill,
+.app-page-content .micro-pill { background: #e1edf7 !important; border-color: #b3cadf !important; }
+.app-page-content .metric-card,
+.inventory-shell .metric-card {
+  background: linear-gradient(145deg, #f8fbfe, #eaf2f9) !important;
+  border-color: #bdd0e0 !important;
+}
+.inventory-shell .inventory-control-panel { background: linear-gradient(145deg, #e1edf7, #edf4fa) !important; }
+.inventory-shell .entry-workspace > form,
+.inventory-shell .entries-section,
+.inventory-shell .reference-panel { background: linear-gradient(145deg, #f8fbfe, #edf4fa) !important; }
+.inventory-shell .entries-section > .card,
+.inventory-shell .entry-row { background: #e8f1f8 !important; border-color: #bfd0df !important; }
+.inventory-shell .reference-empty,
+.inventory-shell .reference-preview,
+.inventory-shell .reference-file-meta { background: #e3eef7 !important; border-color: #b7cddd !important; }
+.app-page-content .details-box,
+.app-page-content .report-table-wrap { background: #f1f6fb !important; border-color: #bdcfdf !important; }
+.app-page-content .details-box summary,
+.app-page-content .report-table th { background: #e1edf7 !important; }
+.app-page-content .segmented-control { background: #e1edf7 !important; border-color: #b9ccdd !important; }
+.app-page-content .report-summary-item { background: #e2edf7 !important; border-color: #bfd0df !important; }
+.app-page-shell > .app-rail { background: linear-gradient(180deg, #f8fbfe, #e9f1f8) !important; border-color: #b9ccdd !important; }
+.app-page-shell .app-rail .dashboard-nav-link.active,
+.app-page-shell .app-rail .rail-more > summary.active { background: #dceaf6 !important; }
+.auth-shell { background: #eaf0f6 !important; }
+.auth-main { background: linear-gradient(145deg, #e5edf5, #f0f5fa 60%, #dfeaf4) !important; }
+.auth-card { background: linear-gradient(145deg, #f8fbfe, #eaf2f9) !important; border-color: #b7cddd !important; box-shadow: 0 20px 50px rgb(16 42 67 / 12%) !important; }
+.auth-card input { background: #f7fbfe !important; }
+.auth-aside { box-shadow: inset -1px 0 0 rgb(255 255 255 / 20%); }
+.inventory-start-dialog { background: linear-gradient(145deg, #f8fbfe, #eaf2f9) !important; }
+main[class*="shell_"] { background-color: #eaf0f6; }
+main[class*="shell_"] [class*="card_"] { background-color: #f1f6fb; border-color: #c1d1df; box-shadow: 0 8px 22px rgb(16 42 67 / 6%); }
+main[class*="shell_"] [class*="metric_"] { background: linear-gradient(145deg, #f8fbfe, #e6f0f8); border-color: #bfd0df; }
+main[class*="shell_"] [class*="record_"]:hover,
+main[class*="shell_"] [class*="periods_"] > div { background: #e2edf7; }
+main[class*="shell_"] [class*="filters_"] :is(input, select),
+main[class*="shell_"] [class*="modal_"] :is(input, select, textarea) { background: #f7fbfe; }
+@media (max-width: 1199px) {
+  .shell.app-page-shell > .app-rail { background: #f8fbfe !important; }
+}

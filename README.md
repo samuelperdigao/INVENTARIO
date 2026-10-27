@@ -7,7 +7,7 @@ Aplicação mobile-first para coleta, sincronização, análise e fechamento de 
 - Frontend publicado: [inventariolpe.vercel.app](https://inventariolpe.vercel.app)
 - Backend publicado: [inventory-api-6o8h.onrender.com](https://inventory-api-6o8h.onrender.com)
 - Banco de produção: PostgreSQL no Neon
-- Última migration documentada como aplicada: `0009_system_admin` em 23/09/2026, conforme `docs/STATUS.md`; estado do banco não reconsultado nesta PR.
+- Migration de schema mais recente no repositório: `0010_participant_sync_sessions`. O Render executa `alembic upgrade head` antes de iniciar a API; para confirmar a revisão efetiva do banco, consulte o provedor e os logs do deploy.
 - Referência SAP via Excel publicada no commit `9e05c46`
 - Baseline estável: branch `main`
 - Pendências conhecidas: validação em Android e Safari/iPhone físicos

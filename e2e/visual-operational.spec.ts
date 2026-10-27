@@ -18,6 +18,7 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
   await page.getByRole("button", { name: /Iniciar novo inventário/ }).click();
   await page.getByRole("button", { name: "Importar planilha", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Voltar ao painel", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Abrir lista completa de lançamentos" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Referência SAP / SICLA", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Importar planilha SAP / SICLA", exact: true })).toBeVisible();
@@ -46,8 +47,10 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
       const currentStep = document.querySelector<HTMLElement>(".inventory-process li.active");
       const quantity = document.querySelector<HTMLElement>("#quantity");
       const submit = document.querySelector<HTMLElement>(".entry-form-submit");
+      const back = document.querySelector<HTMLElement>(".inventory-back-link");
       const quantityRect = quantity?.getBoundingClientRect();
       const submitRect = submit?.getBoundingClientRect();
+      const backRect = back?.getBoundingClientRect();
       return {
         viewport: window.innerWidth,
         scrollWidth: document.documentElement.scrollWidth,
@@ -57,6 +60,8 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
         currentStepVisible: currentStep ? getComputedStyle(currentStep).display !== "none" : false,
         submitHeight: submit?.getBoundingClientRect().height ?? 0,
         submitPosition: submit ? getComputedStyle(submit).position : "missing",
+        backLeft: backRect?.left ?? -1,
+        backRight: backRect?.right ?? Number.POSITIVE_INFINITY,
         quantityBottom: quantityRect?.bottom ?? 0,
         submitTop: submitRect?.top ?? 0,
         controlStages: document.querySelectorAll(".control-stage-details").length,
@@ -67,6 +72,8 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
     expect(layout.workflowDisplay).toBe("removed");
     expect(layout.controlStages).toBe(3);
     expect(layout.submitTop).toBeGreaterThanOrEqual(layout.quantityBottom);
+    expect(layout.backLeft).toBeGreaterThanOrEqual(0);
+    expect(layout.backRight).toBeLessThanOrEqual(viewport.width + 1);
 
     if (viewport.width >= 1180) {
       expect(layout.railPosition).toBe("fixed");
@@ -132,6 +139,7 @@ test("mantém todas as ações do diálogo de finalização dentro do viewport m
   await page.getByRole("button", { name: /Iniciar novo inventário/ }).click();
   await page.getByRole("button", { name: "Continuar sem planilha", exact: true }).click();
 
+  await page.locator(".control-stage-summary").filter({ hasText: "Finalização" }).click();
   const trigger = page.getByRole("button", { name: "Finalizar inventário", exact: true });
   await trigger.scrollIntoViewIfNeeded();
   await trigger.click();

@@ -251,6 +251,7 @@ export function InventoryHome() {
             <div><strong>Escolha como começar</strong><p>Você poderá continuar normalmente sem uma planilha.</p></div>
           </div>
           <div className="inventory-start-actions">
+            <button className="secondary" type="button" onClick={() => setImportChoiceOpen(false)} disabled={creating}>Voltar</button>
             <button className="secondary" type="button" onClick={() => void startInventory(false)} disabled={creating}>Continuar sem planilha</button>
             <button className="primary" type="button" onClick={() => void startInventory(true)} disabled={creating}>{creating ? "Abrindo inventário…" : "Importar planilha"}</button>
           </div>

@@ -1038,3 +1038,81 @@ main[class*="shell_"] [class*="modal_"] :is(input, select, textarea) { backgroun
 @media (max-width: 1199px) {
   .shell.app-page-shell > .app-rail { background: #f8fbfe !important; }
 }
+
+/* Industrial access uses the existing warehouse image and Gerdau blues. */
+.auth-aside {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    linear-gradient(115deg, rgb(0 63 115 / 94%) 0%, rgb(0 85 150 / 86%) 56%, rgb(0 85 150 / 72%) 100%),
+    url("/industrial-yard-hero.jpg") center 55% / cover !important;
+  box-shadow: inset -1px 0 0 rgb(255 255 255 / 20%), inset 0 0 90px rgb(0 63 115 / 22%);
+}
+.auth-aside::after {
+  content: "";
+  display: block !important;
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  opacity: .11;
+  background-image: linear-gradient(rgb(255 255 255 / 32%) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 32%) 1px, transparent 1px);
+  background-size: 30px 30px;
+  mask-image: linear-gradient(120deg, transparent 20%, #000 100%);
+}
+.auth-aside > * { position: relative; z-index: 1; }
+.auth-main { position: relative; }
+.auth-card { transition: box-shadow 180ms ease, border-color 180ms ease; }
+.auth-card:focus-within { border-color: var(--workspace-accent) !important; box-shadow: 0 20px 50px rgb(16 42 67 / 14%) !important; }
+
+/* Quiet, repeatable interaction states across dashboard and operational sections. */
+.app-page-shell .card,
+.app-page-shell .details-box,
+.app-page-shell .report-table-wrap,
+.app-page-shell .inventory-start-dialog {
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.app-page-shell :is(button, a, input, select, summary):focus-visible {
+  outline: 3px solid rgb(10 111 190 / 48%);
+  outline-offset: 3px;
+}
+.app-page-shell :is(button, a) { touch-action: manipulation; }
+.inventory-shell .inventory-back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 10px;
+  background: var(--workspace-soft);
+  color: var(--workspace-action);
+  font-weight: 800;
+  text-decoration: none;
+}
+.inventory-shell .inventory-back-link:hover { border-color: var(--workspace-accent); box-shadow: 0 5px 14px rgb(16 42 67 / 9%); }
+.inventory-start-actions > button:first-child { margin-right: auto; }
+
+@media (max-width: 760px) {
+  .auth-aside {
+    min-height: 230px !important;
+    gap: 20px !important;
+    padding: 24px 20px !important;
+    background-position: 63% center !important;
+  }
+  .auth-aside h1 { max-width: 16ch !important; font-size: clamp(1.8rem, 8vw, 2.8rem) !important; }
+  .auth-main { padding: 16px 12px 28px !important; }
+  .auth-card { width: min(100%, 520px) !important; }
+}
+@media (max-width: 639px) {
+  .inventory-start-actions > button:first-child { margin-right: 0; }
+  .inventory-shell .inventory-back-link { margin-bottom: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-card,
+  .app-page-shell .card,
+  .app-page-shell .details-box,
+  .app-page-shell .report-table-wrap,
+  .app-page-shell .inventory-start-dialog { transition: none !important; }
+}

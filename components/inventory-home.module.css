@@ -101,15 +101,15 @@
     font-size: 0.76rem;
   }
 
-  .dashboardShell :global(.dashboard-hero) {
+  .dashboardShell.dashboardShell :global(.dashboard-hero) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, auto);
     align-items: center;
-    gap: 28px;
-    min-height: 158px;
+    gap: clamp(20px, 2vw, 32px);
+    min-height: 0;
     margin-bottom: 0;
-    padding: 27px clamp(26px, 3vw, 40px);
-    border-radius: 20px;
+    padding: clamp(22px, 2.2vw, 32px) clamp(24px, 2.8vw, 38px) !important;
+    border-radius: 18px !important;
   }
 
   .hero {
@@ -128,7 +128,7 @@
 
   .heroIntro {
     min-width: 0;
-    max-width: 650px;
+    max-width: 720px;
   }
 
   .heroIntro :global(.eyebrow) {
@@ -152,17 +152,22 @@
     letter-spacing: 0.01em;
   }
 
-  .heroActions {
-    display: flex;
+  .dashboardShell :global(.dashboard-hero) .heroActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 20px;
+    gap: 14px;
+    min-width: 0;
   }
 
   .dashboardShell :global(.dashboard-status) {
     justify-items: start;
-    gap: 6px;
-    padding-left: 20px;
-    border-left: 1px solid rgb(202 228 255 / 30%);
+    gap: 5px;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid rgb(202 228 255 / 24%);
+    border-radius: 12px;
+    background: rgb(4 31 60 / 24%);
     text-align: left;
   }
 
@@ -180,20 +185,22 @@
   .dashboardShell :global(.dashboard-status small) {
     color: #d0e5fa;
     font-size: 0.72rem;
+    max-width: 28ch;
+    overflow-wrap: anywhere;
   }
 
-  .heroAction {
+  .dashboardShell .heroAction {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 9px;
-    min-width: 218px;
-    min-height: 52px;
+    min-width: 204px;
+    min-height: 48px;
     padding: 12px 16px;
     border: 1px solid rgb(203 229 255 / 36%);
     border-radius: 12px;
-    background: linear-gradient(125deg, #0a60c5, #1685ec);
-    box-shadow: 0 12px 24px rgb(0 17 49 / 24%);
+    background: #004a80;
+    box-shadow: 0 8px 18px rgb(0 17 49 / 22%);
     color: #fff;
     font-size: 0.82rem;
     font-weight: 850;
@@ -201,13 +208,18 @@
     transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
   }
 
-  .heroAction:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 16px 30px rgb(0 17 49 / 32%);
-    filter: brightness(1.06);
+  .dashboardShell .heroAction:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: #00385f;
+    box-shadow: 0 11px 22px rgb(0 17 49 / 30%);
   }
 
-  .heroAction:disabled {
+  .dashboardShell .heroAction:focus-visible {
+    outline: 3px solid #9bd5ff;
+    outline-offset: 3px;
+  }
+
+  .dashboardShell .heroAction:disabled {
     cursor: wait;
     opacity: 0.72;
   }
@@ -452,12 +464,14 @@
     gap: 18px;
   }
 
-  .heroActions {
-    gap: 14px;
+  .dashboardShell :global(.dashboard-hero) .heroActions {
+    gap: 10px;
   }
 
-  .heroAction {
-    min-width: 205px;
+  .dashboardShell .heroAction {
+    min-width: 190px;
+    padding-inline: 12px;
+    font-size: 0.75rem;
   }
 
   .recordsPanel,

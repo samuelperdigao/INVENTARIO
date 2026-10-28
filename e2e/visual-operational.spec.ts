@@ -95,10 +95,18 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
   await expect(page.locator(".control-stage-summary").filter({ hasText: "Análise" })).toBeVisible();
   await expect(page.locator(".control-stage-summary").filter({ hasText: "Finalização" })).toBeVisible();
   await expect(page.getByText(/FastAPI|ID técnico|token/i)).toHaveCount(0);
-  await expect(page.locator(".control-stage-details[open]")).toHaveCount(1);
+  await expect(page.locator(".control-stage-details[open]")).toHaveCount(0);
   await page.locator(".control-stage-summary").filter({ hasText: "Análise" }).click();
   await expect(page.locator(".control-stage-details[open]")).toHaveCount(1);
   await expect(page.locator(".control-stage-details[open] .control-stage-summary")).toContainText("Análise");
+  await page.locator(".control-stage-summary").filter({ hasText: "Análise" }).click();
+  await expect(page.locator(".control-stage-details[open]")).toHaveCount(0);
+  await page.locator(".control-stage-summary").filter({ hasText: "Sincronização" }).click();
+  await expect(page.locator(".control-stage-details[open]")).toHaveCount(1);
+  await expect(page.locator(".control-stage-details[open] .control-stage-summary")).toContainText("Sincronização");
+  await page.locator(".control-stage-summary").filter({ hasText: "Finalização" }).click();
+  await expect(page.locator(".control-stage-details[open]")).toHaveCount(1);
+  await expect(page.locator(".control-stage-details[open] .control-stage-summary")).toContainText("Finalização");
 
   const referencePanel = page.locator(".reference-panel");
   const entryWorkspace = page.locator(".entry-workspace");
@@ -136,7 +144,7 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
     expect(layout.submitTop).toBeGreaterThanOrEqual(layout.quantityBottom);
 
     if (viewport.width >= 1180) {
-      expect(layout.railPosition).toBe("fixed");
+      expect(layout.railPosition).toBe("sticky");
       expect(layout.workspaceColumns.split(" ")).toHaveLength(2);
       expect(layout.currentStepVisible).toBe(true);
     } else if (viewport.width >= 640) {
@@ -149,6 +157,12 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
       expect(layout.submitPosition).toBe("static");
     }
   }
+
+  const backToDashboard = page.getByRole("link", { name: /Voltar ao painel/ });
+  await expect(backToDashboard).toHaveAttribute("href", "/dashboard");
+  await backToDashboard.click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole("heading", { name: /Bem-vindo\(a\)/ })).toBeVisible();
 });
 
 test("mantém o botão de lançamento no fluxo quando o viewport mobile é reduzido", async ({ page }) => {

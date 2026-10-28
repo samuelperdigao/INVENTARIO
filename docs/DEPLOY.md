@@ -138,6 +138,18 @@ para o mesmo modo de preparação. O deploy pós-merge tem comando separado:
 pnpm run deploy:production
 ```
 
+Para usar um atalho persistente no PowerShell, instale-o uma vez a partir da
+raiz do projeto:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\install-deploy-shortcut.ps1
+```
+
+Depois de reabrir o terminal, ou executar `. $PROFILE`, o comando `invdeploy`
+executa o mesmo modo `production`. O atalho não cria commit, não envia branch e
+não abre Pull Request; os comandos Git continuam sendo feitos manualmente.
+
 Se o comando for executado na `main`, ele cria automaticamente uma branch
 `codex/deploy-*` antes de preparar o commit. Não use o script em um checkout que
 contenha alterações de outra tarefa sem revisar os arquivos que serão incluídos.

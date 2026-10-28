@@ -52,6 +52,7 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
   await expect(metrics.nth(1)).toHaveText("95");
   await expect(metrics.nth(2)).toHaveText("1269");
 
+  await page.locator(".control-stage-summary").filter({ hasText: "Sincronização" }).click();
   await page.getByRole("button", { name: "Sincronizar agora", exact: true }).click();
   await expect(page.getByText("Sincronização concluída.", { exact: true })).toBeVisible({ timeout: 30_000 });
   await page.locator(".control-stage-summary").filter({ hasText: "Análise" }).click();

@@ -26,7 +26,12 @@ relatórios ou finalização.
 - Validação em Android físico e Safari/iPhone físico continua pendente; o
   Chromium local não substitui esses dispositivos.
 
-Não houve publicação, alteração na Vercel, Render ou Neon nesta etapa.
+Publicação concluída após a PR #42: `main` está em `83cbf7c`. A Vercel marcou o
+deployment de produção como READY e o domínio `inventariolpe.vercel.app` aponta
+para essa revisão; o Render marcou `inventory-api` como `live` no mesmo SHA.
+`Production Smoke` do push passou, incluindo os healthchecks diretos e pelo
+proxy `/backend-api`. O workflow `Quality Gates` pós-merge também passou.
+Android físico e Safari/iPhone físico continuam pendentes.
 
 ## Ciclo administrativo e responsabilidade
 

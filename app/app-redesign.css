@@ -1,22 +1,22 @@
 /* Operational workspace: quiet surfaces, readable type, and one clear action per area. */
 :root {
-  --workspace-ink: #102a43;
-  --workspace-muted: #4e6478;
-  --workspace-line: #c8d6e2;
+  --workspace-ink: #0b2239;
+  --workspace-muted: #435a70;
+  --workspace-line: #c4d0db;
   --workspace-canvas: #f3f6f9;
   --workspace-surface: #ffffff;
   --workspace-surface-soft: #f7fafc;
-  --workspace-soft: #eaf1f7;
-  --workspace-action: #005596;
-  --workspace-action-hover: #003f73;
-  --workspace-accent: #0a6fbe;
+  --workspace-soft: #e8eef4;
+  --workspace-action: #003b63;
+  --workspace-action-hover: #002b49;
+  --workspace-accent: #1c527c;
   --workspace-success: #176b45;
   --workspace-success-soft: #e9f6ee;
   --workspace-warning: #8a5a00;
   --workspace-warning-soft: #fff5d8;
   --workspace-danger: #a3312b;
   --workspace-danger-soft: #fff0ee;
-  --workspace-focus: #0a6fbe;
+  --workspace-focus: #1c527c;
 }
 
 html { background: var(--workspace-canvas); }
@@ -30,7 +30,7 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
   justify-content: flex-start;
   gap: 22px;
   border-right: 0 !important;
-  background: linear-gradient(150deg, #005596, #003f73) !important;
+  background: linear-gradient(150deg, var(--workspace-action), var(--workspace-action-hover)) !important;
 }
 .auth-aside::before,
 .auth-aside::after,
@@ -116,17 +116,18 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
 
 /* Navigation is calm enough to remain visible throughout a field shift. */
 .shell.app-page-shell > .app-rail {
-  position: fixed;
+  position: sticky;
   z-index: 60;
   top: 28px;
-  bottom: 28px;
-  left: max(32px, calc((100vw - 1600px) / 2));
+  align-self: start;
   display: flex;
   flex-direction: column;
   width: 232px;
+  height: max-content;
+  max-height: calc(100dvh - 56px);
   min-height: 0;
-  gap: 20px;
-  overflow: visible;
+  gap: 16px;
+  overflow: hidden;
   padding: 22px 14px 16px;
   border: 1px solid var(--workspace-line) !important;
   border-radius: 18px !important;
@@ -155,8 +156,9 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
 }
 .app-page-shell .app-rail .dashboard-nav {
   display: grid;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   align-content: start;
+  min-height: 0;
   gap: 4px;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -241,7 +243,7 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
   gap: 10px;
   align-items: center;
   margin: 0;
-  padding: 15px 2px 0;
+  padding: 12px 2px 0;
   border-top: 1px solid var(--workspace-line) !important;
   color: var(--workspace-muted) !important;
 }
@@ -605,14 +607,6 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
   color: #fff !important;
   box-shadow: none !important;
 }
-.inventory-shell .inventory-control-panel {
-  border-color: #003f73 !important;
-  background: #003f73 !important;
-  background-image: none !important;
-  box-shadow: none !important;
-}
-.inventory-shell .inventory-control-panel::before,
-.inventory-shell .inventory-control-panel::after { display: none !important; }
 .inventory-shell .entries-section,
 .inventory-shell .entry-workspace > form,
 .inventory-shell .reference-panel {
@@ -681,7 +675,9 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
     display: block;
     width: 100%;
     height: auto;
+    max-height: none;
     min-height: 0;
+    overflow: visible;
     padding: 7px max(8px, env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
     border: 0 !important;
     border-top: 1px solid var(--workspace-line) !important;
@@ -692,6 +688,7 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
   .shell.app-page-shell > .app-rail > :is(.brand-link, .app-rail-kicker, .app-rail-foot) { display: none !important; }
   .shell.app-page-shell > .app-rail .dashboard-nav {
     display: grid;
+    flex: none;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 2px;
     overflow: visible;
@@ -813,14 +810,14 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
   .app-page-shell *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
-/* Gerdau blue and white direction: high contrast, calm surfaces, and one clear action. */
+/* Internal theme: deep navy actions, quiet blue surfaces, and semantic states. */
 .auth-aside {
-  background: #005596 !important;
+  background: var(--workspace-action) !important;
   color: #fff !important;
 }
 .auth-aside .brand-logo-mark { border-color: #b9d9f2 !important; background: #fff !important; }
 .auth-aside .brand-logo-beam { fill: #102a43 !important; }
-.auth-aside .brand-logo-check { stroke: #005596 !important; }
+.auth-aside .brand-logo-check { stroke: var(--workspace-action) !important; }
 .auth-aside .brand-logo-copy small,
 .auth-aside .light-eyebrow { color: #eaf3fb !important; }
 .auth-aside p:not(.eyebrow) { color: #fff !important; }
@@ -828,40 +825,40 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
 .app-page-shell :is(input, select, textarea),
 .app-page-shell .app-page-content form :is(input, select, textarea) { border-color: #9bbbd3 !important; }
 .app-page-shell :is(button, a, input, select, textarea, summary):focus-visible,
-.auth-card :is(button, a, input, select, textarea):focus-visible { outline-color: #0a6fbe !important; }
-.app-page-shell .app-rail .brand-logo-mark { border-color: #c9d9e6 !important; background: #eaf3fb !important; }
+.auth-card :is(button, a, input, select, textarea):focus-visible { outline-color: var(--workspace-focus) !important; }
+.app-page-shell .app-rail .brand-logo-mark { border-color: var(--workspace-line) !important; background: var(--workspace-soft) !important; }
 .app-page-shell .app-rail .brand-logo-beam { fill: #102a43 !important; }
-.app-page-shell .app-rail .brand-logo-check { stroke: #005596 !important; }
+.app-page-shell .app-rail .brand-logo-check { stroke: var(--workspace-action) !important; }
 .app-page-shell .app-rail .dashboard-nav-link.active,
 .app-page-shell .app-rail .rail-more > summary.active {
-  border-color: #9bc4e1 !important;
-  background: #eaf3fb !important;
-  color: #003f73 !important;
-  box-shadow: inset 3px 0 0 #005596 !important;
+  border-color: var(--workspace-line) !important;
+  background: var(--workspace-soft) !important;
+  color: var(--workspace-action) !important;
+  box-shadow: inset 3px 0 0 var(--workspace-action) !important;
 }
 .app-page-shell .app-rail .nav-create,
 .app-page-shell .primary,
 .app-page-shell .primary-action,
-.auth-card .primary { border-color: #005596 !important; background: #005596 !important; }
+.auth-card .primary { border-color: var(--workspace-action) !important; background: var(--workspace-action) !important; }
 .app-page-shell .app-rail .nav-create:hover:not(:disabled),
 .app-page-shell .primary:hover:not(:disabled),
 .app-page-shell .primary-action:hover:not(:disabled),
-.auth-card .primary:hover:not(:disabled) { background: #003f73 !important; }
+.auth-card .primary:hover:not(:disabled) { background: var(--workspace-action-hover) !important; }
 .app-page-shell .app-rail .app-rail-foot {
   align-self: center;
   width: min(100%, 170px);
   justify-content: center;
   flex-direction: column;
   gap: 7px;
-  margin-top: auto;
+  margin-top: 2px;
   text-align: center;
 }
 .app-page-shell .app-rail .app-rail-foot > span:last-child { justify-items: center; }
-.app-page-shell .app-rail .app-rail-foot-icon { border-color: #c9d9e6 !important; background: #eaf3fb !important; color: #005596 !important; }
+.app-page-shell .app-rail .app-rail-foot-icon { border-color: var(--workspace-line) !important; background: var(--workspace-soft) !important; color: var(--workspace-action) !important; }
 .app-page-shell .app-rail .app-rail-foot strong { color: #102a43 !important; }
 .app-page-shell .app-rail .app-rail-foot small { color: #4e6478 !important; }
 .app-page-shell .dashboard-hero,
-.inventory-shell .inventory-header { background: #eaf3fb !important; border-color: #b9d4e8 !important; }
+.inventory-shell .inventory-header { background: var(--workspace-soft) !important; border-color: var(--workspace-line) !important; }
 .app-page-shell .dashboard-hero h1,
 .inventory-shell .inventory-header h1,
 .app-page-shell .section-title h2,
@@ -871,22 +868,21 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
 .inventory-shell .entry-title strong { color: #102a43 !important; }
 .app-page-shell .dashboard-hero .eyebrow,
 .app-page-shell .eyebrow,
-.inventory-shell .inventory-header .eyebrow { color: #005596 !important; }
-.app-page-shell .dashboard-status { border-left-color: #9bc4e1 !important; }
+.inventory-shell .inventory-header .eyebrow { color: var(--workspace-action) !important; }
+.app-page-shell .dashboard-status { border-left-color: var(--workspace-line) !important; }
 .app-page-shell .dashboard-status .live-dot::before,
-.inventory-shell .inventory-header-topline-dot { background: #0a6fbe !important; }
-.app-page-shell .secondary { border-color: #9bbbd3 !important; color: #005596 !important; }
+.inventory-shell .inventory-header-topline-dot { background: var(--workspace-accent) !important; }
+.app-page-shell .secondary { border-color: var(--workspace-line) !important; color: var(--workspace-action) !important; }
 .app-page-shell .status-pill,
-.app-page-shell .micro-pill { border-color: #b9d4e8 !important; background: #eaf3fb !important; color: #005596 !important; }
+.app-page-shell .micro-pill { border-color: var(--workspace-line) !important; background: var(--workspace-soft) !important; color: var(--workspace-action) !important; }
 .app-page-shell .action-icon,
 .inventory-process li > span,
-.inventory-shell .metric-card-icon { border-color: #c9d9e6 !important; background: #eaf3fb !important; color: #005596 !important; }
-.app-page-shell .empty-state { border-color: #b9d4e8 !important; background: #eaf3fb !important; }
-.app-page-shell .dashboard-content .panel-card::before { background: #0a6fbe !important; }
-.inventory-process li.active { border-color: #9bc4e1 !important; background: #eaf3fb !important; color: #005596 !important; }
+.inventory-shell .metric-card-icon { border-color: var(--workspace-line) !important; background: var(--workspace-soft) !important; color: var(--workspace-action) !important; }
+.app-page-shell .empty-state { border-color: var(--workspace-line) !important; background: var(--workspace-soft) !important; }
+.app-page-shell .dashboard-content .panel-card::before { background: var(--workspace-accent) !important; }
+.inventory-process li.active { border-color: var(--workspace-line) !important; background: var(--workspace-soft) !important; color: var(--workspace-action) !important; }
 .inventory-process li.active > span,
-.inventory-shell .side-button[aria-pressed="true"] { background: #005596 !important; border-color: #005596 !important; }
-.inventory-shell .inventory-control-panel { border-color: #003f73 !important; background: #003f73 !important; }
+.inventory-shell .side-button[aria-pressed="true"] { background: var(--workspace-action) !important; border-color: var(--workspace-action) !important; }
 .inventory-shell .reference-panel,
 .inventory-shell .entries-section,
 .inventory-shell .entry-workspace > form { border-color: #c9d9e6 !important; }
@@ -928,34 +924,7 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
 /* Inventory hierarchy: keep the launch task primary and make control actions progressive. */
 .inventory-shell .metric-grid { margin-bottom: 12px; }
 .inventory-shell .metric-card { min-height: 116px; }
-.inventory-shell .inventory-control-panel {
-  border: 1px solid #b9d4e8 !important;
-  background: #fff !important;
-  box-shadow: 0 8px 24px rgb(16 42 67 / 7%) !important;
-}
-.inventory-shell .inventory-control-panel::before,
-.inventory-shell .inventory-control-panel::after { display: none !important; }
-.inventory-shell .control-panel-header h2 { color: #102a43 !important; }
-.inventory-shell .control-panel-header .eyebrow { color: #005596 !important; }
-.inventory-shell .control-panel-header .muted { color: #4e6478 !important; }
-.inventory-shell .control-panel-hint { border-color: #b9d4e8 !important; background: #eaf3fb !important; color: #005596 !important; }
-.inventory-shell .control-stage-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.inventory-shell .control-stage-details { border-color: #c9d9e6 !important; background: #fff !important; box-shadow: none !important; }
-.inventory-shell .control-stage-details[open] { border-color: #7fb4d8 !important; box-shadow: 0 8px 20px rgb(16 42 67 / 8%) !important; }
-.inventory-shell .control-stage-summary:hover { background: #f4f8fc !important; }
-.inventory-shell .control-stage-index { border-color: #b9d4e8 !important; background: #eaf3fb !important; color: #005596 !important; }
-.inventory-shell .control-stage-details[open] .control-stage-index { box-shadow: 0 0 0 4px rgb(10 111 190 / 12%) !important; }
-.inventory-shell .control-stage-summary-copy strong { color: #102a43 !important; }
-.inventory-shell .control-stage-summary-copy small { color: #4e6478 !important; }
-.inventory-shell .control-stage-summary::after { background: #eaf3fb !important; color: #005596 !important; }
-.inventory-shell .control-stage-details[open] .control-stage-summary::after { background: #d7eaf8 !important; }
-.inventory-shell .control-stage-content::before { background: #c9d9e6 !important; }
-.inventory-shell .control-stage-content > .muted { color: #4e6478 !important; }
-.inventory-shell .control-stage-content .participation-box { border-color: #b9d4e8 !important; background: #eaf3fb !important; }
 .inventory-shell .error { max-width: 100%; margin-block: 12px; }
-@media (max-width: 900px) {
-  .inventory-shell .control-stage-grid { grid-template-columns: 1fr; }
-}
 
 /* Internal UI contract: one neutral canvas, white work surfaces, and semantic states. */
 html:has(.app-page-shell),

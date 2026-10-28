@@ -1,5 +1,34 @@
 # Status do projeto
 
+## Ajustes adicionais de interface — 28/10/2026
+
+Alterações locais na branch `codex/sidebar-proportions`, sem commit ou deploy.
+As cinco frentes foram revisadas pelos respectivos agentes e passaram por uma
+revisão integrada. As imagens fornecidas foram usadas apenas como referência e
+não foram copiadas para o repositório.
+
+- Restaurado o link de retorno ao painel; escurecida a cor principal; ajustada
+  a altura do menu lateral e a composição responsiva do cabeçalho do dashboard.
+- As etapas de sincronização, análise e finalização começam recolhidas; abrir
+  uma etapa fecha a anterior e clicar nela novamente recolhe o conteúdo.
+  Números e ícones do controle foram reorganizados, com animação que respeita
+  `prefers-reduced-motion`.
+- Removidas as regras globais antigas e duplicadas que estilavam o cartão e as
+  etapas de controle. O módulo CSS do componente agora é a única fonte dessas
+  regras, evitando sobreposição com futuras alterações do painel.
+- ESLint, TypeScript e `git diff --check`: aprovados. Vitest: 86 testes
+  aprovados. Pytest: 76 testes aprovados, com 4 avisos de depreciação já
+  conhecidos nas dependências.
+- Build de produção: aprovado. `pnpm start` respondeu HTTP 200 na raiz e em
+  `/sw.js`, com o service worker servido como JavaScript.
+- Playwright visual: 5 cenários aprovados, incluindo larguras de 360, 390,
+  430, 768, 1024, 1366 e 1920 px, estados recolhidos/abertos e retorno ao
+  painel. Na suíte E2E completa, 15 passaram; os outros 2 dependiam de etapas
+  que passaram a começar recolhidas. Os testes foram atualizados para abrir a
+  etapa e ambos passaram na repetição; assim, os 17 cenários têm aprovação.
+- Testes em aparelho Android físico e Safari/iPhone físico continuam pendentes;
+  o ambiente desta execução disponibilizou apenas Chromium automatizado.
+
 ## Revisão visual interna — 27/10/2026
 
 Implementação na branch `codex/visual-review-inventory`, sem alterações em API,

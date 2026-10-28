@@ -366,7 +366,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
       <header className="inventory-header">
         <div className="inventory-header-row">
           <div className="inventory-header-copy">
-            <Link className="back-link" href="/dashboard">‹ Painel</Link>
+            <Link className="back-link" href="/dashboard">← Voltar ao painel</Link>
             <div className="inventory-header-topline"><span className="inventory-header-topline-dot" aria-hidden="true" /> <span>{readOnly ? "Inventário finalizado" : "Coleta em andamento"}</span><i aria-hidden="true">/</i><span>{entries.length ? `${entries.length} registro(s) capturado(s)` : "Aguardando primeiro lançamento"}</span></div>
             <p className="eyebrow">Inventário em operação</p>
             <h1>Inventário {formatBrazilianDate(inventory.date)}</h1>

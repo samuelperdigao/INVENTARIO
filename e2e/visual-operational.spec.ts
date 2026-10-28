@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { login, seedUsers } from "./helpers";
 
 const viewports = [
+  { width: 360, height: 800 },
   { width: 390, height: 844 },
   { width: 430, height: 932 },
   { width: 768, height: 1024 },
@@ -11,6 +12,72 @@ const viewports = [
   { width: 1440, height: 900 },
   { width: 1920, height: 1080 },
 ];
+
+function assertWcagAaContrast(value: number, label: string): void {
+  expect(value, `${label} precisa atingir contraste WCAG AA`).toBeGreaterThanOrEqual(4.5);
+}
+
+test("mantém ações e estados do painel com contraste e área de toque adequados", async ({ page }) => {
+  const { ownerEmail } = seedUsers("dashboard-contrast");
+  await login(page, ownerEmail);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const measurements = await page.evaluate(() => {
+    function parseColor(value: string): [number, number, number] {
+      const match = value.match(/rgba?\((\d+)\D+(\d+)\D+(\d+)/);
+      if (!match) throw new Error(`Cor não analisável: ${value}`);
+      return [Number(match[1]), Number(match[2]), Number(match[3])];
+    }
+
+    function luminance(value: string): number {
+      return parseColor(value).map((channel) => channel / 255).map((channel) => channel <= .03928 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+    }
+
+    function contrast(foreground: string, background: string): number {
+      const light = Math.max(luminance(foreground), luminance(background));
+      const dark = Math.min(luminance(foreground), luminance(background));
+      return (light + .05) / (dark + .05);
+    }
+
+    const primary = document.querySelector<HTMLElement>(".action-card.primary-action");
+    const primaryText = primary?.querySelector<HTMLElement>("strong");
+    const secondary = document.querySelector<HTMLElement>(".action-card:not(.primary-action)");
+    const secondaryText = secondary?.querySelector<HTMLElement>("strong");
+    if (!primary || !primaryText || !secondary || !secondaryText) throw new Error("Ações rápidas não encontradas");
+    return {
+      primaryContrast: contrast(getComputedStyle(primaryText).color, getComputedStyle(primary).backgroundColor),
+      secondaryContrast: contrast(getComputedStyle(secondaryText).color, getComputedStyle(secondary).backgroundColor),
+      primaryHeight: primary.getBoundingClientRect().height,
+      secondaryHeight: secondary.getBoundingClientRect().height,
+    };
+  });
+
+  assertWcagAaContrast(measurements.primaryContrast, "ação principal");
+  assertWcagAaContrast(measurements.secondaryContrast, "ação secundária");
+  expect(measurements.primaryHeight).toBeGreaterThanOrEqual(44);
+  expect(measurements.secondaryHeight).toBeGreaterThanOrEqual(44);
+
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    const layout = await page.evaluate(() => {
+      const rail = document.querySelector<HTMLElement>(".app-rail");
+      const shell = document.querySelector<HTMLElement>("main.dashboard-shell");
+      const railRect = rail?.getBoundingClientRect();
+      return {
+        scrollWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        railPosition: rail ? getComputedStyle(rail).position : "missing",
+        shellPaddingBottom: shell ? Number.parseFloat(getComputedStyle(shell).paddingBottom) : 0,
+        railHeight: railRect?.height ?? 0,
+      };
+    });
+    expect(layout.scrollWidth, `overflow horizontal em ${viewport.width}px`).toBeLessThanOrEqual(layout.viewportWidth + 1);
+    if (viewport.width < 1200) {
+      expect(layout.railPosition).toBe("fixed");
+      expect(layout.shellPaddingBottom).toBeGreaterThanOrEqual(layout.railHeight - 1);
+    }
+  }
+});
 
 test("mantém a tela operacional legível nas resoluções de campo", async ({ page }) => {
   const { ownerEmail } = seedUsers("visual-operational");
@@ -133,6 +200,7 @@ test("mantém todas as ações do diálogo de finalização dentro do viewport m
   await page.getByRole("button", { name: "Continuar sem planilha", exact: true }).click();
 
   const trigger = page.getByRole("button", { name: "Finalizar inventário", exact: true });
+  await page.locator(".control-stage-summary").filter({ hasText: "Finalização" }).click();
   await trigger.scrollIntoViewIfNeeded();
   await trigger.click();
 

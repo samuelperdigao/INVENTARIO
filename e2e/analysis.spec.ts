@@ -26,6 +26,7 @@ test("envia lançamentos ao motor online e identifica o cache quando fica offlin
   await page.getByRole("button", { name: "Adicionar mesmo assim" }).click();
   await expect(page.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value')).toHaveText("2");
 
+  await page.locator(".control-stage-summary").filter({ hasText: "Análise" }).click();
   await page.getByRole("button", { name: "Atualizar análise" }).click();
   await expect(page.getByRole("link", { name: "Acessar análise completa" })).toBeVisible();
   await page.getByRole("link", { name: "Acessar análise completa" }).click();

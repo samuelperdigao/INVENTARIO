@@ -1,5 +1,33 @@
 # Status do projeto
 
+## Revisão visual interna — 27/10/2026
+
+Implementação na branch `codex/visual-review-inventory`, sem alterações em API,
+backend, migrations, IndexedDB, sincronização, autenticação, regras de negócio,
+relatórios ou finalização.
+
+- Consolidada a camada visual interna em tokens compartilhados no
+  `app/app-redesign.css`, removendo a segunda camada de superfícies que fazia o
+  cartão `Novo inventário` receber fundo claro com texto branco.
+- Ação principal, estados de sincronização, conflitos, pendências, diálogos,
+  administração e navegação móvel receberam contraste e estados sem depender
+  somente de cor. A página pública inicial ficou fora do escopo.
+- Playwright visual ampliado para 360, 390, 430, 768, 1024, 1366, 1440 e
+  1920 px, com verificações de contraste, overflow, áreas de toque e espaço da
+  navegação inferior.
+- ESLint, TypeScript, Vitest: aprovados; Vitest com 86 testes.
+- Build de produção: aprovado. `pnpm start` respondeu HTTP 200 na raiz e
+  publicou `/sw.js` como JavaScript; o E2E offline confirmou o service worker.
+- Pytest: 76 testes aprovados, com 4 avisos de depreciação já conhecidos das
+  dependências FastAPI/Starlette/httpx/Alembic.
+- Playwright completo: 17 cenários aprovados, incluindo operação offline,
+  participação, análise, histórico, administração, exportações, 100
+  lançamentos e validação visual responsiva.
+- Validação em Android físico e Safari/iPhone físico continua pendente; o
+  Chromium local não substitui esses dispositivos.
+
+Não houve publicação, alteração na Vercel, Render ou Neon nesta etapa.
+
 ## Ciclo administrativo e responsabilidade
 
 Validação local em 07/10/2026 na branch `fix/admin-inventory-lifecycle`.

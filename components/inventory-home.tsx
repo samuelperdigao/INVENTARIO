@@ -212,7 +212,7 @@ export function InventoryHome() {
               </button>
             </div>
           </> : null}
-          <div className={`stack ${styles.inventoryList}`}>{[...inventories].reverse().map((inventory) => <Link className="card inventory-link inventory-card" href={`/inventarios/${inventory.id}`} key={inventory.id}><div className="inventory-card-main"><strong>{labels.get(inventory.id)}</strong><span className="muted">Atualizado em {new Date(inventory.updatedAt).toLocaleString("pt-BR")}</span><div className="inventory-card-meta"><span className="micro-pill">Aberto</span><span className={`micro-pill ${inventory.syncStatus === "SYNCED" ? "good" : ""}`}>{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span></div></div><span className="chevron" aria-hidden="true">›</span></Link>)}</div>
+          <div className={`stack ${styles.inventoryList}`}>{[...inventories].reverse().map((inventory) => <Link className="card inventory-link inventory-card" href={`/inventarios/${inventory.id}`} key={inventory.id}><div className="inventory-card-main"><strong>{labels.get(inventory.id)}</strong><span className="muted">Atualizado em {new Date(inventory.updatedAt).toLocaleString("pt-BR")}</span><div className="inventory-card-meta"><span className="micro-pill">Aberto</span><span className={`micro-pill ${inventory.syncStatus === "SYNCED" ? "good" : "pending"}`}>{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span></div></div><span className="chevron" aria-hidden="true">›</span></Link>)}</div>
         </section>
 
         <aside className={`stack ${styles.supportColumn}`}>

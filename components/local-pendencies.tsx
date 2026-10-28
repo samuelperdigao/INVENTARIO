@@ -67,7 +67,7 @@ export function LocalPendencies() {
           <div><strong>Lote {entry.lot}: {entry.quantity} peça(s)</strong>
             <p className="muted">{formatSideLabel(entry.side)} · Vão {entry.bay}{entry.layer ? ` · Camada ${entry.layer}` : ""}
               {inventory?.date ? ` · ${formatBrazilianDate(inventory.date)}` : ""}</p>
-            <span className="micro-pill">{inventory?.tombstone ? "Inventário excluído"
+            <span className={`micro-pill ${inventory?.tombstone ? "deleted" : entry.syncStatus === "ERROR" ? "conflict" : "pending"}`}>{inventory?.tombstone ? "Inventário excluído"
               : entry.syncStatus === "ERROR" ? "Conflito de sincronização" : "Pendente de sincronização"}</span></div>
           {!inventory?.tombstone && inventory ? <Link href={`/inventarios/${inventory.id}`} className="secondary">Revisar no inventário</Link> : null}
         </div>)}

@@ -54,12 +54,14 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
 
   await page.getByRole("button", { name: "Sincronizar agora", exact: true }).click();
   await expect(page.getByText("Sincronização concluída.", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await page.locator(".control-stage-summary").filter({ hasText: "Análise" }).click();
   await page.getByRole("button", { name: "Atualizar análise", exact: true }).click();
   await page.getByRole("link", { name: "Acessar análise completa" }).click();
   await expect(page.getByText("1 PEÇA FORA DO LOCAL PRINCIPAL", { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("PEÇA_SOLTEIRA", { exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: /Voltar ao inventário/ }).click();
 
+  await page.locator(".control-stage-summary").filter({ hasText: "Finalização" }).click();
   await page.getByRole("button", { name: "Finalizar inventário", exact: true }).click();
   const finishDialog = page.getByRole("dialog", { name: "Finalizar inventário?" });
   await finishDialog.getByRole("button", { name: "Finalizar inventário", exact: true }).click();

@@ -75,15 +75,15 @@
 }
 
 .dialog {
-  border-color: rgba(155, 201, 247, .72);
+  border-color: var(--workspace-line);
   border-radius: 20px;
-  background: linear-gradient(145deg, #fff, #f4f8fa);
-  box-shadow: 0 30px 80px rgba(0, 51, 102, .33);
+  background: var(--workspace-surface);
+  box-shadow: 0 30px 80px rgb(16 42 67 / 24%);
 }
 
 .icon {
-  background: linear-gradient(145deg, #e5f1fd, #9bc9f7);
-  color: #003366;
+  background: var(--workspace-soft);
+  color: var(--workspace-action);
 }
 
 .danger .icon {
@@ -92,7 +92,7 @@
 }
 
 .description {
-  color: #607381;
+  color: var(--workspace-muted);
 }
 
 .actions button {

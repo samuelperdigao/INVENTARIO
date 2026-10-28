@@ -73,7 +73,7 @@ jobs:
         run: backend/.venv/bin/python -m alembic -c backend/alembic.ini upgrade head
 
       - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install chromium
 
       - name: Browser flows
         env:

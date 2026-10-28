@@ -2,13 +2,21 @@
 :root {
   --workspace-ink: #102a43;
   --workspace-muted: #4e6478;
-  --workspace-line: #c9d9e6;
-  --workspace-canvas: #f4f7fb;
+  --workspace-line: #c8d6e2;
+  --workspace-canvas: #f3f6f9;
   --workspace-surface: #ffffff;
-  --workspace-soft: #eaf3fb;
+  --workspace-surface-soft: #f7fafc;
+  --workspace-soft: #eaf1f7;
   --workspace-action: #005596;
   --workspace-action-hover: #003f73;
   --workspace-accent: #0a6fbe;
+  --workspace-success: #176b45;
+  --workspace-success-soft: #e9f6ee;
+  --workspace-warning: #8a5a00;
+  --workspace-warning-soft: #fff5d8;
+  --workspace-danger: #a3312b;
+  --workspace-danger-soft: #fff0ee;
+  --workspace-focus: #0a6fbe;
 }
 
 html { background: var(--workspace-canvas); }
@@ -949,92 +957,149 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
   .inventory-shell .control-stage-grid { grid-template-columns: 1fr; }
 }
 
-/* Shared blue surfaces give each product area depth without changing the brand colors. */
-:root {
-  --workspace-canvas: #eaf0f6;
-  --workspace-surface: #f8fbfe;
-  --workspace-soft: #e1edf7;
-  --workspace-line: #b9ccdd;
-}
-html,
+/* Internal UI contract: one neutral canvas, white work surfaces, and semantic states. */
+html:has(.app-page-shell),
 body:has(.app-page-shell),
-body:has(.auth-shell),
-body:has(.landing-shell) { background: #eaf0f6 !important; }
-.shell.app-page-shell,
-.shell.app-page-shell.dashboard-shell,
-.shell.app-page-shell.inventory-shell { background: transparent; }
-.app-page-shell .dashboard-topbar,
-.app-page-content .page-topbar { border-bottom-color: #b9ccdd !important; }
-.app-page-shell .dashboard-hero,
-.inventory-shell .inventory-header,
-.app-page-content .page-topbar {
-  background: linear-gradient(115deg, #dce9f5 0%, #eaf2f9 58%, #d7e6f3 100%) !important;
-  border-color: #b4cce0 !important;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%), 0 8px 24px rgb(16 42 67 / 5%) !important;
-}
-.app-page-shell .dashboard-shell .dashboard-hero,
-.dashboard-shell .dashboard-hero {
-  background: linear-gradient(110deg, #dce9f5, #eaf2f9 62%, #d7e6f3) !important;
-  border: 1px solid #b4cce0 !important;
-  border-radius: 18px !important;
-}
+body:has(.auth-shell) { background: var(--workspace-canvas) !important; }
+
 .app-page-shell .card,
+.app-page-shell .section-card,
 .app-page-content .card,
-.app-page-shell .dashboard-content .card {
-  background: #f8fbfe !important;
-  border-color: #c1d1df !important;
-  box-shadow: 0 8px 22px rgb(16 42 67 / 5%), inset 0 1px 0 rgb(255 255 255 / 75%) !important;
+.auth-card,
+.inventory-start-dialog {
+  background: var(--workspace-surface) !important;
+  border-color: var(--workspace-line) !important;
+  box-shadow: 0 8px 24px rgb(16 42 67 / 6%) !important;
 }
-.app-page-shell .dashboard-content .section-card:nth-child(odd),
-.app-page-content > .section-card:nth-child(odd) { background: #f1f6fb !important; }
-.app-page-shell .dashboard-content .inventory-card,
-.app-page-content .history-row,
-.app-page-shell .dashboard-content .action-card { background: #eaf2f9 !important; border-color: #bed0df !important; }
-.app-page-shell .dashboard-content .participationPanel,
-.app-page-shell .dashboard-content [id="participar"] { background: linear-gradient(145deg, #e4eef7, #f4f8fc) !important; }
-.app-page-shell .section-card .empty-state,
-.app-page-content .empty-state,
-.app-page-shell .dashboard-content .emptyWorkspace { background: #e5eff8 !important; border-color: #b8cde0 !important; }
+
+.app-page-shell .action-card {
+  border: 1px solid var(--workspace-line) !important;
+  background: var(--workspace-surface) !important;
+  color: var(--workspace-ink) !important;
+  box-shadow: 0 6px 18px rgb(16 42 67 / 6%) !important;
+}
+
+.app-page-shell .action-card:hover:not(:disabled) {
+  border-color: var(--workspace-accent) !important;
+  box-shadow: 0 10px 24px rgb(16 42 67 / 10%) !important;
+  transform: translateY(-2px);
+}
+
+.app-page-shell .action-card strong { color: var(--workspace-ink) !important; }
+.app-page-shell .action-card small { color: var(--workspace-muted) !important; }
+.app-page-shell .action-card.primary-action {
+  border-color: var(--workspace-action) !important;
+  background: var(--workspace-action) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 22px rgb(0 85 150 / 22%) !important;
+}
+.app-page-shell .action-card.primary-action strong,
+.app-page-shell .action-card.primary-action small { color: #fff !important; }
+.app-page-shell .action-card.primary-action small { opacity: .88; }
+.app-page-shell .action-card.primary-action .action-icon {
+  border-color: rgb(255 255 255 / 34%) !important;
+  background: rgb(255 255 255 / 14%) !important;
+  color: #fff !important;
+}
+
+.app-page-shell .primary,
+.app-page-shell .nav-create,
+.app-page-shell .entry-form-submit,
+.app-page-shell .success-button,
+.auth-card .primary {
+  border-color: var(--workspace-action) !important;
+  background: var(--workspace-action) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 18px rgb(0 85 150 / 18%) !important;
+}
+.app-page-shell .primary:hover:not(:disabled),
+.app-page-shell .nav-create:hover:not(:disabled),
+.app-page-shell .entry-form-submit:hover:not(:disabled),
+.auth-card .primary:hover:not(:disabled) { background: var(--workspace-action-hover) !important; }
+
+.app-page-shell .secondary,
+.auth-card .secondary {
+  border-color: var(--workspace-line) !important;
+  background: var(--workspace-surface) !important;
+  color: var(--workspace-action) !important;
+}
+.app-page-shell .secondary:hover:not(:disabled),
+.auth-card .secondary:hover:not(:disabled) { background: var(--workspace-soft) !important; border-color: var(--workspace-action) !important; }
+
+.app-page-shell :is(button, a, input, select, textarea, summary):focus-visible,
+.auth-shell :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--workspace-focus) !important;
+  outline-offset: 3px;
+}
+
 .app-page-shell .status-pill,
 .app-page-shell .micro-pill,
 .app-page-content .status-pill,
-.app-page-content .micro-pill { background: #e1edf7 !important; border-color: #b3cadf !important; }
-.app-page-content .metric-card,
-.inventory-shell .metric-card {
-  background: linear-gradient(145deg, #f8fbfe, #eaf2f9) !important;
-  border-color: #bdd0e0 !important;
+.app-page-content .micro-pill {
+  border-color: var(--workspace-line) !important;
+  background: var(--workspace-soft) !important;
+  color: var(--workspace-action) !important;
 }
-.inventory-shell .inventory-control-panel { background: linear-gradient(145deg, #e1edf7, #edf4fa) !important; }
-.inventory-shell .entry-workspace > form,
-.inventory-shell .entries-section,
-.inventory-shell .reference-panel { background: linear-gradient(145deg, #f8fbfe, #edf4fa) !important; }
-.inventory-shell .entries-section > .card,
-.inventory-shell .entry-row { background: #e8f1f8 !important; border-color: #bfd0df !important; }
-.inventory-shell .reference-empty,
-.inventory-shell .reference-preview,
-.inventory-shell .reference-file-meta { background: #e3eef7 !important; border-color: #b7cddd !important; }
-.app-page-content .details-box,
-.app-page-content .report-table-wrap { background: #f1f6fb !important; border-color: #bdcfdf !important; }
-.app-page-content .details-box summary,
-.app-page-content .report-table th { background: #e1edf7 !important; }
-.app-page-content .segmented-control { background: #e1edf7 !important; border-color: #b9ccdd !important; }
-.app-page-content .report-summary-item { background: #e2edf7 !important; border-color: #bfd0df !important; }
-.app-page-shell > .app-rail { background: linear-gradient(180deg, #f8fbfe, #e9f1f8) !important; border-color: #b9ccdd !important; }
+.app-page-shell :is(.status-pill.good, .micro-pill.good),
+.app-page-content :is(.status-pill.good, .micro-pill.good) {
+  border-color: #b9dfc8 !important;
+  background: var(--workspace-success-soft) !important;
+  color: var(--workspace-success) !important;
+}
+.app-page-shell :is(.status-pill.pending, .micro-pill.pending),
+.app-page-content :is(.status-pill.pending, .micro-pill.pending) {
+  border-color: #e8cf91 !important;
+  background: var(--workspace-warning-soft) !important;
+  color: var(--workspace-warning) !important;
+}
+.app-page-shell :is(.status-pill.conflict, .micro-pill.conflict, .status-pill.deleted, .micro-pill.deleted),
+.app-page-content :is(.status-pill.conflict, .micro-pill.conflict, .status-pill.deleted, .micro-pill.deleted) {
+  border-color: #e8bbb6 !important;
+  background: var(--workspace-danger-soft) !important;
+  color: var(--workspace-danger) !important;
+}
+.app-page-shell :is(.status-pill.good, .micro-pill.good, .status-pill.pending, .micro-pill.pending, .status-pill.conflict, .micro-pill.conflict, .status-pill.deleted, .micro-pill.deleted)::before {
+  display: inline-block;
+  margin-right: 5px;
+  font-weight: 900;
+}
+.app-page-shell :is(.status-pill.good, .micro-pill.good)::before { content: "✓"; }
+.app-page-shell :is(.status-pill.pending, .micro-pill.pending)::before { content: "◷"; }
+.app-page-shell :is(.status-pill.conflict, .micro-pill.conflict)::before { content: "!"; }
+.app-page-shell :is(.status-pill.deleted, .micro-pill.deleted)::before { content: "×"; }
+
+.app-page-shell .notice,
+.app-page-shell .error,
+.app-page-content .notice,
+.app-page-content .error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.app-page-shell .notice::before,
+.app-page-content .notice::before { content: "i"; flex: 0 0 auto; font-weight: 900; }
+.app-page-shell .error::before,
+.app-page-content .error::before { content: "!"; flex: 0 0 auto; font-weight: 900; }
+
+.app-page-shell .notice { border-color: #b9d4e8 !important; background: #edf6fb !important; color: #164a72 !important; }
+.app-page-shell .error { border-color: #e8bbb6 !important; background: var(--workspace-danger-soft) !important; color: var(--workspace-danger) !important; }
+.app-page-shell .app-rail { border-color: var(--workspace-line) !important; background: var(--workspace-surface) !important; }
 .app-page-shell .app-rail .dashboard-nav-link.active,
-.app-page-shell .app-rail .rail-more > summary.active { background: #dceaf6 !important; }
-.auth-shell { background: #eaf0f6 !important; }
-.auth-main { background: linear-gradient(145deg, #e5edf5, #f0f5fa 60%, #dfeaf4) !important; }
-.auth-card { background: linear-gradient(145deg, #f8fbfe, #eaf2f9) !important; border-color: #b7cddd !important; box-shadow: 0 20px 50px rgb(16 42 67 / 12%) !important; }
-.auth-card input { background: #f7fbfe !important; }
-.auth-aside { box-shadow: inset -1px 0 0 rgb(255 255 255 / 20%); }
-.inventory-start-dialog { background: linear-gradient(145deg, #f8fbfe, #eaf2f9) !important; }
-main[class*="shell_"] { background-color: #eaf0f6; }
-main[class*="shell_"] [class*="card_"] { background-color: #f1f6fb; border-color: #c1d1df; box-shadow: 0 8px 22px rgb(16 42 67 / 6%); }
-main[class*="shell_"] [class*="metric_"] { background: linear-gradient(145deg, #f8fbfe, #e6f0f8); border-color: #bfd0df; }
-main[class*="shell_"] [class*="record_"]:hover,
-main[class*="shell_"] [class*="periods_"] > div { background: #e2edf7; }
-main[class*="shell_"] [class*="filters_"] :is(input, select),
-main[class*="shell_"] [class*="modal_"] :is(input, select, textarea) { background: #f7fbfe; }
+.app-page-shell .app-rail .rail-more > summary.active { background: var(--workspace-soft) !important; }
+
 @media (max-width: 1199px) {
-  .shell.app-page-shell > .app-rail { background: #f8fbfe !important; }
+  .shell.app-page-shell > .app-rail {
+    border-top-color: var(--workspace-line) !important;
+    background: rgb(255 255 255 / 98%) !important;
+    box-shadow: 0 -6px 22px rgb(16 42 67 / 10%) !important;
+  }
+  .shell.app-page-shell > .app-rail .dashboard-nav > .dashboard-nav-link,
+  .shell.app-page-shell > .app-rail .dashboard-nav > .rail-more > summary { min-height: 60px; }
+  .shell.app-page-shell > .app-rail .dashboard-nav-link.active,
+  .shell.app-page-shell > .app-rail .rail-more.active > summary { box-shadow: inset 0 3px 0 var(--workspace-accent) !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-page-shell .action-card,
+  .app-page-shell .dashboard-nav-link { transition: none !important; transform: none !important; }
 }

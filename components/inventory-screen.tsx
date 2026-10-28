@@ -372,7 +372,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
             <h1>Inventário {formatBrazilianDate(inventory.date)}</h1>
              <p className="muted">Registros físicos ficam salvos neste dispositivo e seguem disponíveis sem internet.</p>
           </div>
-          <span className="status-pill">{readOnly ? "Finalizado" : inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span>
+          <span className={`status-pill ${readOnly || inventory.syncStatus === "SYNCED" ? "good" : "pending"}`}>{readOnly ? "Finalizado" : inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span>
         </div>
       </header>
 

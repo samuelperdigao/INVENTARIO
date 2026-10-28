@@ -88,7 +88,7 @@ export function SyncPanel({ inventory, onSynced, embedded = false }: SyncPanelPr
             <p className="muted">{inventory.syncStatus === "SYNCED" ? "Os lançamentos deste dispositivo estão em dia." : "Há lançamentos locais aguardando envio."}</p>
           </div>
         </div>
-        <span className={`micro-pill ${inventory.syncStatus === "SYNCED" ? "good" : ""}`}>{inventory.syncStatus === "SYNCED" ? "Em dia" : "Pendente"}</span>
+        <span className={`micro-pill ${inventory.syncStatus === "SYNCED" ? "good" : "pending"}`}>{inventory.syncStatus === "SYNCED" ? "Em dia" : "Pendente"}</span>
       </div> : <p className="muted">Envie os lançamentos preservados neste dispositivo quando houver conexão.</p>}
 
       <button className="secondary" type="button" onClick={() => void handleSync()} disabled={loading} aria-busy={loading}>{loading ? "Sincronizando…" : "Sincronizar agora"}</button>
@@ -100,7 +100,7 @@ export function SyncPanel({ inventory, onSynced, embedded = false }: SyncPanelPr
       </div> : null}
 
       {conflicts.length > 0 ? <div className="stack" aria-label="Conflitos de sincronização">
-        <p className="error">{conflicts.length} conflito(s) aguardando decisão. Os dois dados foram preservados.</p>
+        <p className="error" data-state="conflict">{conflicts.length} conflito(s) aguardando decisão. Os dois dados foram preservados.</p>
         {conflicts.map((conflict) => <div className="notice" key={conflict.id}>
           <p>Conflito em {conflictLabel(conflict)}.</p>
           <div className="actions"><button className="secondary" type="button" onClick={() => void choose(conflict, "local")}>Manter minha versão</button><button className="secondary" type="button" onClick={() => void choose(conflict, "server")}>Usar versão central</button></div>

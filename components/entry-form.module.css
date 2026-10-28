@@ -90,23 +90,23 @@
 }
 
 .modalCard {
-  border-color: rgba(255, 204, 0, .56);
+  border-color: var(--workspace-line);
   border-radius: 20px;
-  background: linear-gradient(145deg, #fff, #f4f8fa);
-  box-shadow: 0 30px 80px rgba(0, 51, 102, .30);
+  background: var(--workspace-surface);
+  box-shadow: 0 30px 80px rgb(16 42 67 / 22%);
 }
 
 .modalHeader h3 {
-  color: #003366;
+  color: var(--workspace-ink);
 }
 
 .duplicateItem {
-  border-color: #c1ddef;
-  background: #e8f3f9;
+  border-color: var(--workspace-line);
+  background: var(--workspace-soft);
 }
 
 .duplicateMeta {
-  color: #607381;
+  color: var(--workspace-muted);
 }
 
 .modalActions button {

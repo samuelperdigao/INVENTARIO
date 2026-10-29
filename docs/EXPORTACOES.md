@@ -163,18 +163,37 @@ Uma variante `.rtf` ou `.doc` não foi adicionada porque a estrutura atual não
 oferece uma geração legada segura sem introduzir conversão externa ou alterar
 o fluxo existente.
 
-O PDF e o Word apresentam Resumo, Observação operacional, Inventário, Lotes
-consolidados e Lotes para conferência. A data do inventário e a observação
-aparecem uma única vez (subtítulo e seção própria), fora da tabela de resumo.
-Títulos de seção nunca ficam sozinhos no fim da página: o PDF exige espaço
-mínimo antes de cada título e o Word mantém o título com a tabela seguinte e
-não parte linhas entre páginas. Quando há referência, acrescentam uma seção `Conciliação com
-referência de lotes` com a mesma linha lógica e as mesmas colunas da aba Excel.
-Ambos usam uma linha lógica por lote na seção de conferência, quebra de texto
-para locais e ações e as quatro situações visíveis: OK, uma peça fora do local
-principal, múltiplas peças fora do local principal e lote distribuído em mais
-de um local. O PDF é A4 horizontal e o Word usa orientação horizontal para
-evitar compressão das colunas operacionais.
+O PDF e o Word são destinados à liderança da área de logística e seguem a
+mesma estrutura, em A4 horizontal:
+
+1. **Painel**: registros, peças, lotes e vãos; linha `200 lotes OK × 7 para
+   conferência` com a contagem por estado; quadro por lado (EF/DE: registros,
+   peças, vãos e lotes); quadro "Conferência dos totais" (soma dos
+   lançamentos, soma dos lotes, total do resumo, soma dos subtotais por vão e
+   registros lançados × resumo, todos vindos da autoverificação); mapa de
+   peças por lado × vão; resumo da referência SAP quando houver; observação
+   operacional.
+2. **Lotes para conferência**: uma linha por lote, numerada na ordem de
+   trajeto no pátio (lado EF e depois DE, vãos e camadas em ordem crescente,
+   pelo local principal ou, sem local principal, pelo primeiro local do
+   lote), com situação, local principal, outros locais, peças fora e ação.
+3. **Lançamentos por lado e vão**: cada lançamento exatamente como foi
+   gerado, agrupado por lado e vão, com subtotal por vão, total por lado e
+   total geral. Duas colunas por página.
+4. **Anexo: lotes consolidados**: todos os lotes com peças, localização e
+   situação, em duas colunas por página.
+5. **Conciliação com referência de lotes**, somente quando há referência,
+   com as mesmas colunas da aba Excel.
+
+Cor indica apenas estado: amarelo para uma peça fora, laranja para múltiplas
+peças fora ou revisão, vermelho para lote distribuído. Lotes OK não têm cor.
+Cabeçalhos usam navy `#003b63`; subtotais e totais usam cinza neutro e o
+total geral usa navy. Data do inventário, revisão e "Gerado em" aparecem uma
+única vez, no subtítulo. Títulos de seção nunca ficam sozinhos no fim da
+página: o PDF exige espaço mínimo antes de cada título e o Word mantém o
+título com a tabela seguinte e não parte linhas entre páginas. No inventário
+de referência (216 registros) o PDF tem 9 páginas, contra 20 da estrutura
+anterior.
 
 O compartilhamento nativo continua oferecendo PDF, `.xlsx` e `.docx` por link
 temporário assinado. O download direto oferece também o `.xls` compatível,

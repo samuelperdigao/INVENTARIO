@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 from docx import Document
+from docx.oxml.ns import qn
 from openpyxl import load_workbook
 from pypdf import PdfReader
 from xlrd import XL_CELL_BLANK, XL_CELL_DATE, XL_CELL_NUMBER, XL_CELL_TEXT, open_workbook, xldate_as_datetime
@@ -28,6 +29,7 @@ from app.reports import (
     export_pdf,
     export_xls,
     export_xlsx,
+    SECTION_TITLES,
     format_generated_at,
 )
 
@@ -106,14 +108,13 @@ def _pdf_lines(content: bytes) -> list[str]:
 
 
 def _pdf_section(lines: list[str], start: str, end: str | None) -> list[str]:
-    # O título da seção é a última ocorrência: "Lotes para conferência" também é rótulo do resumo.
-    first = len(lines) - 1 - lines[::-1].index(start)
+    first = lines.index(start)
     last = lines.index(end, first) if end else len(lines)
     return lines[first:last]
 
 
 def _pdf_records(content: bytes) -> list[Record]:
-    lines = _pdf_section(_pdf_lines(content), "Inventário", "Lotes consolidados")
+    lines = _pdf_section(_pdf_lines(content), "3. Lançamentos por lado e vão", "4. Anexo: lotes consolidados")
     return [
         (lines[index], lines[index + 1], _layer(lines[index + 2]), lines[index + 3], _int(lines[index + 4]))
         for index in range(len(lines) - 4)
@@ -166,26 +167,41 @@ def test_totals_close_in_every_format(report: dict[str, object], files: dict[str
     xlsx_summary = {xlsx_sheet.cell(row, 1).value: xlsx_sheet.cell(row, 2).value for row in range(5, xlsx_sheet.max_row + 1)}
     xls_sheet = open_workbook(file_contents=files["xls"]).sheet_by_name("RESUMO")
     xls_summary = {xls_sheet.cell_value(row, 0): xls_sheet.cell_value(row, 1) for row in range(4, xls_sheet.nrows)}
-    docx_summary = {
-        row.cells[0].text: row.cells[1].text
-        for row in _docx_table_summary(Document(BytesIO(files["docx"]))).rows[1:]
-    }
-    pdf_lines = _pdf_section(_pdf_lines(files["pdf"]), "Resumo geral", "Observação operacional")
-    pdf_summary = {pdf_lines[index]: pdf_lines[index + 1] for index in range(len(pdf_lines) - 1)}
     for label, value in expected_summary.items():
         assert xlsx_summary[label] == value, label
         assert xls_summary[label] == value, label
-        assert _int(docx_summary[label]) == value, label
-        assert _int(pdf_summary[label]) == value, label
-    assert docx_summary["Total de peças"] == pdf_summary["Total de peças"] == "2.667"
+
+    # Painel do PDF e do Word: indicadores, OK × conferência e conferência dos totais.
+    expected_kpis = {"Registros": "216", "Peças": "2.667", "Lotes": "207", "Vãos": "31"}
+    document = Document(BytesIO(files["docx"]))
+    kpi_table = next(table for table in document.tables if table.rows[0].cells[0].text.startswith("Registros\n"))
+    assert dict(cell.text.split("\n") for cell in kpi_table.rows[0].cells) == expected_kpis
+    panel = _pdf_section(_pdf_lines(files["pdf"]), "1. Painel", "2. Lotes para conferência")
+    assert {label: panel[panel.index(label) + 1] for label in expected_kpis} == expected_kpis
+    status = "200 lotes OK × 7 para conferência"
+    assert status in panel
+    assert status in "\n".join(paragraph.text for paragraph in document.paragraphs)
+
+    expected_check = {
+        "Soma dos lançamentos": "2.667",
+        "Soma dos lotes": "2.667",
+        "Total do resumo": "2.667",
+        "Soma dos subtotais por vão": "2.667",
+        "Registros: lançados × resumo": "216 × 216",
+        "Resultado": "Confere",
+    }
+    assert {label: panel[panel.index(label) + 1] for label in expected_check} == expected_check
+    check_table = _docx_nested_table(document, "Conferência dos totais")
+    assert {row.cells[0].text: row.cells[1].text for row in check_table.rows[1:]} == expected_check
 
     inventory = load_workbook(BytesIO(files["xlsx"]))["INVENTÁRIO"]
     assert inventory.cell(inventory.max_row, 1).value == "TOTAL"
     assert inventory.cell(inventory.max_row, 5).value == EXPECTED["pieces"]
 
 
-def _docx_table_summary(document):
-    return next(table for table in document.tables if table.rows[0].cells[0].text == "Indicador")
+def _docx_nested_table(document, first_header: str):
+    tables = list(document.tables) + [nested for table in document.tables for row in table.rows for cell in row.cells for nested in cell.tables]
+    return next(table for table in tables if table.rows[0].cells[0].text == first_header)
 
 
 def _lot_totals_xlsx(content: bytes, sheet_name: str) -> dict[str, int]:
@@ -202,9 +218,13 @@ def _lot_totals_xls(content: bytes, sheet_name: str) -> dict[str, int]:
     }
 
 
-def _lot_totals_docx(content: bytes, third_header: str) -> dict[str, int]:
-    table = _docx_table(Document(BytesIO(content)), "Lote", third_header)
-    return {row.cells[0].text: _int(row.cells[1].text) for row in table.rows[1:] if LOT_PATTERN.match(row.cells[0].text)}
+def _lot_totals_docx(content: bytes, first_header: str, third_header: str, lot_column: int = 0) -> dict[str, int]:
+    table = _docx_table(Document(BytesIO(content)), first_header, third_header)
+    return {
+        row.cells[lot_column].text: _int(row.cells[lot_column + 1].text)
+        for row in table.rows[1:]
+        if LOT_PATTERN.match(row.cells[lot_column].text)
+    }
 
 
 def _lot_totals_pdf(content: bytes, start: str, end: str | None) -> dict[str, int]:
@@ -217,8 +237,8 @@ def test_lots_and_conference_match_across_formats(report: dict[str, object], fil
     assert len(lots) == EXPECTED["lots"]
     assert _lot_totals_xlsx(files["xlsx"], "LOTES CONSOLIDADOS") == lots
     assert _lot_totals_xls(files["xls"], "LOTES CONSOLIDADOS") == lots
-    assert _lot_totals_docx(files["docx"], "Localização") == lots
-    assert _lot_totals_pdf(files["pdf"], "Lotes consolidados", "Lotes para conferência") == lots
+    assert _lot_totals_docx(files["docx"], "Lote", "Localização") == lots
+    assert _lot_totals_pdf(files["pdf"], "4. Anexo: lotes consolidados", None) == lots
 
     conference = {
         str(lot["lot"]): int(lot["totalQuantity"])
@@ -228,8 +248,8 @@ def test_lots_and_conference_match_across_formats(report: dict[str, object], fil
     assert len(conference) == EXPECTED["lotsForConference"]
     assert _lot_totals_xlsx(files["xlsx"], "LOTES PARA CONFERÊNCIA") == conference
     assert _lot_totals_xls(files["xls"], "LOTES PARA CONFERÊNCIA") == conference
-    assert _lot_totals_docx(files["docx"], "Situação") == conference
-    assert _lot_totals_pdf(files["pdf"], "Lotes para conferência", None) == conference
+    assert _lot_totals_docx(files["docx"], "Ordem", "Total", lot_column=1) == conference
+    assert _lot_totals_pdf(files["pdf"], "2. Lotes para conferência", "3. Lançamentos por lado e vão") == conference
 
 
 def test_excel_cell_types(files: dict[str, bytes]) -> None:
@@ -283,13 +303,13 @@ def test_documents_show_local_time_dates_and_page_count(files: dict[str, bytes])
     assert "Gerado em: 07/10/2026 às 20:20" in paragraphs
     footer_xml = document.sections[0].footer._element.xml
     assert "NUMPAGES" in footer_xml and " PAGE " in footer_xml
-    summary_labels = [row.cells[0].text for row in _docx_table_summary(document).rows]
-    assert "Data do inventário" not in summary_labels
-    assert "Observações importantes" not in summary_labels
+    cells = [cell.text for table in document.tables for row in table.rows for cell in row.cells]
+    assert "Data do inventário" not in cells
+    assert "Observações importantes" not in cells
 
 
 def test_pdf_has_no_orphan_heading_and_no_duplicated_observation(files: dict[str, bytes]) -> None:
-    headings = {"Resumo geral", "Observação operacional", "Inventário", "Lotes consolidados", "Lotes para conferência"}
+    headings = set(SECTION_TITLES) | {"Quadro por lado", "Conferência dos totais", "Mapa de peças por lado e vão"}
     for page in PdfReader(BytesIO(files["pdf"])).pages:
         lines = [line.strip() for line in (page.extract_text() or "").splitlines() if line.strip()]
         content = [line for line in lines if not line.startswith("Página ")]
@@ -334,3 +354,58 @@ def test_export_endpoint_reports_the_inconsistency_clearly(report: dict[str, obj
     assert error.value.status_code == 500
     assert "Relatório não gerado: os totais não conferem" in str(error.value.detail)
     assert "2.667" in str(error.value.detail) and "2.668" in str(error.value.detail)
+
+
+def test_pdf_and_word_follow_the_delivery_structure(files: dict[str, bytes]) -> None:
+    lines = _pdf_lines(files["pdf"])
+    positions = [lines.index(title) for title in SECTION_TITLES[:4]]
+    assert positions == sorted(positions)
+    assert len(PdfReader(BytesIO(files["pdf"])).pages) <= 11
+
+    document = Document(BytesIO(files["docx"]))
+    paragraphs = [paragraph.text for paragraph in document.paragraphs]
+    word_positions = [paragraphs.index(title) for title in SECTION_TITLES[:4]]
+    assert word_positions == sorted(word_positions)
+    columns = [section._sectPr.find(qn("w:cols")) for section in document.sections]
+    assert [element.get(qn("w:num")) if element is not None else None for element in columns][-1] == "2"
+
+
+def test_conference_lots_follow_the_yard_route(report: dict[str, object], files: dict[str, bytes]) -> None:
+    table = _docx_table(Document(BytesIO(files["docx"])), "Ordem", "Total")
+    order = [row.cells[1].text for row in table.rows[1:]]
+    assert order == ["2715284734", "2816141031", "2815286936", "2816112536", "2815458132", "2816112535", "2815602832"]
+    assert [row.cells[0].text for row in table.rows[1:]] == [str(index) for index in range(1, 8)]
+
+
+def test_grouped_records_have_exact_subtotals(report: dict[str, object], files: dict[str, bytes]) -> None:
+    table = _docx_table(Document(BytesIO(files["docx"])), "Lado", "Camada")
+    running = 0
+    subtotals: list[int] = []
+    side_totals: list[int] = []
+    for row in table.rows[1:]:
+        cells = [cell.text for cell in row.cells]
+        if cells[0] in {"DE", "EF"}:
+            running += _int(cells[4])
+        elif cells[3].startswith("Subtotal"):
+            assert _int(cells[4]) == running, cells[3]
+            subtotals.append(running)
+            running = 0
+        elif cells[3].startswith("Total lado"):
+            side_totals.append(_int(cells[4]))
+        elif cells[0] == "TOTAL":
+            assert _int(cells[4]) == EXPECTED["pieces"]
+    assert len(subtotals) == EXPECTED["bays"]
+    assert sum(subtotals) == sum(side_totals) == EXPECTED["pieces"]
+    assert side_totals == [1484, 1183]
+
+
+def test_color_only_marks_state(files: dict[str, bytes]) -> None:
+    table = _docx_table(Document(BytesIO(files["docx"])), "Lote", "Localização")
+    for row in table.rows[1:]:
+        shading = row.cells[0]._tc.tcPr.find(qn("w:shd"))
+        if row.cells[3].text == "OK":
+            assert shading is None
+        else:
+            assert shading is not None
+    header_fill = table.rows[0].cells[0]._tc.tcPr.find(qn("w:shd")).get(qn("w:fill"))
+    assert header_fill == "003B63"

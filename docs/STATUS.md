@@ -1,5 +1,33 @@
 # Status do projeto
 
+## Base visual (PR 1 do redesenho) — 29/10/2026
+
+Primeira etapa do novo visual, sem alterar API, IndexedDB, sincronização,
+autenticação, regras de lote, finalização ou exportações.
+
+- `app/tokens.css`: fonte única de tokens `--inv-*` (cor, tipo, espaço, forma,
+  movimento), com contrastes AA documentados. A paleta `--workspace-*` de
+  `app/app-redesign.css` passa a apontar para esses tokens, sem mudança visual.
+- Fontes Inter e JetBrains Mono carregadas por `next/font/google` (servidas pelo
+  próprio app, funcionam offline). Antes, Inter era declarada mas não carregada.
+- Correção: título, rótulo e dica do painel "Controle do inventário" estavam
+  invisíveis (branco/azul-claro sobre fundo branco, contraste 1:1). Removidas
+  as duas cópias das regras globais com `!important` feitas para o painel
+  escuro antigo; passam a valer as cores do módulo do componente.
+- Correção: número da etapa ativa (01) navy sobre fundo navy.
+- Correção: a tela "Inventário indisponível" usava a paleta azul antiga; agora
+  usa a paleta operacional.
+- Correção: o menu lateral não acompanhava a rolagem no desktop. `html, body`
+  tinham `overflow-x: hidden`, o que transforma o `body` em contêiner de
+  rolagem e anula o `position: sticky`. Trocado por `overflow-x: clip`, que
+  corta o excesso lateral sem criar contêiner. Novo teste rola o painel em
+  1366 px e confirma que o menu fica parado (no código anterior ele subia 250 px).
+- Novo teste Playwright mede o contraste real do painel de controle e da etapa
+  ativa em 390 e 1366 px; falha no código anterior (contraste 1:1) e passa com
+  a correção.
+- ESLint, TypeScript, Vitest (86), build de produção e Playwright (19 cenários) aprovados localmente. Pytest fica a cargo do `validate`.
+- Pendente: validação em Android e iPhone físicos.
+
 ## Alinhamento documental — 29/10/2026
 
 Correção somente de documentação, sem alteração de código, schema, API ou

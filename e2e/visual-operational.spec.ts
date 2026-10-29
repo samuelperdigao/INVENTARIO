@@ -257,3 +257,51 @@ test("mostra a tela segura quando o inventário não está no dispositivo", asyn
   await expect(page.getByRole("link", { name: "Participar com código", exact: true })).toHaveAttribute("href", "/dashboard#participar");
   await expect(page.getByText(/não foi localizado neste dispositivo/i)).toBeVisible();
 });
+
+test("mantém título do controle e número da etapa ativa legíveis sobre o fundo real", async ({ page }) => {
+  const { ownerEmail } = seedUsers("visual-contrast-regression");
+  await login(page, ownerEmail);
+  await page.getByRole("button", { name: /Iniciar novo inventário/ }).click();
+  await page.getByRole("button", { name: "Continuar sem planilha", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Controle do inventário", exact: true })).toBeAttached();
+
+  for (const viewport of [{ width: 390, height: 844 }, { width: 1366, height: 768 }]) {
+    await page.setViewportSize(viewport);
+    const results = await page.evaluate(() => {
+      function rgb(value: string): number[] {
+        const match = value.match(/rgba?\(([\d.]+)\D+([\d.]+)\D+([\d.]+)(?:\D+([\d.]+))?/);
+        if (!match) throw new Error(`Cor não analisável: ${value}`);
+        return [Number(match[1]), Number(match[2]), Number(match[3]), match[4] === undefined ? 1 : Number(match[4])];
+      }
+      // Fundo efetivo: sobe na árvore até achar uma cor opaca (ignora transparências parciais).
+      function background(element: Element): number[] {
+        let node: Element | null = element;
+        while (node) {
+          const color = rgb(getComputedStyle(node).backgroundColor);
+          if (color[3] >= 0.95 && getComputedStyle(node).backgroundImage === "none") return color;
+          node = node.parentElement;
+        }
+        return [255, 255, 255, 1];
+      }
+      function luminance(color: number[]): number {
+        return color.slice(0, 3).map((channel) => channel / 255).map((channel) => channel <= .03928 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+      }
+      function contrastOf(element: Element | null): number {
+        if (!element) throw new Error("Elemento não encontrado");
+        const fg = luminance(rgb(getComputedStyle(element).color));
+        const bg = luminance(background(element));
+        return (Math.max(fg, bg) + .05) / (Math.min(fg, bg) + .05);
+      }
+      const header = document.querySelector(".control-panel-header");
+      return {
+        title: contrastOf(header?.querySelector("h2") ?? null),
+        eyebrow: contrastOf(header?.querySelector(".eyebrow") ?? null),
+        hint: contrastOf(document.querySelector(".control-panel-hint")),
+        activeStep: contrastOf(document.querySelector(".inventory-process li.active > span")),
+      };
+    });
+    for (const [label, value] of Object.entries(results)) {
+      expect(value, `${label} em ${viewport.width}px precisa atingir contraste WCAG AA`).toBeGreaterThanOrEqual(4.5);
+    }
+  }
+});

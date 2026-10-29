@@ -50,3 +50,18 @@ test("prioriza a operação no desktop e mantém o fluxo utilizável em todos os
     }
   }
 });
+
+test("menu lateral acompanha a rolagem no desktop", async ({ page }) => {
+  const { ownerEmail } = seedUsers("rail-sticky");
+  await login(page, ownerEmail);
+  await page.setViewportSize({ width: 1366, height: 520 });
+  const rail = page.getByRole("complementary", { name: "Navegação do sistema" });
+  await expect(rail).toBeVisible();
+  const scrollable = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+  expect(scrollable, "a página precisa rolar para o teste fazer sentido").toBeGreaterThan(200);
+  const before = await rail.boundingBox();
+  await page.mouse.wheel(0, 250);
+  await page.waitForFunction(() => window.scrollY > 150);
+  const after = await rail.boundingBox();
+  expect(Math.abs((after?.y ?? 0) - (before?.y ?? 0)), "o menu não pode subir junto com a página").toBeLessThan(2);
+});

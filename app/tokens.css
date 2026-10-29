@@ -1,0 +1,65 @@
+/*
+ * Design tokens do INVENTARIO — fonte única de cor, tipo, espaço, forma e movimento.
+ * Componentes novos usam somente var(--inv-*). As paletas antigas (--workspace-*, --blue-*)
+ * são migradas aos poucos para estes nomes.
+ * Contrastes medidos (WCAG 2.x, AA): ver comentários de cada par.
+ */
+:root {
+  /* Neutros */
+  --inv-canvas: #f3f6f9;
+  --inv-surface: #ffffff;
+  --inv-surface-soft: #f7fafc;
+  --inv-surface-sunk: #eef2f6;
+  --inv-line: #c4d0db;
+  --inv-line-soft: #dde5ec;
+  --inv-ink: #0b2239;   /* 16.1:1 no branco */
+  --inv-ink-2: #435a70; /* 7.2:1 no branco */
+  --inv-ink-3: #5c7085; /* 5.1:1 no branco — mínimo para texto */
+
+  /* Marca e ação */
+  --inv-action: #003b63;       /* texto branco 11.6:1 */
+  --inv-action-hover: #002b49;
+  --inv-action-soft: #e3edf5;
+  --inv-accent: #1c527c;
+  --inv-focus: #1c527c;
+
+  /* Estado (sempre com ícone ou texto junto) */
+  --inv-ok: #176b45;      --inv-ok-soft: #e9f6ee;      /* 5.9:1 */
+  --inv-warn: #8a5a00;    --inv-warn-soft: #fff5d8;    /* 5.5:1 */
+  --inv-danger: #a3312b;  --inv-danger-soft: #fff0ee;  /* 6.3:1 */
+  --inv-offline: #4f6478; --inv-offline-soft: #eef2f6; /* 5.5:1 */
+
+  /* Superfície navy (cabeçalhos) */
+  --inv-navy: #003b63;
+  --inv-navy-deep: #00223a;
+  --inv-on-navy: #ffffff;
+  --inv-on-navy-2: #c9d8e6;  /* 8.0:1 no navy */
+  --inv-on-navy-ok: #86e0a8; /* 7.3:1 no navy */
+  --inv-on-navy-line: rgba(255, 255, 255, .22);
+  --inv-on-navy-fill: rgba(255, 255, 255, .10);
+  --inv-safety: #f2b63d;     /* faixa de segurança do pátio — acento decorativo, 6.4:1 no navy */
+
+  /* Tipografia */
+  --inv-font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --inv-font-mono: var(--font-mono), ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  /* Espaço */
+  --inv-space-1: 4px;  --inv-space-2: 8px;  --inv-space-3: 12px; --inv-space-4: 16px;
+  --inv-space-5: 24px; --inv-space-6: 32px; --inv-space-7: 48px; --inv-space-8: 64px;
+
+  /* Forma e elevação */
+  --inv-radius-sm: 8px;
+  --inv-radius-md: 12px;
+  --inv-radius-lg: 16px;
+  --inv-radius-xl: 20px;
+  --inv-radius-pill: 999px;
+  --inv-shadow-1: 0 1px 2px rgba(11, 34, 57, .06), 0 1px 1px rgba(11, 34, 57, .04);
+  --inv-shadow-2: 0 4px 12px rgba(11, 34, 57, .08);
+  --inv-shadow-3: 0 12px 32px rgba(11, 34, 57, .14);
+
+  /* Toque, camadas e movimento */
+  --inv-touch: 48px;
+  --inv-z-sticky: 10; --inv-z-nav: 20; --inv-z-sheet: 40; --inv-z-toast: 60; --inv-z-modal: 100;
+  --inv-dur-fast: 150ms; --inv-dur: 220ms; --inv-dur-slow: 320ms;
+  --inv-ease-out: cubic-bezier(.2, .8, .2, 1);
+}

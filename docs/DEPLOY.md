@@ -88,6 +88,10 @@ A correção documental é considerar `0009` a última revisão documentada, sem
 
 ## Comandos de migration
 
+No deploy do Render, `render.yaml` executa `alembic upgrade head` em
+`preDeployCommand` antes de iniciar a API. Os comandos abaixo servem para
+consulta e operação manual autorizada.
+
 ```bash
 read -r -s INVENTORY_DATABASE_URL
 export INVENTORY_DATABASE_URL

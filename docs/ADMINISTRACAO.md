@@ -18,7 +18,7 @@
 - Finalizações após reabertura criam outra versão. Versões anteriores podem ser consultadas e exportadas nos quatro formatos pela interface administrativa.
 - A finalização pelo administrador e a finalização operacional usam a mesma regra de domínio e o mesmo gerador de relatório; a ação administrativa registra autor e auditoria.
 - A transferência muda somente o responsável daquele inventário. Os autores dos lançamentos continuam registrados. Um OPEN fica disponível para sincronização do novo responsável; um FINISHED permanece finalizado e entra no histórico da nova conta.
-- Importação SAP usa o parser existente: `.xlsx`, coluna `Lotes`, dez dígitos com início 27 ou 28. Peso e demais colunas não são persistidos. Lotes fora da referência continuam lançáveis.
+- Importação SAP usa o parser existente: `.xlsx`, coluna `Lote` ou `Lotes`, dez dígitos com início 27 ou 28. Peso e demais colunas não são persistidos. Lotes fora da referência continuam lançáveis.
 
 ## Primeira conta administrativa
 

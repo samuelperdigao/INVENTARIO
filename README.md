@@ -7,7 +7,7 @@ Aplicação mobile-first para coleta, sincronização, análise e fechamento de 
 - Frontend publicado: [inventariolpe.vercel.app](https://inventariolpe.vercel.app)
 - Backend publicado: [inventory-api-6o8h.onrender.com](https://inventory-api-6o8h.onrender.com)
 - Banco de produção: PostgreSQL no Neon
-- Última migration documentada como aplicada: `0009_system_admin` em 23/09/2026, conforme `docs/STATUS.md`; estado do banco não reconsultado nesta PR.
+- Última migration da cadeia: `0010_participant_sync_sessions`, aplicada em produção pelo `preDeployCommand` do Render em 05/10/2026, conforme `docs/STATUS.md`; estado do banco não reconsultado nesta PR.
 - Referência SAP via Excel publicada no commit `9e05c46`
 - Baseline estável: branch `main`
 - Pendências conhecidas: validação em Android e Safari/iPhone físicos
@@ -136,12 +136,16 @@ A revisão `0009_system_admin` acrescenta permissão global, auditoria, geraçõ
 operacionais e versões de relatórios. Ela preserva como versão 1 os relatórios
 finalizados anteriormente. Aplique-a antes do deploy da API correspondente.
 
+A revisão `0010_participant_sync_sessions` é aditiva e cria sessões de
+sincronização independentes por participante, sem invalidar o token legado do
+proprietário.
+
 ```bash
 backend/.venv/bin/python -m alembic -c backend/alembic.ini current
 backend/.venv/bin/python -m alembic -c backend/alembic.ini upgrade head
 ```
 
-Em produção, execute `upgrade head` de forma manual e auditável antes de liberar uma versão que dependa do novo schema. Consulte [`docs/DEPLOY.md`](docs/DEPLOY.md).
+Em produção, o Render executa `alembic upgrade head` no `preDeployCommand` de `render.yaml`, antes de iniciar a API. Uma migration nova ainda exige validação em banco isolado e ponto de recuperação confirmado antes do merge que a publica. Consulte [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## Quality gates
 

@@ -1,5 +1,31 @@
 # Status do projeto
 
+## Arquivos de entrega — PR A (correções) — 29/10/2026
+
+Só apresentação: dados, API, regras de lote, motor e finalização inalterados.
+
+- Nova camada `ReportView` em `backend/app/reports.py`, usada pelos quatro
+  exportadores sobre a fonte única `build_inventory_report_data`, sem
+  recalcular nada.
+- Autoverificação antes de gerar qualquer arquivo (lançamentos = lotes =
+  resumo = subtotais por vão; registros; lote a lote). Divergência gera
+  `ReportConsistencyError` e a API responde 500 com mensagem clara.
+- "Gerado em" no horário de Brasília (`07/10/2026 às 20:20`), datas
+  `dd/mm/aaaa`, milhar em PDF/Word, rodapé "Página X de Y".
+- Excel (.xls e .xlsx): Vão e Quantidade numéricos, Lote texto, "Peças fora"
+  numérica ou vazia, data do inventário como data.
+- PDF/Word: sem data repetida nem observação duplicada no resumo; sem título
+  órfão no fim da página.
+- Testes golden com o inventário real de 06/10/2026 rev. 6 (216 registros,
+  2.667 peças, 207 lotes).
+- Gates locais: ESLint, TypeScript, Vitest (86), build, Pytest (90) e
+  Playwright (20 cenários) aprovados.
+- Limitação: o Playwright fixado no projeto não encontra o Chromium
+  pré-instalado do ambiente de nuvem; os 20 cenários rodaram com uma config
+  temporária não versionada apontando para `/opt/pw-browsers/chromium`.
+- Limitação: o PDF continua com 20 páginas nesta etapa; a redução para cerca
+  de 11 páginas é o objetivo da nova estrutura (PRs B e C).
+
 ## Lados EF/DE no aplicativo — 29/10/2026
 
 - A nomenclatura oficial dos lados é **EF/DE**; LE/LP era antiga. O aplicativo

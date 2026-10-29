@@ -6,11 +6,12 @@ prepara uma representação comum e a renderiza em formatos diferentes.
 
 from __future__ import annotations
 
-from copy import copy
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta, timezone, tzinfo
 from io import BytesIO
 from typing import Any, Iterable, Mapping
 from xml.sax.saxutils import escape
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import xlwt
 from docx import Document
@@ -29,7 +30,8 @@ from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.pdfgen import canvas as pdf_canvas
+from reportlab.platypus import CondPageBreak, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.engine import AnalysisEntry, analyze_entries
 from app.lot_rules import validate_lot
@@ -159,53 +161,213 @@ def build_consolidated_report(
     )
 
 
-def _side_totals(report: dict[str, Any]) -> tuple[dict[str, int], dict[str, int]]:
-    records = report["records"]
-    pieces = {"DE": 0, "EF": 0}
-    counts = {"DE": 0, "EF": 0}
+REPORT_TIMEZONE_NAME = "America/Sao_Paulo"
+NO_CONFERENCE_ROW: list[object] = ["—", None, "Nenhum lote para conferência", "—", "—", None, "Nenhum lote precisa de conferência."]
+INVENTORY_HEADERS = ["Lado", "Vão", "Camada", "Lote", "Quantidade de peças"]
+CONSOLIDATED_HEADERS = ["Lote", "Total de peças", "Localização", "Situação"]
+CONFERENCE_HEADERS = ["Lote", "Total", "Situação", "Local principal", "Outros locais", "Peças fora", "Ação recomendada"]
+CONCILIATION_HEADERS = ["Lote", "Referência", "Físico", "Localização", "Qtd. física", "Condição"]
+
+
+class ReportConsistencyError(ValueError):
+    """Os totais do relatório não fecham; nenhum arquivo deve ser gerado."""
+
+
+def _report_timezone() -> tzinfo:
+    try:
+        return ZoneInfo(REPORT_TIMEZONE_NAME)
+    except ZoneInfoNotFoundError:
+        # Sem base IANA no host, vale o fuso oficial de Brasília sem horário de verão.
+        return timezone(timedelta(hours=-3), "BRT")
+
+
+def format_generated_at(value: object) -> str:
+    """Converte o instante de geração para o horário de Brasília legível."""
+
+    if isinstance(value, datetime):
+        moment = value
+    elif isinstance(value, str) and value:
+        try:
+            moment = datetime.fromisoformat(value)
+        except ValueError:
+            return value
+    else:
+        return "Não informado"
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    local = moment.astimezone(_report_timezone())
+    return f"{local:%d/%m/%Y} às {local:%H:%M}"
+
+
+def parse_report_date(value: object) -> date | None:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
+
+
+def format_report_date(value: object) -> str:
+    parsed = parse_report_date(value)
+    return f"{parsed:%d/%m/%Y}" if parsed else str(value)
+
+
+def format_int(value: int) -> str:
+    """Formata inteiros com separador de milhar brasileiro (2.667)."""
+
+    return f"{int(value):,}".replace(",", ".")
+
+
+def _bay_value(bay: str) -> object:
+    """Vão vira número no Excel somente quando a conversão é exata."""
+
+    return int(bay) if bay.isdigit() and str(int(bay)) == bay else bay
+
+
+def _presentation(lot: Mapping[str, Any]) -> Mapping[str, Any]:
+    return lot.get("presentation") or build_lot_presentation(lot)
+
+
+def _has_reference(report: Mapping[str, Any]) -> bool:
+    reference = report.get("reference")
+    return isinstance(reference, Mapping) and bool(reference.get("available"))
+
+
+def _is_physical(lot: Mapping[str, Any]) -> bool:
+    return bool(lot.get("physicalFound", lot.get("referenceStatus") != "EXPECTED_MISSING"))
+
+
+def verify_report_totals(report: Mapping[str, Any]) -> None:
+    """Confere que lançamentos, lotes, resumo e subtotais por vão fecham.
+
+    Qualquer divergência interrompe a exportação: é preferível não entregar
+    um arquivo a entregar um arquivo com totais que não batem.
+    """
+
+    records = list(report.get("records") or [])
+    lots = [lot for lot in report.get("lots", []) if isinstance(lot, Mapping)]
+    physical_lots = [lot for lot in lots if _is_physical(lot)]
+    summary = report.get("summary") or {}
+    problems: list[str] = []
+
+    records_pieces = sum(int(record["quantity"]) for record in records)
+    lots_pieces = sum(int(lot.get("totalQuantity", 0)) for lot in physical_lots)
+    summary_pieces = int(report.get("totalPieces", -1))
+    bay_pieces = sum(group["pieces"] for group in _bay_groups(records))
+    if not records_pieces == lots_pieces == summary_pieces == bay_pieces:
+        problems.append(
+            "peças não fecham: lançamentos "
+            f"{format_int(records_pieces)}, lotes {format_int(lots_pieces)}, resumo {format_int(summary_pieces)}, "
+            f"subtotais por vão {format_int(bay_pieces)}"
+        )
+    if len(records) != int(report.get("totalRecords", -1)):
+        problems.append(f"registros não fecham: {len(records)} lançamentos para {report.get('totalRecords')} no resumo")
+
+    pieces_by_lot: dict[str, int] = {}
+    for record in records:
+        pieces_by_lot[str(record["lot"])] = pieces_by_lot.get(str(record["lot"]), 0) + int(record["quantity"])
+    lots_by_id = {str(lot["lot"]): int(lot.get("totalQuantity", 0)) for lot in physical_lots}
+    if pieces_by_lot != lots_by_id:
+        divergent = sorted(set(pieces_by_lot) ^ set(lots_by_id) | {
+            lot for lot in set(pieces_by_lot) & set(lots_by_id) if pieces_by_lot[lot] != lots_by_id[lot]
+        })
+        problems.append(f"lotes divergentes dos lançamentos: {', '.join(divergent[:5])}")
+    for lot in physical_lots:
+        located = sum(int(location.get("quantity", 0)) for location in lot.get("locations", []) if isinstance(location, Mapping))
+        if located != int(lot.get("totalQuantity", 0)):
+            problems.append(f"lote {lot['lot']} soma {located} nos locais e {lot.get('totalQuantity')} no total")
+    if int(summary.get("lotsAnalyzed", -1)) != len(physical_lots):
+        problems.append(f"total de lotes do resumo ({summary.get('lotsAnalyzed')}) difere dos {len(physical_lots)} lotes analisados")
+    if "lotsOk" in summary and int(summary["lotsOk"]) + int(summary.get("lotsForConference", 0)) != len(lots):
+        problems.append("lotes OK somados aos lotes para conferência não fecham com o total de lotes")
+    if problems:
+        raise ReportConsistencyError(
+            "Relatório não gerado: os totais não conferem (" + "; ".join(problems) + ")."
+        )
+
+
+def _bay_groups(records: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    groups: dict[tuple[str, str], dict[str, Any]] = {}
+    for record in records:
+        key = (str(record["side"]), str(record["bay"]))
+        group = groups.setdefault(key, {"side": key[0], "bay": key[1], "records": 0, "pieces": 0})
+        group["records"] += 1
+        group["pieces"] += int(record["quantity"])
+    return list(groups.values())
+
+
+@dataclass(frozen=True)
+class ReportView:
+    """Apresentação comum a todos os exportadores.
+
+    Só formata e organiza o que `build_inventory_report_data` já calculou;
+    nenhum exportador recalcula totais ou classificações.
+    """
+
+    inventory_date: date | None
+    inventory_date_label: str
+    revision: int
+    generated_at_label: str
+    total_records: int
+    total_pieces: int
+    summary: list[tuple[str, object]]
+    observation: str
+    records: list[dict[str, Any]]
+    bay_groups: list[dict[str, Any]]
+    consolidated_rows: list[list[object]]
+    consolidated_kinds: list[str]
+    conference_rows: list[list[object]]
+    conference_kinds: list[str]
+    has_reference: bool
+    conciliation_rows: list[list[object]] = field(default_factory=list)
+    conciliation_kinds: list[str] = field(default_factory=list)
+
+    @property
+    def subtitle(self) -> str:
+        return f"Data do inventário: {self.inventory_date_label} · Revisão: {self.revision}"
+
+    @property
+    def generated_line(self) -> str:
+        return f"{self.subtitle} · Gerado em: {self.generated_at_label}"
+
+    def inventory_rows(self) -> list[list[object]]:
+        return [
+            [record["side"], record["bay"], record.get("layer") or "—", str(record["lot"]), int(record["quantity"])]
+            for record in self.records
+        ] + [["TOTAL", "", "", "", self.total_pieces]]
+
+    def inventory_kinds(self) -> list[str]:
+        return [str(record["side"]) for record in self.records] + ["total"]
+
+
+def _summary(report: Mapping[str, Any], records: list[Mapping[str, Any]]) -> tuple[list[tuple[str, object]], str]:
+    summary = report["summary"]
+    side_pieces = {"DE": 0, "EF": 0}
+    side_counts = {"DE": 0, "EF": 0}
     for record in records:
         side = str(record["side"])
-        if side in pieces:
-            pieces[side] += int(record["quantity"])
-            counts[side] += 1
-    return pieces, counts
-
-
-def _summary_rows(report: dict[str, Any]) -> list[tuple[str, object]]:
-    side_pieces, side_counts = _side_totals(report)
-    summary = report["summary"]
-    bay_count = len({(record["side"], record["bay"]) for record in report["records"]})
-    lots_ok = int(summary.get("lotsOk", summary.get("regularLots", 0)))
+        if side in side_pieces:
+            side_pieces[side] += int(record["quantity"])
+            side_counts[side] += 1
     lots_for_conference = int(summary.get("lotsForConference", summary.get("fragmentedLots", 0)))
-    single_piece_lots = int(summary.get("singlePieceOutsideLots", summary.get("loosePieces", 0)))
-    multiple_piece_lots = int(summary.get("multiplePiecesOutsideLots", summary.get("displacedGroups", 0)))
-    distributed_lots = int(summary.get("distributedLots", summary.get("ambiguousDistributions", 0)))
-    if lots_for_conference:
-        observation = (
-            f"Há {lots_for_conference} lote(s) para conferência. "
-            "Consulte a seção LOTES PARA CONFERÊNCIA para verificar locais e quantidades."
-        )
-    else:
-        observation = "Nenhum lote precisa de conferência."
     rows: list[tuple[str, object]] = [
-        ("Data do inventário", report["inventoryDate"]),
-        ("Total de registros", report["totalRecords"]),
-        ("Total de peças", report["totalPieces"]),
-        ("Total de lotes", summary["lotsAnalyzed"]),
-        ("Total de vãos", bay_count),
-        ("Lotes OK", lots_ok),
+        ("Total de registros", int(report["totalRecords"])),
+        ("Total de peças", int(report["totalPieces"])),
+        ("Total de lotes", int(summary["lotsAnalyzed"])),
+        ("Total de vãos", len(_bay_groups(records))),
+        ("Lotes OK", int(summary.get("lotsOk", summary.get("regularLots", 0)))),
         ("Lotes para conferência", lots_for_conference),
-        ("1 peça fora do local principal", single_piece_lots),
-        ("Lotes com múltiplas peças fora do local principal", multiple_piece_lots),
-        ("Lotes distribuídos em mais de um local", distributed_lots),
+        ("1 peça fora do local principal", int(summary.get("singlePieceOutsideLots", summary.get("loosePieces", 0)))),
+        ("Lotes com múltiplas peças fora do local principal", int(summary.get("multiplePiecesOutsideLots", summary.get("displacedGroups", 0)))),
+        ("Lotes distribuídos em mais de um local", int(summary.get("distributedLots", summary.get("ambiguousDistributions", 0)))),
         ("Peças lado DE", side_pieces["DE"]),
         ("Peças lado EF", side_pieces["EF"]),
         ("Registros lado DE", side_counts["DE"]),
         ("Registros lado EF", side_counts["EF"]),
-        ("Observações importantes", observation),
     ]
-
-
     if _has_reference(report):
         reference = report["reference"]
         rows.extend(
@@ -218,71 +380,57 @@ def _summary_rows(report: dict[str, Any]) -> list[tuple[str, object]]:
                 ("Lotes fragmentados (físico)", int(reference.get("fragmentedLots", 0))),
             ]
         )
-    return rows
+    if lots_for_conference:
+        observation = (
+            f"Há {format_int(lots_for_conference)} lote(s) para conferência. "
+            "Consulte a seção LOTES PARA CONFERÊNCIA para verificar locais e quantidades."
+        )
+    else:
+        observation = "Nenhum lote precisa de conferência."
+    return rows, observation
 
 
-def _consolidated_rows(report: dict[str, Any]) -> list[list[object]]:
+def _consolidated(report: Mapping[str, Any]) -> tuple[list[list[object]], list[str]]:
     rows: list[list[object]] = []
+    kinds: list[str] = []
     for lot in report["lots"]:
-        presentation = lot.get("presentation") or build_lot_presentation(lot)
+        presentation = _presentation(lot)
         requires_conference = bool(presentation["requiresConference"])
         location_summary = "\n".join(
             str(location["display"] if requires_conference else location["label"])
             for location in presentation["locations"]
         ) or "—"
-        rows.append(
-            [
-                str(lot["lot"]),
-                int(lot["totalQuantity"]),
-                location_summary,
-                str(presentation["situation"]),
-            ]
-        )
-    return rows
+        rows.append([str(lot["lot"]), int(lot["totalQuantity"]), location_summary, str(presentation["situation"])])
+        kinds.append(str(presentation.get("tone", "review")))
+    return rows, kinds
 
 
-def _conference_rows(report: dict[str, Any]) -> list[list[object]]:
-    """Retorna uma linha por lote que realmente exige conferência."""
+def _conference(report: Mapping[str, Any]) -> tuple[list[list[object]], list[str]]:
+    """Uma linha por lote que exige conferência; Peças fora é None quando não se aplica."""
 
     rows: list[list[object]] = []
+    kinds: list[str] = []
     for lot in report["lots"]:
-        presentation = lot.get("presentation") or build_lot_presentation(lot)
+        presentation = _presentation(lot)
         if not presentation["requiresConference"]:
             continue
         primary = presentation.get("primaryLocation")
-        other_locations = presentation.get("otherLocations", [])
+        out_of_primary = presentation.get("outOfPrimaryQuantity")
         rows.append(
             [
                 str(lot["lot"]),
                 int(lot["totalQuantity"]),
                 str(presentation["situation"]),
                 str(primary["display"] if primary else "Não definido"),
-                "\n".join(str(location["display"]) for location in other_locations) or "—",
-                int(presentation["outOfPrimaryQuantity"])
-                if presentation.get("outOfPrimaryQuantity") is not None
-                else "Não aplicável",
+                "\n".join(str(location["display"]) for location in presentation.get("otherLocations", [])) or "—",
+                int(out_of_primary) if out_of_primary is not None else None,
                 str(presentation["action"]),
             ]
         )
-    return rows
-
-
-def _conference_row_kinds(report: dict[str, Any]) -> list[str]:
-    kinds: list[str] = []
-    for lot in report["lots"]:
-        presentation = lot.get("presentation") or build_lot_presentation(lot)
-        if presentation["requiresConference"]:
-            kinds.append(str(presentation["tone"]))
-    return kinds
-
-
-def _report_subtitle(report: dict[str, Any]) -> str:
-    return f"Data do inventário: {report['inventoryDate']} · Revisão: {report['revision']}"
-
-
-def _has_reference(report: Mapping[str, Any]) -> bool:
-    reference = report.get("reference")
-    return isinstance(reference, Mapping) and bool(reference.get("available"))
+        kinds.append(str(presentation["tone"]))
+    if not rows:
+        return [list(NO_CONFERENCE_ROW)], ["ok"]
+    return rows, kinds
 
 
 def _reference_label(lot: Mapping[str, Any]) -> str:
@@ -298,12 +446,13 @@ def _physical_label(lot: Mapping[str, Any]) -> str:
     return "Encontrado" if lot.get("physicalFound", int(lot.get("totalQuantity", 0)) > 0) else "Não encontrado"
 
 
-def _reference_conciliation_rows(report: Mapping[str, Any]) -> list[list[object]]:
+def _conciliation(report: Mapping[str, Any]) -> tuple[list[list[object]], list[str]]:
     rows: list[list[object]] = []
+    kinds: list[str] = []
     for lot in report.get("lots", []):
         if not isinstance(lot, Mapping):
             continue
-        presentation = lot.get("presentation") or build_lot_presentation(lot)
+        presentation = _presentation(lot)
         locations = presentation.get("locations", []) if isinstance(presentation, Mapping) else []
         location_summary = "\n".join(
             str(location.get("display") or location.get("label"))
@@ -316,29 +465,68 @@ def _reference_conciliation_rows(report: Mapping[str, Any]) -> list[list[object]
         elif lot.get("referenceStatus") == "OUTSIDE_REFERENCE":
             condition = f"FORA DA REFERÊNCIA · {condition}"
         rows.append(
-            [
-                str(lot["lot"]),
-                _reference_label(lot),
-                _physical_label(lot),
-                location_summary,
-                int(lot.get("totalQuantity", 0)),
-                condition,
-            ]
+            [str(lot["lot"]), _reference_label(lot), _physical_label(lot), location_summary, int(lot.get("totalQuantity", 0)), condition]
         )
-    return rows
-
-
-def _reference_conciliation_kinds(report: Mapping[str, Any]) -> list[str]:
-    kinds: list[str] = []
-    for lot in report.get("lots", []):
-        if not isinstance(lot, Mapping):
-            continue
         if lot.get("referenceStatus") in {"EXPECTED_MISSING", "OUTSIDE_REFERENCE"}:
             kinds.append("review")
         else:
-            presentation = lot.get("presentation") or {}
             kinds.append(str(presentation.get("tone", "review")))
-    return kinds
+    return rows, kinds
+
+
+def build_report_view(report: Mapping[str, Any]) -> ReportView:
+    """Valida os totais e prepara a apresentação usada por todos os formatos."""
+
+    verify_report_totals(report)
+    records = [dict(record) for record in report["records"]]
+    summary, observation = _summary(report, records)
+    consolidated_rows, consolidated_kinds = _consolidated(report)
+    conference_rows, conference_kinds = _conference(report)
+    has_reference = _has_reference(report)
+    conciliation_rows, conciliation_kinds = _conciliation(report) if has_reference else ([], [])
+    inventory_date = parse_report_date(report["inventoryDate"])
+    return ReportView(
+        inventory_date=inventory_date,
+        inventory_date_label=format_report_date(report["inventoryDate"]),
+        revision=int(report["revision"]),
+        generated_at_label=format_generated_at(report.get("generatedAt")),
+        total_records=int(report["totalRecords"]),
+        total_pieces=int(report["totalPieces"]),
+        summary=summary,
+        observation=observation,
+        records=records,
+        bay_groups=_bay_groups(records),
+        consolidated_rows=consolidated_rows,
+        consolidated_kinds=consolidated_kinds,
+        conference_rows=conference_rows,
+        conference_kinds=conference_kinds,
+        has_reference=has_reference,
+        conciliation_rows=conciliation_rows,
+        conciliation_kinds=conciliation_kinds,
+    )
+
+
+def _excel_summary_rows(view: ReportView) -> list[list[object]]:
+    """No Excel a data fica como célula de data e a observação vira a última linha."""
+
+    first: list[list[object]] = [["Data do inventário", view.inventory_date or view.inventory_date_label]]
+    return first + [[label, value] for label, value in view.summary] + [["Observações importantes", view.observation]]
+
+
+def _excel_summary_subtitle(view: ReportView) -> str:
+    return f"Revisão: {view.revision} · Gerado em: {view.generated_at_label}"
+
+
+def _excel_inventory_rows(view: ReportView) -> list[list[object]]:
+    rows = view.inventory_rows()
+    for row in rows[:-1]:
+        row[1] = _bay_value(str(row[1]))
+    return rows
+
+
+EXCEL_FOOTER = "Página &P de &N"
+EXCEL_DATE_FORMAT = "DD/MM/YYYY"
+EXCEL_THOUSANDS_FORMAT = "#,##0"
 
 
 def _xlsx_add_sheet(
@@ -405,9 +593,13 @@ def _xlsx_add_sheet(
             cell.fill = row_fill
             cell.border = border
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            if column_index in text_columns:
+            if isinstance(value, date):
+                cell.number_format = EXCEL_DATE_FORMAT
+            elif column_index in text_columns:
                 cell.number_format = "@"
             elif column_index in number_columns:
+                cell.number_format = EXCEL_THOUSANDS_FORMAT
+            elif isinstance(value, int):
                 cell.number_format = "0"
         if name == "INVENTÁRIO" and values and values[0] in {"DE", "EF"}:
             side_cell = sheet.cell(row_number, 1)
@@ -428,6 +620,7 @@ def _xlsx_add_sheet(
     sheet.page_setup.fitToWidth = 1
     sheet.page_setup.fitToHeight = 0
     sheet.page_margins = PageMargins(left=0.25, right=0.25, top=0.5, bottom=0.5, header=0.2, footer=0.2)
+    sheet.oddFooter.center.text = EXCEL_FOOTER
     sheet.print_title_rows = "1:4"
     sheet.print_area = f"A1:{last_letter}{last_row}"
 
@@ -435,21 +628,16 @@ def _xlsx_add_sheet(
 def generate_xlsx_report(report: dict[str, Any]) -> bytes:
     """Gera o relatório moderno em XLSX usando valores calculados no backend."""
 
+    view = build_report_view(report)
     workbook = Workbook()
     workbook.remove(workbook.active)
-    subtitle = _report_subtitle(report)
-    inventory_rows = [
-        [record["side"], record["bay"], record.get("layer") or "—", str(record["lot"]), int(record["quantity"])]
-        for record in report["records"]
-    ]
-    inventory_rows.append(["TOTAL", "", "", "", int(report["totalPieces"])])
     _xlsx_add_sheet(
         workbook,
         "RESUMO",
         ["Indicador", "Valor"],
-        [[label, value] for label, value in _summary_rows(report)],
+        _excel_summary_rows(view),
         title="Aplicativo Inventário da Laminação de Perfis",
-        subtitle=subtitle,
+        subtitle=_excel_summary_subtitle(view),
         widths=[38, 92],
         number_columns={2},
         landscape=False,
@@ -457,58 +645,51 @@ def generate_xlsx_report(report: dict[str, Any]) -> bytes:
     _xlsx_add_sheet(
         workbook,
         "INVENTÁRIO",
-        ["Lado", "Vão", "Camada", "Lote", "Quantidade de peças"],
-        inventory_rows,
+        INVENTORY_HEADERS,
+        _excel_inventory_rows(view),
         title="INVENTÁRIO",
-        subtitle=subtitle,
+        subtitle=view.subtitle,
         widths=[12, 12, 14, 18, 22],
         text_columns={4},
         number_columns={5},
-        row_kinds=[str(record["side"]) for record in report["records"]] + ["total"],
+        row_kinds=view.inventory_kinds(),
     )
-    lot_rows = _consolidated_rows(report)
     _xlsx_add_sheet(
         workbook,
         "LOTES CONSOLIDADOS",
-        ["Lote", "Total de peças", "Localização", "Situação"],
-        lot_rows,
+        CONSOLIDATED_HEADERS,
+        view.consolidated_rows,
         title="LOTES CONSOLIDADOS",
-        subtitle=subtitle,
+        subtitle=view.subtitle,
         widths=[18, 18, 70, 46],
         text_columns={1},
         number_columns={2},
-        row_kinds=[str(lot.get("presentation", {}).get("tone", "review")) for lot in report["lots"]],
+        row_kinds=view.consolidated_kinds,
     )
-    conference_rows = _conference_rows(report)
-    if not conference_rows:
-        conference_rows = [["—", "—", "Nenhum lote para conferência", "—", "—", "—", "Nenhum lote precisa de conferência."]]
-        conference_kinds = ["ok"]
-    else:
-        conference_kinds = _conference_row_kinds(report)
     _xlsx_add_sheet(
         workbook,
         "LOTES PARA CONFERÊNCIA",
-        ["Lote", "Total", "Situação", "Local principal", "Outros locais", "Peças fora", "Ação recomendada"],
-        conference_rows,
+        CONFERENCE_HEADERS,
+        view.conference_rows,
         title="LOTES PARA CONFERÊNCIA",
-        subtitle=subtitle,
+        subtitle=view.subtitle,
         widths=[18, 16, 42, 34, 46, 16, 72],
         text_columns={1},
         number_columns={2, 6},
-        row_kinds=conference_kinds,
+        row_kinds=view.conference_kinds,
     )
-    if _has_reference(report):
+    if view.has_reference:
         _xlsx_add_sheet(
             workbook,
             "CONCILIAÇÃO",
-            ["Lote", "Referência", "Físico", "Localização", "Qtd. física", "Condição"],
-            _reference_conciliation_rows(report),
+            CONCILIATION_HEADERS,
+            view.conciliation_rows,
             title="CONCILIAÇÃO COM REFERÊNCIA DE LOTES",
-            subtitle=subtitle,
+            subtitle=view.subtitle,
             widths=[18, 24, 18, 70, 16, 54],
             text_columns={1},
             number_columns={5},
-            row_kinds=_reference_conciliation_kinds(report),
+            row_kinds=view.conciliation_kinds,
         )
     buffer = BytesIO()
     workbook.save(buffer)
@@ -521,47 +702,48 @@ def export_xlsx(report: dict[str, Any]) -> bytes:
     return generate_xlsx_report(report)
 
 
-def _xls_styles() -> dict[str, xlwt.XFStyle]:
-    border = "borders: left thin, right thin, top thin, bottom thin;"
-    styles = {
-        "title": xlwt.easyxf(
-            f"font: name Arial, height 280, bold on, colour white; pattern: pattern solid, fore_colour dark_blue; align: horiz left, vert centre; {border}"
-        ),
-        "subtitle": xlwt.easyxf(
-            f"font: name Arial, height 200, italic on, colour dark_blue; pattern: pattern solid, fore_colour pale_blue; align: horiz left, vert centre; {border}"
-        ),
-        "header": xlwt.easyxf(
-            f"font: name Arial, height 200, bold on, colour white; pattern: pattern solid, fore_colour dark_blue; align: horiz center, vert centre, wrap on; {border}"
-        ),
-        "body": xlwt.easyxf(f"font: name Arial, height 200; align: horiz center, vert centre, wrap on; {border}"),
-        "body_alt": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour pale_blue; align: horiz center, vert centre, wrap on; {border}"),
-        "body_de": xlwt.easyxf(f"font: name Arial, height 200, bold on, colour dark_blue; pattern: pattern solid, fore_colour pale_blue; align: horiz center, vert centre; {border}"),
-        "body_ef": xlwt.easyxf(f"font: name Arial, height 200, bold on, colour dark_blue; pattern: pattern solid, fore_colour ice_blue; align: horiz center, vert centre; {border}"),
-        "total": xlwt.easyxf(f"font: name Arial, height 200, bold on, colour white; pattern: pattern solid, fore_colour dark_blue; align: horiz center, vert centre; {border}"),
-        "alert_red": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour rose; align: horiz center, vert centre, wrap on; {border}"),
-        "alert_orange": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour light_orange; align: horiz center, vert centre, wrap on; {border}"),
-        "alert_yellow": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour light_yellow; align: horiz center, vert centre, wrap on; {border}"),
-        "good": xlwt.easyxf(f"font: name Arial, height 200; pattern: pattern solid, fore_colour light_green; align: horiz center, vert centre, wrap on; {border}"),
-    }
-    for name in ("body", "body_alt", "total", "alert_red", "alert_orange", "alert_yellow", "good"):
-        numeric = copy(styles[name])
-        numeric.num_format_str = "0"
-        styles[f"{name}_number"] = numeric
-    return styles
+_XLS_BORDER = "borders: left thin, right thin, top thin, bottom thin;"
+_XLS_STYLE_SPECS = {
+    "title": "font: name Arial, height 280, bold on, colour white; pattern: pattern solid, fore_colour dark_blue; align: horiz left, vert centre;",
+    "subtitle": "font: name Arial, height 200, italic on, colour dark_blue; pattern: pattern solid, fore_colour pale_blue; align: horiz left, vert centre;",
+    "header": "font: name Arial, height 200, bold on, colour white; pattern: pattern solid, fore_colour dark_blue; align: horiz center, vert centre, wrap on;",
+    "body": "font: name Arial, height 200; align: horiz center, vert centre, wrap on;",
+    "body_alt": "font: name Arial, height 200; pattern: pattern solid, fore_colour pale_blue; align: horiz center, vert centre, wrap on;",
+    "body_de": "font: name Arial, height 200, bold on, colour dark_blue; pattern: pattern solid, fore_colour pale_blue; align: horiz center, vert centre;",
+    "body_ef": "font: name Arial, height 200, bold on, colour dark_blue; pattern: pattern solid, fore_colour ice_blue; align: horiz center, vert centre;",
+    "total": "font: name Arial, height 200, bold on, colour white; pattern: pattern solid, fore_colour dark_blue; align: horiz center, vert centre;",
+    "alert_red": "font: name Arial, height 200; pattern: pattern solid, fore_colour rose; align: horiz center, vert centre, wrap on;",
+    "alert_orange": "font: name Arial, height 200; pattern: pattern solid, fore_colour light_orange; align: horiz center, vert centre, wrap on;",
+    "alert_yellow": "font: name Arial, height 200; pattern: pattern solid, fore_colour light_yellow; align: horiz center, vert centre, wrap on;",
+    "good": "font: name Arial, height 200; pattern: pattern solid, fore_colour light_green; align: horiz center, vert centre, wrap on;",
+}
 
 
-def _xls_row_style(styles: dict[str, xlwt.XFStyle], kind: str, row_offset: int) -> xlwt.XFStyle:
+class _XlsStyles:
+    """Cache de estilos BIFF8 por nome e formato numérico."""
+
+    def __init__(self) -> None:
+        self._cache: dict[tuple[str, str], xlwt.XFStyle] = {}
+
+    def get(self, name: str, number_format: str = "General") -> xlwt.XFStyle:
+        key = (name, number_format)
+        if key not in self._cache:
+            self._cache[key] = xlwt.easyxf(f"{_XLS_STYLE_SPECS[name]} {_XLS_BORDER}", num_format_str=number_format)
+        return self._cache[key]
+
+
+def _xls_row_style_name(kind: str, row_offset: int) -> str:
     if kind == "total":
-        return styles["total"]
+        return "total"
     if kind == "single-piece":
-        return styles["alert_yellow"]
+        return "alert_yellow"
     if kind in {"multiple-pieces", "review"}:
-        return styles["alert_orange"]
+        return "alert_orange"
     if kind == "distributed":
-        return styles["alert_red"]
+        return "alert_red"
     if kind == "ok":
-        return styles["good"]
-    return styles["body_alt"] if row_offset % 2 else styles["body"]
+        return "good"
+    return "body_alt" if row_offset % 2 else "body"
 
 
 def _xls_row_height(values: list[object]) -> int:
@@ -578,6 +760,7 @@ def _xls_row_height(values: list[object]) -> int:
 
 def _xls_add_sheet(
     workbook: xlwt.Workbook,
+    styles: _XlsStyles,
     name: str,
     headers: list[str],
     rows: list[list[object]],
@@ -592,14 +775,13 @@ def _xls_add_sheet(
     print_scaling: int = 85,
 ) -> None:
     sheet = workbook.add_sheet(name)
-    styles = _xls_styles()
     text_columns = text_columns or set()
     number_columns = number_columns or set()
     row_kinds = row_kinds or ["body"] * len(rows)
-    sheet.write_merge(0, 0, 0, len(headers) - 1, title, styles["title"])
-    sheet.write_merge(1, 1, 0, len(headers) - 1, subtitle, styles["subtitle"])
+    sheet.write_merge(0, 0, 0, len(headers) - 1, title, styles.get("title"))
+    sheet.write_merge(1, 1, 0, len(headers) - 1, subtitle, styles.get("subtitle"))
     for column_index, header in enumerate(headers):
-        sheet.write(3, column_index, header, styles["header"])
+        sheet.write(3, column_index, header, styles.get("header"))
     sheet.row(0).height = 560
     sheet.row(1).height = 360
     sheet.row(3).height = 520
@@ -609,21 +791,23 @@ def _xls_add_sheet(
     for row_offset, values in enumerate(rows):
         row_number = 4 + row_offset
         kind = row_kinds[row_offset] if row_offset < len(row_kinds) else "body"
-        base_style = _xls_row_style(styles, kind, row_offset)
+        base_name = _xls_row_style_name(kind, row_offset)
         for column_index, value in enumerate(values):
-            style = base_style
+            style_name = base_name
             if name == "INVENTÁRIO" and column_index == 0 and value in {"DE", "EF"}:
-                style = styles["body_de"] if value == "DE" else styles["body_ef"]
-            if column_index in number_columns and kind not in {"total", "single-piece", "multiple-pieces", "distributed", "review", "ok"}:
-                style = styles["body_alt_number"] if row_offset % 2 else styles["body_number"]
-            elif column_index in number_columns:
-                style = copy(style)
-                style.num_format_str = "0"
-            if column_index in text_columns:
-                style = copy(style)
-                style.num_format_str = "@"
+                style_name = "body_de" if value == "DE" else "body_ef"
+            if isinstance(value, date):
+                number_format = EXCEL_DATE_FORMAT
+            elif column_index in text_columns:
+                number_format = "@"
                 value = str(value)
-            sheet.write(row_number, column_index, value, style)
+            elif column_index in number_columns:
+                number_format = EXCEL_THOUSANDS_FORMAT
+            elif isinstance(value, int):
+                number_format = "0"
+            else:
+                number_format = "General"
+            sheet.write(row_number, column_index, value, styles.get(style_name, number_format))
         sheet.row(row_number).height = _xls_row_height(values)
 
     sheet.set_panes_frozen(True)
@@ -636,25 +820,26 @@ def _xls_add_sheet(
     sheet.set_fit_width_to_pages(1)
     sheet.set_fit_height_to_pages(0)
     sheet.set_print_scaling(print_scaling)
+    # O setter público do xlwt tenta decodificar `str` no Python 3 e falha;
+    # o campo interno recebe o texto já em Unicode, como os valores padrão.
+    sheet._Worksheet__header_str = ""
+    sheet._Worksheet__footer_str = f"&C{EXCEL_FOOTER}"
 
 
 def generate_xls_report(report: dict[str, Any]) -> bytes:
     """Gera diretamente um workbook BIFF8/Excel 97-2003, sem conversão."""
 
+    view = build_report_view(report)
     workbook = xlwt.Workbook(encoding="utf-8")
-    subtitle = _report_subtitle(report)
-    inventory_rows = [
-        [record["side"], record["bay"], record.get("layer") or "—", str(record["lot"]), int(record["quantity"])]
-        for record in report["records"]
-    ]
-    inventory_rows.append(["TOTAL", "", "", "", int(report["totalPieces"])])
+    styles = _XlsStyles()
     _xls_add_sheet(
         workbook,
+        styles,
         "RESUMO",
         ["Indicador", "Valor"],
-        [[label, value] for label, value in _summary_rows(report)],
+        _excel_summary_rows(view),
         title="Aplicativo Inventário da Laminação de Perfis",
-        subtitle=subtitle,
+        subtitle=_excel_summary_subtitle(view),
         widths=[38, 92],
         number_columns={1},
         landscape=False,
@@ -662,59 +847,57 @@ def generate_xls_report(report: dict[str, Any]) -> bytes:
     )
     _xls_add_sheet(
         workbook,
+        styles,
         "INVENTÁRIO",
-        ["Lado", "Vão", "Camada", "Lote", "Quantidade de peças"],
-        inventory_rows,
+        INVENTORY_HEADERS,
+        _excel_inventory_rows(view),
         title="INVENTÁRIO",
-        subtitle=subtitle,
+        subtitle=view.subtitle,
         widths=[12, 12, 14, 18, 22],
         text_columns={3},
         number_columns={4},
-        row_kinds=[str(record["side"]) for record in report["records"]] + ["total"],
+        row_kinds=view.inventory_kinds(),
     )
     _xls_add_sheet(
         workbook,
+        styles,
         "LOTES CONSOLIDADOS",
-        ["Lote", "Total de peças", "Localização", "Situação"],
-        _consolidated_rows(report),
+        CONSOLIDATED_HEADERS,
+        view.consolidated_rows,
         title="LOTES CONSOLIDADOS",
-        subtitle=subtitle,
+        subtitle=view.subtitle,
         widths=[18, 18, 70, 46],
         text_columns={0},
         number_columns={1},
-        row_kinds=[str(lot.get("presentation", {}).get("tone", "review")) for lot in report["lots"]],
+        row_kinds=view.consolidated_kinds,
     )
-    conference_rows = _conference_rows(report)
-    if not conference_rows:
-        conference_rows = [["—", "—", "Nenhum lote para conferência", "—", "—", "—", "Nenhum lote precisa de conferência."]]
-        conference_kinds = ["ok"]
-    else:
-        conference_kinds = _conference_row_kinds(report)
     _xls_add_sheet(
         workbook,
+        styles,
         "LOTES PARA CONFERÊNCIA",
-        ["Lote", "Total", "Situação", "Local principal", "Outros locais", "Peças fora", "Ação recomendada"],
-        conference_rows,
+        CONFERENCE_HEADERS,
+        view.conference_rows,
         title="LOTES PARA CONFERÊNCIA",
-        subtitle=subtitle,
+        subtitle=view.subtitle,
         widths=[18, 16, 42, 34, 46, 16, 72],
         text_columns={0},
         number_columns={1, 5},
-        row_kinds=conference_kinds,
+        row_kinds=view.conference_kinds,
         print_scaling=60,
     )
-    if _has_reference(report):
+    if view.has_reference:
         _xls_add_sheet(
             workbook,
+            styles,
             "CONCILIAÇÃO",
-            ["Lote", "Referência", "Físico", "Localização", "Qtd. física", "Condição"],
-            _reference_conciliation_rows(report),
+            CONCILIATION_HEADERS,
+            view.conciliation_rows,
             title="CONCILIAÇÃO COM REFERÊNCIA DE LOTES",
-            subtitle=subtitle,
+            subtitle=view.subtitle,
             widths=[18, 24, 18, 70, 16, 54],
             text_columns={0},
             number_columns={4},
-            row_kinds=_reference_conciliation_kinds(report),
+            row_kinds=view.conciliation_kinds,
             print_scaling=55,
         )
     buffer = BytesIO()
@@ -728,8 +911,34 @@ def export_xls(report: dict[str, Any]) -> bytes:
     return generate_xls_report(report)
 
 
+def _display(value: object) -> str:
+    """Texto de célula para PDF e Word: inteiros com milhar e vazio como travessão."""
+
+    if value is None or value == "":
+        return "—"
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, int):
+        return format_int(value)
+    return str(value)
+
+
+def _display_rows(rows: list[list[object]]) -> list[list[str]]:
+    return [[_display(value) for value in row] for row in rows]
+
+
+def _summary_display_rows(view: ReportView) -> list[list[str]]:
+    return [[label, _display(value)] for label, value in view.summary]
+
+
+def _inventory_display_rows(view: ReportView) -> list[list[str]]:
+    rows = _display_rows(view.inventory_rows())
+    rows[-1][1:4] = ["", "", ""]
+    return rows
+
+
 def _pdf_value(value: object) -> str:
-    return escape("—" if value is None or value == "" else str(value)).replace("\n", "<br/>")
+    return escape(str(value)).replace("\n", "<br/>")
 
 
 def _pdf_table(rows: list[list[object]], widths: list[float], row_kinds: list[str] | None = None) -> Table:
@@ -745,8 +954,16 @@ def _pdf_table(rows: list[list[object]], widths: list[float], row_kinds: list[st
         splitLongWords=0,
     )
     header_style = ParagraphStyle("report-header", parent=cell_style, fontName="Helvetica-Bold", textColor=colors.white, alignment=TA_LEFT)
+    total_style = ParagraphStyle("report-total", parent=cell_style, fontName="Helvetica-Bold", textColor=colors.white)
+    kinds = ["header"] + list(row_kinds or [])
     rendered = [
-        [Paragraph(_pdf_value(value), header_style if row_index == 0 else cell_style) for value in row]
+        [
+            Paragraph(
+                _pdf_value(value),
+                header_style if row_index == 0 else total_style if row_index < len(kinds) and kinds[row_index] == "total" else cell_style,
+            )
+            for value in row
+        ]
         for row_index, row in enumerate(rows)
     ]
     table = Table(rendered, colWidths=widths, repeatRows=1, hAlign="LEFT")
@@ -779,16 +996,45 @@ def _pdf_page_frame(canvas: Any, document: Any) -> None:
     canvas.setFont("Helvetica", 7)
     canvas.setFillColor(colors.HexColor(f"#{BLUE_DARK}"))
     canvas.drawString(document.leftMargin, page_height - 1.05 * cm, "INVENTÁRIO · RELATÓRIO OFICIAL")
-    canvas.drawRightString(page_width - document.rightMargin, 0.75 * cm, f"Página {canvas.getPageNumber()}")
     canvas.restoreState()
 
 
+class _NumberedCanvas(pdf_canvas.Canvas):
+    """Adia o rodapé até conhecer o total de páginas (Página X de Y)."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._page_states: list[dict[str, Any]] = []
+
+    def showPage(self) -> None:  # noqa: N802 - API do ReportLab
+        self._page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self) -> None:
+        total = len(self._page_states)
+        for state in self._page_states:
+            self.__dict__.update(state)
+            page_width = self._pagesize[0]
+            self.saveState()
+            self.setFont("Helvetica", 7)
+            self.setFillColor(colors.HexColor(f"#{BLUE_DARK}"))
+            self.drawRightString(page_width - 1.3 * cm, 0.75 * cm, f"Página {self._pageNumber} de {total}")
+            self.restoreState()
+            super().showPage()
+        super().save()
+
+
+# Espaço mínimo para um título seguido do cabeçalho e das primeiras linhas da tabela.
+_PDF_HEADING_MIN_SPACE = 3.2 * cm
+
+
 def export_pdf(report: dict[str, Any]) -> bytes:
+    view = build_report_view(report)
     buffer = BytesIO()
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle("report-title", parent=styles["Title"], textColor=colors.HexColor(f"#{BLUE_DARK}"), fontSize=18, leading=22, alignment=TA_LEFT, spaceAfter=4)
     subtitle_style = ParagraphStyle("report-subtitle", parent=styles["Normal"], textColor=colors.HexColor("#4F5B66"), fontSize=9, leading=12, spaceAfter=8)
-    heading_style = ParagraphStyle("report-heading", parent=styles["Heading2"], textColor=colors.HexColor(f"#{BLUE_DARK}"), fontSize=12, leading=14, spaceBefore=8, spaceAfter=6)
+    heading_style = ParagraphStyle("report-heading", parent=styles["Heading2"], textColor=colors.HexColor(f"#{BLUE_DARK}"), fontSize=12, leading=14, spaceBefore=8, spaceAfter=6, keepWithNext=1)
     note_style = ParagraphStyle("report-note", parent=styles["BodyText"], fontSize=9, leading=12, spaceBefore=5, spaceAfter=5)
     document = SimpleDocTemplate(
         buffer,
@@ -797,63 +1043,56 @@ def export_pdf(report: dict[str, Any]) -> bytes:
         rightMargin=1.3 * cm,
         topMargin=1.7 * cm,
         bottomMargin=1.3 * cm,
+        title="Relatório de Inventário",
     )
-    summary_rows = [["Indicador", "Valor"]] + [[label, value] for label, value in _summary_rows(report)]
-    inventory_rows = [["Lado", "Vão", "Camada", "Lote", "Quantidade de peças"]]
-    inventory_rows.extend(
-        [[record["side"], record["bay"], record.get("layer") or "—", str(record["lot"]), int(record["quantity"])] for record in report["records"]]
-    )
-    inventory_rows.append(["TOTAL", "", "", "", int(report["totalPieces"])])
-    lot_rows = [["Lote", "Total de peças", "Localização", "Situação"]] + _consolidated_rows(report)
-    conference_data = _conference_rows(report)
-    if not conference_data:
-        conference_data = [["—", "—", "Nenhum lote para conferência", "—", "—", "—", "Nenhum lote precisa de conferência."]]
-        conference_kinds = ["ok"]
-    else:
-        conference_kinds = _conference_row_kinds(report)
-    conference_rows = [["Lote", "Total", "Situação", "Local principal", "Outros locais", "Peças fora", "Ação recomendada"]] + conference_data
+
+    def heading(text: str) -> list[Any]:
+        return [CondPageBreak(_PDF_HEADING_MIN_SPACE), Paragraph(text, heading_style)]
+
     story: list[Any] = [
         Paragraph("Aplicativo Inventário da Laminação de Perfis", title_style),
         Paragraph("Relatório de Inventário", heading_style),
-        Paragraph(f"{_report_subtitle(report)} · Gerado em: {report['generatedAt']}", subtitle_style),
-        Paragraph("Resumo geral", heading_style),
-        _pdf_table(summary_rows, [14.5 * cm, 11.5 * cm]),
-        Paragraph("Observação operacional", heading_style),
-        Paragraph(str(dict(_summary_rows(report))["Observações importantes"]), note_style),
+        Paragraph(escape(view.generated_line), subtitle_style),
+        *heading("Resumo geral"),
+        _pdf_table([["Indicador", "Valor"]] + _summary_display_rows(view), [14.5 * cm, 11.5 * cm]),
+        *heading("Observação operacional"),
+        Paragraph(escape(view.observation), note_style),
         Spacer(1, 0.15 * cm),
-        Paragraph("Inventário", heading_style),
+        *heading("Inventário"),
         _pdf_table(
-            inventory_rows,
+            [INVENTORY_HEADERS] + _inventory_display_rows(view),
             [2.0 * cm, 2.0 * cm, 2.4 * cm, 15.0 * cm, 4.0 * cm],
-            [str(record["side"]) for record in report["records"]] + ["total"],
+            view.inventory_kinds(),
         ),
         PageBreak(),
         Paragraph("Lotes consolidados", heading_style),
         _pdf_table(
-            lot_rows,
+            [CONSOLIDATED_HEADERS] + _display_rows(view.consolidated_rows),
             [2.0 * cm, 2.5 * cm, 13.3 * cm, 9.3 * cm],
-            [str(lot.get("presentation", {}).get("tone", "review")) for lot in report["lots"]],
+            view.consolidated_kinds,
         ),
         PageBreak(),
         Paragraph("Lotes para conferência", heading_style),
-        _pdf_table(conference_rows, [2.0 * cm, 1.6 * cm, 4.5 * cm, 4.2 * cm, 5.0 * cm, 1.7 * cm, 8.1 * cm], conference_kinds),
+        _pdf_table(
+            [CONFERENCE_HEADERS] + _display_rows(view.conference_rows),
+            [2.0 * cm, 1.6 * cm, 4.5 * cm, 4.2 * cm, 5.0 * cm, 1.7 * cm, 8.1 * cm],
+            view.conference_kinds,
+        ),
     ]
-    if _has_reference(report):
-        reference_rows = [["Lote", "Referência", "Físico", "Localização", "Qtd. física", "Condição"]]
-        reference_rows.extend(_reference_conciliation_rows(report))
+    if view.has_reference:
         story.extend(
             [
                 PageBreak(),
                 Paragraph("Conciliação com referência de lotes", heading_style),
                 Paragraph("A referência usa somente números de lote da planilha Excel exportada do SAP / SICLA. As quantidades abaixo são exclusivamente físicas.", note_style),
                 _pdf_table(
-                    reference_rows,
+                    [CONCILIATION_HEADERS] + _display_rows(view.conciliation_rows),
                     [2.0 * cm, 3.0 * cm, 2.6 * cm, 10.2 * cm, 2.5 * cm, 7.0 * cm],
-                    _reference_conciliation_kinds(report),
+                    view.conciliation_kinds,
                 ),
             ]
         )
-    document.build(story, onFirstPage=_pdf_page_frame, onLaterPages=_pdf_page_frame)
+    document.build(story, onFirstPage=_pdf_page_frame, onLaterPages=_pdf_page_frame, canvasmaker=_NumberedCanvas)
     return buffer.getvalue()
 
 
@@ -866,11 +1105,17 @@ def _docx_set_shading(cell: Any, fill: str) -> None:
     shading.set(qn("w:fill"), fill)
 
 
-def _docx_set_repeat_header(row: Any) -> None:
+def _docx_set_row_flags(row: Any, *, header: bool = False) -> None:
+    """Repete o cabeçalho em cada página e impede linha partida entre páginas."""
+
     properties = row._tr.get_or_add_trPr()
-    header = OxmlElement("w:tblHeader")
-    header.set(qn("w:val"), "true")
-    properties.append(header)
+    cant_split = OxmlElement("w:cantSplit")
+    cant_split.set(qn("w:val"), "true")
+    properties.append(cant_split)
+    if header:
+        repeat = OxmlElement("w:tblHeader")
+        repeat.set(qn("w:val"), "true")
+        properties.append(repeat)
 
 
 def _docx_cell_text(cell: Any, value: object, *, header: bool = False, white: bool = False) -> None:
@@ -878,10 +1123,10 @@ def _docx_cell_text(cell: Any, value: object, *, header: bool = False, white: bo
     paragraph = cell.paragraphs[0]
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER if header else WD_ALIGN_PARAGRAPH.LEFT
     paragraph.paragraph_format.space_after = Pt(0)
-    run = paragraph.add_run("—" if value is None or value == "" else str(value))
+    run = paragraph.add_run(str(value))
     run.font.name = "Arial"
     run.font.size = Pt(8 if header else 7.5)
-    run.font.bold = header
+    run.font.bold = header or white
     if white:
         run.font.color.rgb = RGBColor(255, 255, 255)
 
@@ -889,7 +1134,7 @@ def _docx_cell_text(cell: Any, value: object, *, header: bool = False, white: bo
 def _docx_add_table(
     document: Document,
     headers: list[str],
-    rows: list[list[object]],
+    rows: list[list[str]],
     widths: list[float],
     *,
     row_kinds: list[str] | None = None,
@@ -898,7 +1143,7 @@ def _docx_add_table(
     table.style = "Table Grid"
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
-    _docx_set_repeat_header(table.rows[0])
+    _docx_set_row_flags(table.rows[0], header=True)
     for column_index, header in enumerate(headers):
         cell = table.rows[0].cells[column_index]
         cell.width = Cm(widths[column_index])
@@ -908,6 +1153,7 @@ def _docx_add_table(
     for row_offset, values in enumerate(rows):
         kind = (row_kinds or ["body"] * len(rows))[row_offset]
         row = table.add_row()
+        _docx_set_row_flags(row)
         fill = _ALERT_COLORS.get(kind, BLUE_PALE if row_offset % 2 else WHITE)
         white = kind == "total"
         if white:
@@ -921,15 +1167,15 @@ def _docx_add_table(
     return table
 
 
-def _docx_add_page_field(paragraph: Any) -> None:
-    run = paragraph.add_run("Página ")
+def _docx_add_field(paragraph: Any, instruction_text: str) -> None:
+    run = paragraph.add_run()
     run.font.name = "Arial"
     run.font.size = Pt(8)
     field_begin = OxmlElement("w:fldChar")
     field_begin.set(qn("w:fldCharType"), "begin")
     instruction = OxmlElement("w:instrText")
     instruction.set(qn("xml:space"), "preserve")
-    instruction.text = " PAGE "
+    instruction.text = f" {instruction_text} "
     field_end = OxmlElement("w:fldChar")
     field_end.set(qn("w:fldCharType"), "end")
     run._r.append(field_begin)
@@ -937,7 +1183,27 @@ def _docx_add_page_field(paragraph: Any) -> None:
     run._r.append(field_end)
 
 
+def _docx_add_text(paragraph: Any, text: str) -> None:
+    run = paragraph.add_run(text)
+    run.font.name = "Arial"
+    run.font.size = Pt(8)
+
+
+def _docx_add_page_field(paragraph: Any) -> None:
+    _docx_add_text(paragraph, "Página ")
+    _docx_add_field(paragraph, "PAGE")
+    _docx_add_text(paragraph, " de ")
+    _docx_add_field(paragraph, "NUMPAGES")
+
+
+def _docx_heading(document: Document, text: str) -> Any:
+    heading = document.add_heading(text, level=1)
+    heading.paragraph_format.keep_with_next = True
+    return heading
+
+
 def export_docx(report: dict[str, Any]) -> bytes:
+    view = build_report_view(report)
     document = Document()
     section = document.sections[0]
     section.orientation = WD_ORIENT.LANDSCAPE
@@ -964,61 +1230,47 @@ def export_docx(report: dict[str, Any]) -> bytes:
     title.runs[0].font.name = "Arial"
     title.runs[0].font.color.rgb = RGBColor(31, 78, 120)
     document.add_paragraph("Relatório de Inventário")
-    document.add_paragraph(f"{_report_subtitle(report)} · Gerado em: {report['generatedAt']}")
-    document.add_heading("Resumo geral", level=1)
+    document.add_paragraph(view.generated_line)
+    _docx_heading(document, "Resumo geral")
+    _docx_add_table(document, ["Indicador", "Valor"], _summary_display_rows(view), [7.0, 10.0])
+    _docx_heading(document, "Observação operacional")
+    document.add_paragraph(view.observation)
+    _docx_heading(document, "Inventário")
     _docx_add_table(
         document,
-        ["Indicador", "Valor"],
-        [[label, value] for label, value in _summary_rows(report)],
-        [7.0, 10.0],
-    )
-    document.add_heading("Inventário", level=1)
-    inventory_rows = [
-        [record["side"], record["bay"], record.get("layer") or "—", str(record["lot"]), int(record["quantity"])]
-        for record in report["records"]
-    ]
-    inventory_rows.append(["TOTAL", "", "", "", int(report["totalPieces"])])
-    _docx_add_table(
-        document,
-        ["Lado", "Vão", "Camada", "Lote", "Quantidade de peças"],
-        inventory_rows,
+        INVENTORY_HEADERS,
+        _inventory_display_rows(view),
         [1.5, 1.45, 2.0, 7.0, 2.4],
-        row_kinds=[str(record["side"]) for record in report["records"]] + ["total"],
+        row_kinds=view.inventory_kinds(),
     )
     document.add_page_break()
-    document.add_heading("Lotes consolidados", level=1)
+    _docx_heading(document, "Lotes consolidados")
     _docx_add_table(
         document,
-        ["Lote", "Total de peças", "Localização", "Situação"],
-        _consolidated_rows(report),
+        CONSOLIDATED_HEADERS,
+        _display_rows(view.consolidated_rows),
         [2.4, 2.5, 14.5, 7.5],
-        row_kinds=[str(lot.get("presentation", {}).get("tone", "review")) for lot in report["lots"]],
+        row_kinds=view.consolidated_kinds,
     )
     document.add_page_break()
-    document.add_heading("Lotes para conferência", level=1)
-    conference_data = _conference_rows(report)
-    if not conference_data:
-        conference_data = [["—", "—", "Nenhum lote para conferência", "—", "—", "—", "Nenhum lote precisa de conferência."]]
-        conference_kinds = ["ok"]
-    else:
-        conference_kinds = _conference_row_kinds(report)
+    _docx_heading(document, "Lotes para conferência")
     _docx_add_table(
         document,
-        ["Lote", "Total", "Situação", "Local principal", "Outros locais", "Peças fora", "Ação recomendada"],
-        conference_data,
+        CONFERENCE_HEADERS,
+        _display_rows(view.conference_rows),
         [2.2, 1.5, 4.5, 4.2, 5.0, 2.0, 8.0],
-        row_kinds=conference_kinds,
+        row_kinds=view.conference_kinds,
     )
-    if _has_reference(report):
+    if view.has_reference:
         document.add_page_break()
-        document.add_heading("Conciliação com referência de lotes", level=1)
+        _docx_heading(document, "Conciliação com referência de lotes")
         document.add_paragraph("A referência usa somente números de lote da planilha Excel exportada do SAP / SICLA. As quantidades abaixo são exclusivamente físicas.")
         _docx_add_table(
             document,
-            ["Lote", "Referência", "Físico", "Localização", "Qtd. física", "Condição"],
-            _reference_conciliation_rows(report),
+            CONCILIATION_HEADERS,
+            _display_rows(view.conciliation_rows),
             [2.2, 3.0, 2.4, 10.6, 2.4, 7.0],
-            row_kinds=_reference_conciliation_kinds(report),
+            row_kinds=view.conciliation_kinds,
         )
     buffer = BytesIO()
     document.save(buffer)

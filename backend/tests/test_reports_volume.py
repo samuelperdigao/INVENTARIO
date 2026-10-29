@@ -47,13 +47,13 @@ def volume_report() -> dict[str, object]:
 
 
 def _xlsx_summary(workbook) -> dict[str, object]:
-    sheet = workbook["RESUMO"]
-    return {sheet.cell(row, 1).value: sheet.cell(row, 2).value for row in range(5, sheet.max_row + 1)}
+    sheet = workbook["PAINEL"]
+    return {sheet.cell(row, 1).value: sheet.cell(row, 2).value for row in range(1, sheet.max_row + 1)}
 
 
 def _xls_summary(workbook) -> dict[str, object]:
-    sheet = workbook.sheet_by_name("RESUMO")
-    return {sheet.cell_value(row, 0): sheet.cell_value(row, 1) for row in range(4, sheet.nrows)}
+    sheet = workbook.sheet_by_name("PAINEL")
+    return {sheet.cell_value(row, 0): sheet.cell_value(row, 1) for row in range(sheet.nrows) if sheet.row_len(row) > 1}
 
 
 def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
@@ -71,13 +71,14 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
 
     legacy = open_workbook(file_contents=xls)
     modern = load_workbook(BytesIO(xlsx))
-    expected_tabs = ["RESUMO", "INVENTÁRIO", "LOTES CONSOLIDADOS", "LOTES PARA CONFERÊNCIA"]
+    expected_tabs = ["PAINEL", "CONFERÊNCIA", "LANÇAMENTOS", "POR VÃO", "LOTES"]
     assert legacy.sheet_names() == expected_tabs
     assert modern.sheetnames == expected_tabs
     assert sum(name.name == "_FilterDatabase" for name in legacy.name_obj_list) == 0
     assert all(not legacy.sheet_by_name(name).show_grid_lines for name in expected_tabs)
     assert all(modern[name].sheet_view.showGridLines is False for name in expected_tabs)
-    assert all(modern[name].auto_filter.ref is None for name in expected_tabs)
+    assert modern["PAINEL"].auto_filter.ref is None
+    assert all(modern[name].auto_filter.ref for name in expected_tabs[1:])
     legacy_text = "\n".join(
         str(legacy.sheet_by_name(name).cell_value(row, column))
         for name in expected_tabs
@@ -111,17 +112,14 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
     assert report["summary"]["multiplePiecesOutsideLots"] == 1
     assert report["summary"]["distributedLots"] == 2
 
-    legacy_inventory = legacy.sheet_by_name("INVENTÁRIO")
-    modern_inventory = modern["INVENTÁRIO"]
-    assert legacy_inventory.nrows == modern_inventory.max_row == 105
-    assert legacy_inventory.cell_value(104, 4) == modern_inventory.cell(105, 5).value == 1269
+    legacy_records = legacy.sheet_by_name("LANÇAMENTOS")
+    modern_records = modern["LANÇAMENTOS"]
+    assert legacy_records.nrows == modern_records.max_row == 101
+    assert sum(legacy_records.cell_value(row, 4) for row in range(1, 101)) == 1269
+    assert sum(modern_records.cell(row, 5).value for row in range(2, 102)) == 1269
 
-    legacy_lots = legacy.sheet_by_name("LOTES CONSOLIDADOS")
-    modern_lots = modern["LOTES CONSOLIDADOS"]
-    legacy_lot_row = next(row for row in range(4, legacy_lots.nrows) if legacy_lots.cell_value(row, 0) == "2710000001")
-    modern_lot_row = next(row for row in range(5, modern_lots.max_row + 1) if modern_lots.cell(row, 1).value == "2710000001")
-    assert legacy_lots.cell_value(legacy_lot_row, 3) == "1 PEÇA FORA DO LOCAL PRINCIPAL"
-    assert modern_lots.cell(modern_lot_row, 4).value == "1 PEÇA FORA DO LOCAL PRINCIPAL"
+    legacy_lots = legacy.sheet_by_name("LOTES")
+    modern_lots = modern["LOTES"]
     expected_situations = {
         "2710000001": "1 PEÇA FORA DO LOCAL PRINCIPAL",
         "2710000002": "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL",
@@ -129,24 +127,25 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
         "2710000004": "5 PEÇAS FORA DO LOCAL PRINCIPAL",
     }
     assert {
-        str(legacy_lots.cell_value(row, 0)): legacy_lots.cell_value(row, 3)
-        for row in range(4, legacy_lots.nrows)
+        str(legacy_lots.cell_value(row, 0)): legacy_lots.cell_value(row, 1)
+        for row in range(1, legacy_lots.nrows)
         if legacy_lots.cell_value(row, 0) in expected_situations
     } == expected_situations
     assert {
-        str(modern_lots.cell(row, 1).value): modern_lots.cell(row, 4).value
-        for row in range(5, modern_lots.max_row + 1)
+        str(modern_lots.cell(row, 1).value): modern_lots.cell(row, 2).value
+        for row in range(2, modern_lots.max_row + 1)
         if modern_lots.cell(row, 1).value in expected_situations
     } == expected_situations
-    assert any(legacy_lots.cell_value(row, 0) == "2720000090" for row in range(4, legacy_lots.nrows))
-    assert any(modern_lots.cell(row, 1).value == "2720000090" for row in range(5, modern_lots.max_row + 1))
+    assert sum(legacy_lots.cell_value(row, 6) for row in range(1, legacy_lots.nrows)) == 1269
+    assert any(legacy_lots.cell_value(row, 0) == "2720000090" for row in range(1, legacy_lots.nrows))
+    assert any(modern_lots.cell(row, 1).value == "2720000090" for row in range(2, modern_lots.max_row + 1))
 
-    legacy_conference = legacy.sheet_by_name("LOTES PARA CONFERÊNCIA")
-    modern_conference = modern["LOTES PARA CONFERÊNCIA"]
-    assert any(legacy_conference.cell_value(row, 0) == "2710000001" for row in range(4, legacy_conference.nrows))
-    assert any(modern_conference.cell(row, 1).value == "2710000001" for row in range(5, modern_conference.max_row + 1))
-    assert all(legacy_conference.cell_value(row, 0) != "2720000090" for row in range(4, legacy_conference.nrows))
-    assert all(modern_conference.cell(row, 1).value != "2720000090" for row in range(5, modern_conference.max_row + 1))
+    legacy_conference = legacy.sheet_by_name("CONFERÊNCIA")
+    modern_conference = modern["CONFERÊNCIA"]
+    assert any(legacy_conference.cell_value(row, 1) == "2710000001" for row in range(1, legacy_conference.nrows))
+    assert any(modern_conference.cell(row, 2).value == "2710000001" for row in range(2, modern_conference.max_row + 1))
+    assert all(legacy_conference.cell_value(row, 1) != "2720000090" for row in range(1, legacy_conference.nrows))
+    assert all(modern_conference.cell(row, 2).value != "2720000090" for row in range(2, modern_conference.max_row + 1))
 
     pdf_reader = PdfReader(BytesIO(pdf))
     pdf_text = "".join(page.extract_text() or "" for page in pdf_reader.pages)

@@ -73,19 +73,19 @@ def _bay(value: object) -> str:
 
 
 def _xlsx_records(content: bytes) -> list[Record]:
-    sheet = load_workbook(BytesIO(content))["INVENTÁRIO"]
+    sheet = load_workbook(BytesIO(content))["LANÇAMENTOS"]
     return [
         (row[0], _bay(row[1]), _layer(row[2]), row[3], row[4])
-        for row in sheet.iter_rows(min_row=5, values_only=True)
+        for row in sheet.iter_rows(min_row=2, values_only=True)
         if row[0] in {"DE", "EF"}
     ]
 
 
 def _xls_records(content: bytes) -> list[Record]:
-    sheet = open_workbook(file_contents=content).sheet_by_name("INVENTÁRIO")
+    sheet = open_workbook(file_contents=content).sheet_by_name("LANÇAMENTOS")
     return [
         (sheet.cell_value(row, 0), _bay(sheet.cell_value(row, 1)), _layer(sheet.cell_value(row, 2)), sheet.cell_value(row, 3), int(sheet.cell_value(row, 4)))
-        for row in range(4, sheet.nrows)
+        for row in range(1, sheet.nrows)
         if sheet.cell_value(row, 0) in {"DE", "EF"}
     ]
 
@@ -163,10 +163,10 @@ def test_totals_close_in_every_format(report: dict[str, object], files: dict[str
         "Lotes OK": EXPECTED["lotsOk"],
         "Lotes para conferência": EXPECTED["lotsForConference"],
     }
-    xlsx_sheet = load_workbook(BytesIO(files["xlsx"]))["RESUMO"]
-    xlsx_summary = {xlsx_sheet.cell(row, 1).value: xlsx_sheet.cell(row, 2).value for row in range(5, xlsx_sheet.max_row + 1)}
-    xls_sheet = open_workbook(file_contents=files["xls"]).sheet_by_name("RESUMO")
-    xls_summary = {xls_sheet.cell_value(row, 0): xls_sheet.cell_value(row, 1) for row in range(4, xls_sheet.nrows)}
+    xlsx_sheet = load_workbook(BytesIO(files["xlsx"]))["PAINEL"]
+    xlsx_summary = {xlsx_sheet.cell(row, 1).value: xlsx_sheet.cell(row, 2).value for row in range(1, xlsx_sheet.max_row + 1)}
+    xls_sheet = open_workbook(file_contents=files["xls"]).sheet_by_name("PAINEL")
+    xls_summary = {xls_sheet.cell_value(row, 0): xls_sheet.cell_value(row, 1) for row in range(xls_sheet.nrows) if xls_sheet.row_len(row) > 1}
     for label, value in expected_summary.items():
         assert xlsx_summary[label] == value, label
         assert xls_summary[label] == value, label
@@ -194,9 +194,15 @@ def test_totals_close_in_every_format(report: dict[str, object], files: dict[str
     check_table = _docx_nested_table(document, "Conferência dos totais")
     assert {row.cells[0].text: row.cells[1].text for row in check_table.rows[1:]} == expected_check
 
-    inventory = load_workbook(BytesIO(files["xlsx"]))["INVENTÁRIO"]
-    assert inventory.cell(inventory.max_row, 1).value == "TOTAL"
-    assert inventory.cell(inventory.max_row, 5).value == EXPECTED["pieces"]
+    for label in ("Soma dos lançamentos", "Soma dos lotes", "Total do resumo", "Soma dos subtotais por vão"):
+        assert xlsx_summary[label] == xls_summary[label] == EXPECTED["pieces"], label
+    assert xlsx_summary["Resultado"] == xls_summary["Resultado"] == "Confere"
+
+    by_bay = load_workbook(BytesIO(files["xlsx"]))["POR VÃO"]
+    bay_rows = list(by_bay.iter_rows(min_row=2, values_only=True))
+    assert len(bay_rows) == EXPECTED["bays"]
+    assert sum(row[2] for row in bay_rows) == EXPECTED["records"]
+    assert sum(row[3] for row in bay_rows) == EXPECTED["pieces"]
 
 
 def _docx_nested_table(document, first_header: str):
@@ -204,17 +210,21 @@ def _docx_nested_table(document, first_header: str):
     return next(table for table in tables if table.rows[0].cells[0].text == first_header)
 
 
-def _lot_totals_xlsx(content: bytes, sheet_name: str) -> dict[str, int]:
+def _lot_totals_xlsx(content: bytes, sheet_name: str, lot_column: int, total_column: int) -> dict[str, int]:
     sheet = load_workbook(BytesIO(content))[sheet_name]
-    return {row[0]: row[1] for row in sheet.iter_rows(min_row=5, values_only=True) if isinstance(row[0], str) and LOT_PATTERN.match(row[0])}
+    return {
+        row[lot_column]: row[total_column]
+        for row in sheet.iter_rows(min_row=2, values_only=True)
+        if isinstance(row[lot_column], str) and LOT_PATTERN.match(row[lot_column])
+    }
 
 
-def _lot_totals_xls(content: bytes, sheet_name: str) -> dict[str, int]:
+def _lot_totals_xls(content: bytes, sheet_name: str, lot_column: int, total_column: int) -> dict[str, int]:
     sheet = open_workbook(file_contents=content).sheet_by_name(sheet_name)
     return {
-        sheet.cell_value(row, 0): int(sheet.cell_value(row, 1))
-        for row in range(4, sheet.nrows)
-        if LOT_PATTERN.match(str(sheet.cell_value(row, 0)))
+        sheet.cell_value(row, lot_column): int(sheet.cell_value(row, total_column))
+        for row in range(1, sheet.nrows)
+        if LOT_PATTERN.match(str(sheet.cell_value(row, lot_column)))
     }
 
 
@@ -235,8 +245,8 @@ def _lot_totals_pdf(content: bytes, start: str, end: str | None) -> dict[str, in
 def test_lots_and_conference_match_across_formats(report: dict[str, object], files: dict[str, bytes]) -> None:
     lots = {str(lot["lot"]): int(lot["totalQuantity"]) for lot in report["lots"]}  # type: ignore[index]
     assert len(lots) == EXPECTED["lots"]
-    assert _lot_totals_xlsx(files["xlsx"], "LOTES CONSOLIDADOS") == lots
-    assert _lot_totals_xls(files["xls"], "LOTES CONSOLIDADOS") == lots
+    assert _lot_totals_xlsx(files["xlsx"], "LOTES", 0, 2) == lots
+    assert _lot_totals_xls(files["xls"], "LOTES", 0, 2) == lots
     assert _lot_totals_docx(files["docx"], "Lote", "Localização") == lots
     assert _lot_totals_pdf(files["pdf"], "4. Anexo: lotes consolidados", None) == lots
 
@@ -246,8 +256,8 @@ def test_lots_and_conference_match_across_formats(report: dict[str, object], fil
         if lot["presentation"]["requiresConference"]
     }
     assert len(conference) == EXPECTED["lotsForConference"]
-    assert _lot_totals_xlsx(files["xlsx"], "LOTES PARA CONFERÊNCIA") == conference
-    assert _lot_totals_xls(files["xls"], "LOTES PARA CONFERÊNCIA") == conference
+    assert _lot_totals_xlsx(files["xlsx"], "CONFERÊNCIA", 1, 2) == conference
+    assert _lot_totals_xls(files["xls"], "CONFERÊNCIA", 1, 2) == conference
     assert _lot_totals_docx(files["docx"], "Ordem", "Total", lot_column=1) == conference
     assert _lot_totals_pdf(files["pdf"], "2. Lotes para conferência", "3. Lançamentos por lado e vão") == conference
 
@@ -256,37 +266,111 @@ def test_excel_cell_types(files: dict[str, bytes]) -> None:
     modern = load_workbook(BytesIO(files["xlsx"]))
     legacy = open_workbook(file_contents=files["xls"], formatting_info=True)
 
-    modern_summary = modern["RESUMO"]
-    assert modern_summary.cell(5, 1).value == "Data do inventário"
-    assert modern_summary.cell(5, 2).value == datetime(2026, 10, 6)
-    assert modern_summary.cell(5, 2).number_format == "DD/MM/YYYY"
-    assert modern_summary.cell(2, 1).value == "Revisão: 6 · Gerado em: 07/10/2026 às 20:20"
-    legacy_summary = legacy.sheet_by_name("RESUMO")
-    assert legacy_summary.cell_type(4, 1) == XL_CELL_DATE
-    assert xldate_as_datetime(legacy_summary.cell_value(4, 1), legacy.datemode).date() == date(2026, 10, 6)
-    labels = [legacy_summary.cell_value(row, 0) for row in range(4, legacy_summary.nrows)]
+    modern_panel = modern["PAINEL"]
+    assert modern_panel.cell(2, 1).value == "Data do inventário"
+    assert modern_panel.cell(2, 2).value == datetime(2026, 10, 6)
+    assert modern_panel.cell(2, 2).number_format == "DD/MM/YYYY"
+    assert modern_panel.cell(4, 2).value == "07/10/2026 às 20:20"
+    legacy_panel = legacy.sheet_by_name("PAINEL")
+    assert legacy_panel.cell_type(1, 1) == XL_CELL_DATE
+    assert xldate_as_datetime(legacy_panel.cell_value(1, 1), legacy.datemode).date() == date(2026, 10, 6)
+    labels = [legacy_panel.cell_value(row, 0) for row in range(legacy_panel.nrows)]
     assert labels.count("Data do inventário") == 1
     assert labels.count("Observações importantes") == 1
 
-    modern_inventory = modern["INVENTÁRIO"]
-    legacy_inventory = legacy.sheet_by_name("INVENTÁRIO")
-    for row in range(5, modern_inventory.max_row):
-        assert isinstance(modern_inventory.cell(row, 2).value, int)
-        assert isinstance(modern_inventory.cell(row, 4).value, str) and modern_inventory.cell(row, 4).number_format == "@"
-        assert isinstance(modern_inventory.cell(row, 5).value, int)
-    for row in range(4, legacy_inventory.nrows - 1):
-        assert legacy_inventory.cell_type(row, 1) == XL_CELL_NUMBER
-        assert legacy_inventory.cell_type(row, 3) == XL_CELL_TEXT and len(legacy_inventory.cell_value(row, 3)) == 10
-        assert legacy_inventory.cell_type(row, 4) == XL_CELL_NUMBER
+    modern_records = modern["LANÇAMENTOS"]
+    legacy_records = legacy.sheet_by_name("LANÇAMENTOS")
+    for row in range(2, modern_records.max_row + 1):
+        assert isinstance(modern_records.cell(row, 2).value, int)
+        assert isinstance(modern_records.cell(row, 4).value, str) and modern_records.cell(row, 4).number_format == "@"
+        assert isinstance(modern_records.cell(row, 5).value, int)
+    for row in range(1, legacy_records.nrows):
+        assert legacy_records.cell_type(row, 1) == XL_CELL_NUMBER
+        assert legacy_records.cell_type(row, 3) == XL_CELL_TEXT and len(legacy_records.cell_value(row, 3)) == 10
+        assert legacy_records.cell_type(row, 4) == XL_CELL_NUMBER
 
-    modern_conference = modern["LOTES PARA CONFERÊNCIA"]
-    out_values = [modern_conference.cell(row, 6).value for row in range(5, modern_conference.max_row + 1)]
+    modern_conference = modern["CONFERÊNCIA"]
+    out_values = [modern_conference.cell(row, 7).value for row in range(2, modern_conference.max_row + 1)]
     assert all(value is None or isinstance(value, int) for value in out_values)
     assert None in out_values and 2 in out_values
-    legacy_conference = legacy.sheet_by_name("LOTES PARA CONFERÊNCIA")
-    assert {legacy_conference.cell_type(row, 5) for row in range(4, legacy_conference.nrows)} == {XL_CELL_NUMBER, XL_CELL_BLANK}
+    legacy_conference = legacy.sheet_by_name("CONFERÊNCIA")
+    assert {legacy_conference.cell_type(row, 6) for row in range(1, legacy_conference.nrows)} == {XL_CELL_NUMBER, XL_CELL_BLANK}
 
-    assert modern["INVENTÁRIO"].oddFooter.center.text == "Página &P de &N"
+    for name in ("CONFERÊNCIA", "LANÇAMENTOS", "POR VÃO", "LOTES"):
+        assert modern[name].oddFooter.center.text == "Página &P de &N"
+        assert modern[name].freeze_panes == "A2"
+
+
+def _xls_values(sheet, datemode: int) -> list[list[object]]:
+    rows = []
+    for row in range(sheet.nrows):
+        values: list[object] = []
+        for column in range(sheet.row_len(row)):
+            cell_type = sheet.cell_type(row, column)
+            value = sheet.cell_value(row, column)
+            if cell_type == XL_CELL_DATE:
+                value = xldate_as_datetime(value, datemode)
+            elif cell_type == XL_CELL_NUMBER and float(value).is_integer():
+                value = int(value)
+            elif cell_type in {XL_CELL_BLANK, 0} or value == "":
+                value = None
+            values.append(value)
+        while values and values[-1] is None:
+            values.pop()
+        rows.append(values)
+    return rows
+
+
+def _xlsx_values(sheet) -> list[list[object]]:
+    rows = []
+    for row in sheet.iter_rows(values_only=True):
+        values = list(row)
+        while values and values[-1] is None:
+            values.pop()
+        rows.append(values)
+    while rows and not rows[-1]:
+        rows.pop()
+    return rows
+
+
+def test_xls_has_exactly_the_same_information_as_xlsx(files: dict[str, bytes]) -> None:
+    legacy = open_workbook(file_contents=files["xls"])
+    modern = load_workbook(BytesIO(files["xlsx"]))
+    assert legacy.sheet_names() == modern.sheetnames == ["PAINEL", "CONFERÊNCIA", "LANÇAMENTOS", "POR VÃO", "LOTES"]
+    for name in modern.sheetnames:
+        assert _xls_values(legacy.sheet_by_name(name), legacy.datemode) == _xlsx_values(modern[name]), name
+
+
+def test_excel_data_tabs_and_xlsx_only_extras(files: dict[str, bytes]) -> None:
+    modern = load_workbook(BytesIO(files["xlsx"]))
+    legacy = open_workbook(file_contents=files["xls"])
+    headers = {
+        "CONFERÊNCIA": ["Ordem", "Lote", "Total", "Situação", "Local principal", "Outros locais", "Peças fora", "Ação recomendada"],
+        "LANÇAMENTOS": ["Lado", "Vão", "Camada", "Lote", "Quantidade de peças"],
+        "POR VÃO": ["Lado", "Vão", "Registros", "Peças"],
+        "LOTES": ["Lote", "Situação", "Total do lote", "Lado", "Vão", "Camada", "Peças no local", "Local principal"],
+    }
+    for name, expected in headers.items():
+        assert [cell.value for cell in modern[name][1]] == expected, name
+        assert legacy.sheet_by_name(name).row_values(0) == expected, name
+        assert modern[name].auto_filter.ref == f"A1:{modern[name].cell(1, len(expected)).column_letter}{modern[name].max_row}"
+    assert sum(name.name == "_FilterDatabase" for name in legacy.name_obj_list) == 0
+    assert len(modern["PAINEL"]._charts) == 1
+
+    lots = modern["LOTES"]
+    rows = list(lots.iter_rows(min_row=2, values_only=True))
+    assert sum(row[6] for row in rows) == EXPECTED["pieces"]
+    per_lot: dict[str, int] = {}
+    for row in rows:
+        per_lot[row[0]] = per_lot.get(row[0], 0) + row[6]
+        assert row[3] in {"EF", "DE"} and isinstance(row[4], int)
+    assert all(per_lot[row[0]] == row[2] for row in rows)
+    distributed = [row for row in rows if row[0] == "2715284734"]
+    assert [(row[3], row[4], row[5], row[6], row[7]) for row in distributed] == [
+        ("EF", 17, "A2", 10, "Não definido"),
+        ("DE", 17, "A1", 6, "Não definido"),
+        ("DE", 17, "A2", 3, "Não definido"),
+    ]
 
 
 def test_documents_show_local_time_dates_and_page_count(files: dict[str, bytes]) -> None:
@@ -409,3 +493,24 @@ def test_color_only_marks_state(files: dict[str, bytes]) -> None:
             assert shading is not None
     header_fill = table.rows[0].cells[0]._tc.tcPr.find(qn("w:shd")).get(qn("w:fill"))
     assert header_fill == "003B63"
+
+
+def test_xls_matches_xlsx_with_sap_reference() -> None:
+    reference = [row["lot"] for row in FIXTURE["records"][:150]] + ["2799999999"]
+    with_reference = build_inventory_report_data(
+        "00000000-0000-4000-8000-000000000001",
+        FIXTURE["inventoryDate"],
+        FIXTURE["revision"],
+        [AnalysisEntry(**row) for row in FIXTURE["records"]],
+        datetime.fromisoformat(FIXTURE["generatedAt"]),
+        reference_lots=reference,
+        reference_metadata={},
+    )
+    legacy = open_workbook(file_contents=export_xls(with_reference))
+    modern = load_workbook(BytesIO(export_xlsx(with_reference)))
+    assert modern.sheetnames[-1] == "CONCILIAÇÃO"
+    assert legacy.sheet_names() == modern.sheetnames
+    for name in modern.sheetnames:
+        assert _xls_values(legacy.sheet_by_name(name), legacy.datemode) == _xlsx_values(modern[name]), name
+    missing = [row for row in modern["CONCILIAÇÃO"].iter_rows(min_row=2, values_only=True) if row[0] == "2799999999"]
+    assert missing and missing[0][5] == "PREVISTO E NÃO ENCONTRADO"

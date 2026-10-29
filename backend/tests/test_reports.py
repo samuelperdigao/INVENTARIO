@@ -67,32 +67,39 @@ def test_operational_presentation_covers_ok_and_layers() -> None:
     assert lots["2712345683"]["presentation"]["otherLocations"][0]["display"] == "DE 15 · A2 · 1 pç"
 
 
-def test_xlsx_has_operational_tabs_layer_and_lot_as_text() -> None:
+EXCEL_TABS = ["PAINEL", "CONFERÊNCIA", "LANÇAMENTOS", "POR VÃO", "LOTES"]
+
+
+def test_xlsx_has_delivery_tabs_layer_and_lot_as_text() -> None:
     workbook = load_workbook(BytesIO(export_xlsx(report())))
-    assert workbook.sheetnames == ["RESUMO", "INVENTÁRIO", "LOTES CONSOLIDADOS", "LOTES PARA CONFERÊNCIA"]
-    inventory = workbook["INVENTÁRIO"]
-    lot_cell = next(cell for cell in inventory["D"] if cell.value == "2712345678")
+    assert workbook.sheetnames == EXCEL_TABS
+    records = workbook["LANÇAMENTOS"]
+    assert [cell.value for cell in records[1]] == ["Lado", "Vão", "Camada", "Lote", "Quantidade de peças"]
+    lot_cell = next(cell for cell in records["D"] if cell.value == "2712345678")
     assert lot_cell.number_format == "@"
-    assert inventory.cell(lot_cell.row, 3).value in {"A1", "A2"}
-    assert inventory.freeze_panes == "A5"
-    assert inventory.auto_filter.ref is None
-    assert inventory.sheet_view.showGridLines is False
-    assert inventory.print_options.gridLines is False
-    assert inventory["D5"].alignment.horizontal == "center"
-    assert inventory.page_setup.paperSize == 9
-    summary = {workbook["RESUMO"].cell(row, 1).value: workbook["RESUMO"].cell(row, 2).value for row in range(5, 22)}
-    assert summary["Total de registros"] == 9
-    assert summary["Total de lotes"] == 4
-    assert summary["Total de peças"] == 80
-    assert summary["Lotes OK"] == 0
-    assert summary["Lotes para conferência"] == 4
-    assert summary["1 peça fora do local principal"] == 1
-    assert summary["Lotes com múltiplas peças fora do local principal"] == 1
-    assert summary["Lotes distribuídos em mais de um local"] == 2
-    assert workbook["LOTES PARA CONFERÊNCIA"].max_row == 8
-    assert workbook["LOTES PARA CONFERÊNCIA"].cell(5, 1).value == "2712345678"
-    assert workbook["LOTES PARA CONFERÊNCIA"].cell(5, 3).value == "1 PEÇA FORA DO LOCAL PRINCIPAL"
-    assert workbook["LOTES PARA CONFERÊNCIA"].cell(5, 6).value == 1
+    assert records.cell(lot_cell.row, 3).value in {"A1", "A2"}
+    for name in EXCEL_TABS[1:]:
+        assert workbook[name].freeze_panes == "A2"
+        assert workbook[name].auto_filter.ref is not None
+    assert workbook["PAINEL"].auto_filter.ref is None
+    assert records.sheet_view.showGridLines is False
+    assert records.print_options.gridLines is False
+    assert records.page_setup.paperSize == 9
+    assert workbook["PAINEL"]._charts
+    panel = {workbook["PAINEL"].cell(row, 1).value: workbook["PAINEL"].cell(row, 2).value for row in range(1, workbook["PAINEL"].max_row + 1)}
+    assert panel["Total de registros"] == 9
+    assert panel["Total de lotes"] == 4
+    assert panel["Total de peças"] == 80
+    assert panel["Lotes OK"] == 0
+    assert panel["Lotes para conferência"] == 4
+    assert panel["1 peça fora do local principal"] == 1
+    assert panel["Lotes com múltiplas peças fora do local principal"] == 1
+    assert panel["Lotes distribuídos em mais de um local"] == 2
+    conference = workbook["CONFERÊNCIA"]
+    assert conference.max_row == 5
+    row = next(row for row in range(2, 6) if conference.cell(row, 2).value == "2712345678")
+    assert conference.cell(row, 4).value == "1 PEÇA FORA DO LOCAL PRINCIPAL"
+    assert conference.cell(row, 7).value == 1
 
 
 def test_xls_is_biff8_with_same_tabs_and_text_lots() -> None:
@@ -100,26 +107,26 @@ def test_xls_is_biff8_with_same_tabs_and_text_lots() -> None:
     assert len(content) > 0
     assert content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
     workbook = open_workbook(file_contents=content, formatting_info=True)
-    assert workbook.sheet_names() == ["RESUMO", "INVENTÁRIO", "LOTES CONSOLIDADOS", "LOTES PARA CONFERÊNCIA"]
+    assert workbook.sheet_names() == EXCEL_TABS
     assert sum(name.name == "_FilterDatabase" for name in workbook.name_obj_list) == 0
     assert all(not workbook.sheet_by_name(name).show_grid_lines for name in workbook.sheet_names())
-    inventory = workbook.sheet_by_name("INVENTÁRIO")
-    lot_row = next(row for row in range(inventory.nrows) if inventory.cell_value(row, 3) == "2712345678")
-    assert inventory.cell_type(lot_row, 3) == XL_CELL_TEXT
-    assert inventory.cell_value(lot_row, 2) in {"A1", "A2"}
-    summary_sheet = workbook.sheet_by_name("RESUMO")
-    summary = {summary_sheet.cell_value(row, 0): summary_sheet.cell_value(row, 1) for row in range(4, summary_sheet.nrows)}
-    assert summary["Total de registros"] == 9
-    assert summary["Total de lotes"] == 4
-    assert summary["Total de peças"] == 80
-    assert summary["Lotes para conferência"] == 4
-    assert summary["Lotes distribuídos em mais de um local"] == 2
-    conference = workbook.sheet_by_name("LOTES PARA CONFERÊNCIA")
-    assert conference.cell_value(4, 0) == "2712345678"
-    assert conference.cell_value(4, 2) == "1 PEÇA FORA DO LOCAL PRINCIPAL"
-    assert conference.cell_value(4, 5) == 1
-    assert workbook.sheet_by_name("LOTES CONSOLIDADOS").rowinfo_map[4].height >= 600
-    assert conference.rowinfo_map[4].height >= 600
+    records = workbook.sheet_by_name("LANÇAMENTOS")
+    lot_row = next(row for row in range(records.nrows) if records.cell_value(row, 3) == "2712345678")
+    assert records.cell_type(lot_row, 3) == XL_CELL_TEXT
+    assert records.cell_value(lot_row, 2) in {"A1", "A2"}
+    panel_sheet = workbook.sheet_by_name("PAINEL")
+    panel = {panel_sheet.cell_value(row, 0): panel_sheet.cell_value(row, 1) for row in range(panel_sheet.nrows) if panel_sheet.ncols > 1 and panel_sheet.row_len(row) > 1}
+    assert panel["Total de registros"] == 9
+    assert panel["Total de lotes"] == 4
+    assert panel["Total de peças"] == 80
+    assert panel["Lotes para conferência"] == 4
+    assert panel["Lotes distribuídos em mais de um local"] == 2
+    conference = workbook.sheet_by_name("CONFERÊNCIA")
+    row = next(row for row in range(1, conference.nrows) if conference.cell_value(row, 1) == "2712345678")
+    assert conference.cell_value(row, 3) == "1 PEÇA FORA DO LOCAL PRINCIPAL"
+    assert conference.cell_value(row, 6) == 1
+    multi_line = next(row for row in range(1, conference.nrows) if "\n" in str(conference.cell_value(row, 5)) or len(str(conference.cell_value(row, 7))) > 58)
+    assert conference.rowinfo_map[multi_line].height >= 500
 
 
 def test_pdf_and_docx_are_valid_and_contain_critical_content() -> None:

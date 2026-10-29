@@ -11,10 +11,32 @@ O formato `.xlsx` continua disponível para computadores modernos e é gerado
 com `openpyxl`. Os dois formatos usam a mesma fonte de dados:
 
 ```text
-build_inventory_report_data(...)
-    ├── generate_xls_report(report)
-    └── generate_xlsx_report(report)
+build_inventory_report_data(...)          fonte única dos dados
+    └── build_report_view(report)         apresentação comum + autoverificação
+            ├── generate_xls_report
+            ├── generate_xlsx_report
+            ├── export_pdf
+            └── export_docx
 ```
+
+`build_report_view` (`backend/app/reports.py`) não recalcula totais nem
+classificações: só formata e organiza o que o modelo já contém. Antes de
+qualquer arquivo ser gerado, `verify_report_totals` confere que a soma dos
+lançamentos, a soma dos lotes, o total do resumo e a soma dos subtotais por
+vão são iguais, que o número de registros bate, que cada lote fecha com seus
+lançamentos e locais e que o total de lotes do resumo corresponde aos lotes
+analisados. Se algo não fechar, a exportação falha com
+`ReportConsistencyError` ("Relatório não gerado: os totais não conferem
+(...)"), devolvida pela API como erro 500 com essa mensagem. Nenhum arquivo
+inconsistente é entregue.
+
+### Formatação comum
+
+- "Gerado em" usa o horário de `America/Sao_Paulo`, no formato
+  `07/10/2026 às 20:20` (sem a base IANA no host, usa UTC−3 fixo).
+- Datas em `dd/mm/aaaa`; inteiros no PDF e no Word com separador de milhar
+  (`2.667`). No Excel os números ficam numéricos com formato `#,##0`.
+- Rodapé `Página X de Y` nos quatro formatos (no Excel, por aba impressa).
 
 O modelo comum preserva inventário, vão, lado DE/EF, camada quando informada,
 lote, quantidade, totais, lotes consolidados e a apresentação operacional
@@ -68,6 +90,13 @@ Com referência SAP ativa, é acrescentada uma quinta aba:
 
 5. `CONCILIAÇÃO`
 
+Tipos de célula: Vão e Quantidade são números (o vão só vira número quando a
+conversão é exata, como `12`; um valor como `08` continua texto para sair
+exatamente como lançado), Lote é texto de 10 dígitos com formato `@`, `Peças
+fora` é numérica e fica vazia quando não se aplica, e a data do inventário é
+célula de data (`DD/MM/YYYY`) na primeira linha de `RESUMO`. O subtítulo de
+`RESUMO` traz revisão e "Gerado em"; as demais abas trazem data e revisão.
+
 `LOTES CONSOLIDADOS` tem somente Lote, Total de peças, Localização e Situação.
 Todo lote exportado é texto com exatamente 10 dígitos ASCII e prefixo `27` ou
 `28`, conforme a regra única do domínio.
@@ -114,6 +143,14 @@ Validação rápida dos geradores:
 backend/.venv/bin/python -m pytest backend/tests/test_reports.py backend/tests/test_reports_volume.py -q
 ```
 
+`backend/tests/test_reports_golden.py` usa como fixture o inventário real de
+06/10/2026, revisão 6 (`backend/tests/fixtures/inventario_2026-10-06_rev6.json`:
+216 registros, 2.667 peças, 207 lotes). Ele lê de volta os quatro arquivos e
+exige lançamentos idênticos à entrada, totais fechados, os mesmos lotes e
+lotes para conferência em todos os formatos e no modelo de dados, tipos de
+célula corretos no Excel, horário local, ausência de título órfão e falha
+explícita quando os totais são adulterados.
+
 Os testes verificam assinatura OLE do `.xls`, ZIP válido do `.xlsx`, abas,
 ausência de filtros e linhas de grade, tamanho, totais iguais, lotes tratados
 como texto e as mesmas situações visíveis nos quatro formatos.
@@ -126,8 +163,12 @@ Uma variante `.rtf` ou `.doc` não foi adicionada porque a estrutura atual não
 oferece uma geração legada segura sem introduzir conversão externa ou alterar
 o fluxo existente.
 
-O PDF e o Word apresentam Resumo, Inventário, Lotes consolidados e Lotes para
-conferência. Quando há referência, acrescentam uma seção `Conciliação com
+O PDF e o Word apresentam Resumo, Observação operacional, Inventário, Lotes
+consolidados e Lotes para conferência. A data do inventário e a observação
+aparecem uma única vez (subtítulo e seção própria), fora da tabela de resumo.
+Títulos de seção nunca ficam sozinhos no fim da página: o PDF exige espaço
+mínimo antes de cada título e o Word mantém o título com a tabela seguinte e
+não parte linhas entre páginas. Quando há referência, acrescentam uma seção `Conciliação com
 referência de lotes` com a mesma linha lógica e as mesmas colunas da aba Excel.
 Ambos usam uma linha lógica por lote na seção de conferência, quebra de texto
 para locais e ações e as quatro situações visíveis: OK, uma peça fora do local

@@ -42,7 +42,7 @@ from app.reference_service import (
     replace_reference,
     safe_original_filename,
 )
-from app.reports import build_consolidated_report, export_docx, export_pdf, export_xls, export_xlsx
+from app.reports import ReportConsistencyError, build_consolidated_report, export_docx, export_pdf, export_xls, export_xlsx
 from app.schemas import (
     AddTeamMemberRequest, AnalysisPreviewRequest, AnalysisReport, AuthResponse,
     AuthenticatedUser, ConfigureRecoveryPinRequest, ConfirmPasswordResetRequest, CreateTeamRequest,
@@ -634,6 +634,8 @@ def _export_response(report: dict[str, object], format_name: str) -> Response:
             raise HTTPException(status_code=404, detail="Formato de exportação não encontrado.")
     except HTTPException:
         raise
+    except ReportConsistencyError as cause:
+        raise HTTPException(status_code=500, detail=str(cause)) from cause
     except Exception as cause:
         raise HTTPException(status_code=500, detail="Não foi possível gerar o arquivo de exportação.") from cause
     if not isinstance(content, bytes) or not content:

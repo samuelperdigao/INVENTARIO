@@ -157,7 +157,7 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
     assert "5 PEÇAS FORA DO LOCAL PRINCIPAL" in pdf_text
     assert "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL" in pdf_text
     assert "PEÇA_SOLTEIRA" not in pdf_text
-    for label, value in (("Total de registros", "100"), ("Total de peças", "1269"), ("Total de lotes", "95"), ("Lotes OK", "91"), ("Lotes para conferência", "4")):
+    for label, value in (("Total de registros", "100"), ("Total de peças", "1.269"), ("Total de lotes", "95"), ("Lotes OK", "91"), ("Lotes para conferência", "4")):
         assert f"{label}\n{value}" in pdf_text
     document = Document(BytesIO(docx))
     docx_text = "\n".join(cell.text for table in document.tables for row in table.rows for cell in row.cells)
@@ -175,7 +175,7 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
     }
     assert {label: docx_summary[label] for label in ("Total de registros", "Total de peças", "Total de lotes", "Lotes OK", "Lotes para conferência")} == {
         "Total de registros": "100",
-        "Total de peças": "1269",
+        "Total de peças": "1.269",
         "Total de lotes": "95",
         "Lotes OK": "91",
         "Lotes para conferência": "4",

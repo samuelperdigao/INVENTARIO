@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import heroStyles from "@/components/hero.module.css";
+import { SyncBadge, syncBadgeState, useOnline } from "@/components/sync-badge";
 import styles from "@/components/inventory-home.module.css";
 import { AppRail } from "@/components/app-rail";
 import { BrandLogo } from "@/components/brand-logo";
@@ -52,6 +53,7 @@ async function reconcilePendingInventoryDeletions(accountUserId: string): Promis
 
 export function InventoryHome() {
   const router = useRouter();
+  const online = useOnline();
   const [user, setUser] = useState<AuthUser>();
   const [inventories, setInventories] = useState<Inventory[]>([]);
   const [assigned, setAssigned] = useState<AssignedInventory[]>([]);
@@ -216,7 +218,7 @@ export function InventoryHome() {
               </button>
             </div>
           </> : null}
-          <div className={`stack ${styles.inventoryList}`}>{[...inventories].reverse().map((inventory) => <Link className="card inventory-link inventory-card" href={`/inventarios/${inventory.id}`} key={inventory.id}><div className="inventory-card-main"><strong>{labels.get(inventory.id)}</strong><span className="muted">Atualizado em {new Date(inventory.updatedAt).toLocaleString("pt-BR")}</span><div className="inventory-card-meta"><span className="micro-pill">Aberto</span><span className={`micro-pill ${inventory.syncStatus === "SYNCED" ? "good" : "pending"}`}>{inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span></div></div><span className="chevron" aria-hidden="true">›</span></Link>)}</div>
+          <div className={`stack ${styles.inventoryList}`}>{[...inventories].reverse().map((inventory) => <Link className="card inventory-link inventory-card" href={`/inventarios/${inventory.id}`} key={inventory.id}><div className="inventory-card-main"><strong>{labels.get(inventory.id)}</strong><span className="muted">Atualizado em {new Date(inventory.updatedAt).toLocaleString("pt-BR")}</span><div className="inventory-card-meta"><SyncBadge live={false} state={syncBadgeState(inventory.syncStatus, false, online)} time={new Date(inventory.updatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} /></div></div><span className="chevron" aria-hidden="true">›</span></Link>)}</div>
         </section>
 
         <aside className={`stack ${styles.supportColumn}`}>

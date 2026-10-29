@@ -1,0 +1,144 @@
+/* Tela de acesso no visual novo. Só tokens --inv-*; classes próprias, fora do alcance das regras antigas. */
+.shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(360px, 5fr) minmax(0, 7fr);
+  background: var(--inv-canvas);
+  font-family: var(--inv-font-sans);
+}
+
+.aside {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--inv-space-6);
+  padding: 40px clamp(28px, 4vw, 64px) 48px;
+  color: var(--inv-on-navy);
+  background-color: var(--inv-navy);
+  background-image:
+    linear-gradient(160deg, rgba(0, 34, 58, .96) 0%, rgba(0, 59, 99, .9) 55%, rgba(0, 59, 99, .72) 100%),
+    url("/industrial-yard-hero.jpg");
+  background-size: cover;
+  background-position: 68% 60%;
+}
+.aside::after { content: ""; position: absolute; inset: auto 0 0 0; height: 4px; background: var(--inv-safety); }
+
+.brand { align-self: flex-start; color: inherit; text-decoration: none; }
+.brand:focus-visible { outline: 3px solid var(--inv-safety); outline-offset: 4px; border-radius: 8px; }
+
+.pitch { display: flex; flex-direction: column; gap: var(--inv-space-4); max-width: 34rem; }
+.kicker { margin: 0; font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--inv-on-navy-2); }
+.headline { margin: 0; font-size: clamp(2rem, 3.4vw, 3rem); font-weight: 800; line-height: 1.05; letter-spacing: -.03em; color: var(--inv-on-navy); }
+.lead { margin: 0; font-size: 1.05rem; line-height: 1.55; color: var(--inv-on-navy-2); }
+
+.features { list-style: none; margin: var(--inv-space-2) 0 0; padding: 0; display: grid; gap: var(--inv-space-3); }
+.feature { display: flex; align-items: flex-start; gap: var(--inv-space-3); font-size: .95rem; line-height: 1.45; color: var(--inv-on-navy-2); }
+.feature strong { display: block; color: var(--inv-on-navy); font-weight: 650; }
+.featureIcon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--inv-on-navy-line);
+  border-radius: 10px;
+  background: var(--inv-on-navy-fill);
+  color: var(--inv-safety);
+}
+
+.main { display: flex; align-items: center; justify-content: center; padding: 40px 24px; }
+
+.card {
+  width: min(100%, 440px);
+  box-sizing: border-box;
+  padding: 32px;
+  border: 1px solid var(--inv-line-soft);
+  border-radius: var(--inv-radius-xl);
+  background: var(--inv-surface);
+  box-shadow: var(--inv-shadow-2);
+  color: var(--inv-ink);
+}
+
+.backLink { display: inline-flex; align-items: center; min-height: 44px; color: var(--inv-action); font-size: .9rem; font-weight: 650; text-decoration: none; }
+.backLink:hover { text-decoration: underline; }
+.cardKicker { margin: var(--inv-space-2) 0 0; font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--inv-accent); }
+.title { margin: 6px 0 0; font-size: 1.75rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; color: var(--inv-ink); }
+.description { margin: 8px 0 0; font-size: .95rem; line-height: 1.5; color: var(--inv-ink-2); }
+
+.form { margin-top: var(--inv-space-5); display: grid; gap: var(--inv-space-4); }
+.form label { display: grid; gap: 6px; font-size: .875rem; font-weight: 650; color: var(--inv-ink); }
+.form label small { font-size: .78rem; font-weight: 500; color: var(--inv-ink-3); }
+.form input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid var(--inv-line);
+  border-radius: var(--inv-radius-md);
+  background: var(--inv-surface);
+  color: var(--inv-ink);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  box-shadow: none;
+  transition: border-color var(--inv-dur-fast) var(--inv-ease-out), box-shadow var(--inv-dur-fast) var(--inv-ease-out);
+}
+.form input::placeholder { color: var(--inv-ink-3); opacity: 1; font-weight: 400; }
+.form input:hover { border-color: var(--inv-ink-3); }
+.form input:focus { outline: none; border-color: var(--inv-focus); box-shadow: 0 0 0 3px var(--inv-action-soft); }
+.form .code { font-family: var(--inv-font-mono); letter-spacing: .18em; font-weight: 600; }
+
+.submit {
+  min-height: 52px;
+  margin-top: var(--inv-space-1);
+  border: 0;
+  border-radius: var(--inv-radius-md);
+  background: var(--inv-action);
+  color: #ffffff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--inv-dur-fast) var(--inv-ease-out), transform var(--inv-dur-fast) var(--inv-ease-out);
+}
+.submit:hover:not(:disabled) { background: var(--inv-action-hover); }
+.submit:active:not(:disabled) { transform: scale(.99); }
+.submit:focus-visible { outline: 3px solid var(--inv-focus); outline-offset: 2px; }
+.submit:disabled { opacity: .7; cursor: progress; }
+
+.notice, .error { margin: var(--inv-space-4) 0 0; padding: 12px 14px; border-radius: var(--inv-radius-md); font-size: .9rem; line-height: 1.45; }
+.notice { background: var(--inv-ok-soft); color: var(--inv-ok); }
+.error { background: var(--inv-danger-soft); color: var(--inv-danger); }
+
+.links { margin-top: var(--inv-space-4); display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--inv-space-2); }
+.links button {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--inv-action);
+  font: inherit;
+  font-size: .925rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.links button:hover { text-decoration: underline; }
+.links button:focus-visible { outline: 3px solid var(--inv-focus); outline-offset: 2px; border-radius: 6px; }
+
+@media (max-width: 899px) {
+  .shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .aside { padding: 20px 20px 26px; gap: var(--inv-space-4); background-position: 72% 60%; }
+  .aside::after { height: 3px; }
+  .headline { font-size: 1.6rem; }
+  .lead, .features { display: none; }
+  .main { align-items: flex-start; padding: 20px 16px 32px; }
+  .card { padding: 24px 20px; border-radius: var(--inv-radius-lg); }
+  .title { font-size: 1.5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form input, .submit { transition: none; }
+}

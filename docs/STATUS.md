@@ -1,5 +1,27 @@
 # Status do projeto
 
+## Login, home e barra de baixo (PR 4 do redesenho) — 29/10/2026
+
+Sem alterar API, IndexedDB, sincronização, autenticação, regras de lote,
+finalização ou exportações. Os campos, nomes e fluxos do formulário de acesso
+(login, cadastro, recuperação e NP) permanecem os mesmos.
+
+- Tela de acesso (`components/auth.module.css`): painel navy com a foto do
+  pátio, título, três benefícios (offline, equipe por código, relatórios) e
+  cartão de login com campos de 52 px e foco visível. No celular, o painel vira
+  uma faixa compacta acima do formulário.
+- Correção: o título do painel de acesso herdava o navy da regra global de
+  `h1` e ficava invisível sobre o navy. Novo teste mede o contraste real em
+  390 e 1366 px.
+- Home: os cartões de inventário usam o selo de sincronização novo; o botão
+  "Participar agora" desabilitado deixa de parecer ativo (antes 3,6:1).
+- Barra de baixo (celular/tablet): quatro destinos (Início, Em andamento,
+  Histórico, Mais), sem a ação "Novo inventário", que fica no topo do painel;
+  o rótulo "Mais" passa a ter o mesmo tamanho dos outros.
+- ESLint, TypeScript, Vitest (86), build e Playwright (21 cenários) aprovados
+  localmente.
+- Pendente: validação em Android e iPhone físicos.
+
 ## Corpo da tela do inventário (PR 3 do redesenho) — 29/10/2026
 
 Sem alterar API, IndexedDB, sincronização, autenticação, regras de lote,

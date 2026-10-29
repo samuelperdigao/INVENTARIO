@@ -1085,3 +1085,20 @@ body:has(.auth-shell) { background: var(--workspace-canvas) !important; }
 .unavailable-shell .primary { background: var(--workspace-action); box-shadow: none; }
 .unavailable-shell .primary:hover { background: var(--workspace-action-hover); }
 .unavailable-shell .secondary { border-color: var(--workspace-line); color: var(--workspace-action); }
+
+/* Barra de baixo (celular/tablet): só destinos, sem a ação "Novo inventário" (ela fica no topo do painel).
+   O rótulo "Mais" herda o mesmo tamanho dos outros itens. */
+@media (max-width: 1199px) {
+  .shell.app-page-shell > .app-rail .dashboard-nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .shell.app-page-shell > .app-rail .dashboard-nav > .nav-create { display: none !important; }
+  .shell.app-page-shell > .app-rail .dashboard-nav .rail-more-label { font-size: inherit !important; font-weight: inherit !important; }
+}
+
+/* Botão principal desabilitado não pode parecer ativo (antes: branco sobre azul desbotado, 3,6:1). */
+.app-page-shell .dashboard-content .primary:disabled {
+  border: 1px solid var(--inv-line) !important;
+  background: var(--inv-surface-sunk) !important;
+  color: var(--inv-ink-3) !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}

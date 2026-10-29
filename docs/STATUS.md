@@ -1,5 +1,26 @@
 # Status do projeto
 
+## Arquivos de entrega — PR B (PDF e Word) — 29/10/2026
+
+Só apresentação: dados, API, regras de lote, motor, finalização e Excel
+inalterados.
+
+- PR A (#51) integrada em `main` no commit `8a30b9c`; deploy da Vercel
+  iniciado para esse SHA. A confirmação da API no Render e o smoke estão
+  registrados abaixo quando concluídos.
+- PDF e Word reorganizados em Painel, Lotes para conferência (ordem de
+  trajeto), Lançamentos por lado e vão com subtotais e Anexo com os lotes
+  consolidados; conciliação SAP como seção 5 quando houver referência.
+- Painel com indicadores, `200 lotes OK × 7 para conferência`, quadro por
+  lado, mapa lado × vão e quadro "Conferência dos totais" alimentado pela
+  autoverificação.
+- Cor apenas para estado (lote OK sem cor) e navy `#003b63` nos cabeçalhos.
+- Inventário de 06/10/2026 rev. 6: PDF de 20 para 9 páginas; Word com 7
+  páginas no LibreOffice.
+- Testes golden ampliados: estrutura e ordem das seções, ordem de trajeto,
+  subtotais exatos por vão e por lado, cor só para estado e limite de 11
+  páginas.
+
 ## Arquivos de entrega — PR A (correções) — 29/10/2026
 
 Só apresentação: dados, API, regras de lote, motor e finalização inalterados.

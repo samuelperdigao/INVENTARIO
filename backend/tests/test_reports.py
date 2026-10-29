@@ -125,18 +125,19 @@ def test_xls_is_biff8_with_same_tabs_and_text_lots() -> None:
 def test_pdf_and_docx_are_valid_and_contain_critical_content() -> None:
     pdf = PdfReader(BytesIO(export_pdf(report())))
     pdf_text = "".join(page.extract_text() or "" for page in pdf.pages)
-    assert "Relatório de Inventário" in pdf_text
+    flat_pdf_text = " ".join(pdf_text.split())
+    assert "Inventário da Laminação de Perfis" in pdf_text
     assert "Camada" in pdf_text
-    assert "Lotes consolidados" in pdf_text
-    assert "Lotes para conferência" in pdf_text
-    assert "1 PEÇA FORA DO LOCAL PRINCIPAL" in pdf_text
+    assert "4. Anexo: lotes consolidados" in pdf_text
+    assert "2. Lotes para conferência" in pdf_text
+    assert "1 PEÇA FORA DO LOCAL PRINCIPAL" in flat_pdf_text
     assert "DISTRIBUIÇÃO_AMBÍGUA" not in pdf_text
     document = Document(BytesIO(export_docx(report())))
-    assert "Relatório de Inventário" in "\n".join(paragraph.text for paragraph in document.paragraphs)
+    paragraphs = "\n".join(paragraph.text for paragraph in document.paragraphs)
+    assert "Inventário da Laminação de Perfis" in paragraphs
     raw_table = next(table for table in document.tables if len(table.rows[0].cells) >= 3 and table.rows[0].cells[2].text == "Camada")
     assert raw_table.rows[0].cells[3].text == "Lote"
-    assert len(document.tables) == 4
     docx_text = "\n".join(cell.text for table in document.tables for row in table.rows for cell in row.cells)
-    assert "Lotes para conferência" in "\n".join(paragraph.text for paragraph in document.paragraphs)
+    assert "2. Lotes para conferência" in paragraphs
     assert "1 PEÇA FORA DO LOCAL PRINCIPAL" in docx_text
     assert "DISTRIBUIÇÃO_AMBÍGUA" not in docx_text

@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import xlwt
 from docx import Document
-from docx.enum.section import WD_ORIENT
+from docx.enum.section import WD_ORIENT, WD_SECTION
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
@@ -26,12 +26,23 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.page import PageMargins
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.enums import TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas as pdf_canvas
-from reportlab.platypus import CondPageBreak, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import (
+    BaseDocTemplate,
+    CondPageBreak,
+    Frame,
+    NextPageTemplate,
+    PageBreak,
+    PageTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 from app.engine import AnalysisEntry, analyze_entries
 from app.lot_rules import validate_lot
@@ -240,7 +251,28 @@ def _is_physical(lot: Mapping[str, Any]) -> bool:
     return bool(lot.get("physicalFound", lot.get("referenceStatus") != "EXPECTED_MISSING"))
 
 
-def verify_report_totals(report: Mapping[str, Any]) -> None:
+@dataclass(frozen=True)
+class TotalsCheck:
+    """Números da autoverificação, exibidos no quadro "Conferência dos totais"."""
+
+    records_pieces: int
+    lots_pieces: int
+    summary_pieces: int
+    bay_pieces: int
+    records: int
+    summary_records: int
+
+    def rows(self) -> list[tuple[str, str]]:
+        return [
+            ("Soma dos lançamentos", format_int(self.records_pieces)),
+            ("Soma dos lotes", format_int(self.lots_pieces)),
+            ("Total do resumo", format_int(self.summary_pieces)),
+            ("Soma dos subtotais por vão", format_int(self.bay_pieces)),
+            ("Registros: lançados × resumo", f"{format_int(self.records)} × {format_int(self.summary_records)}"),
+        ]
+
+
+def verify_report_totals(report: Mapping[str, Any]) -> TotalsCheck:
     """Confere que lançamentos, lotes, resumo e subtotais por vão fecham.
 
     Qualquer divergência interrompe a exportação: é preferível não entregar
@@ -287,16 +319,41 @@ def verify_report_totals(report: Mapping[str, Any]) -> None:
         raise ReportConsistencyError(
             "Relatório não gerado: os totais não conferem (" + "; ".join(problems) + ")."
         )
+    return TotalsCheck(
+        records_pieces=records_pieces,
+        lots_pieces=lots_pieces,
+        summary_pieces=summary_pieces,
+        bay_pieces=bay_pieces,
+        records=len(records),
+        summary_records=int(report["totalRecords"]),
+    )
 
 
 def _bay_groups(records: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Agrupa os lançamentos por lado e vão, na ordem já definida pelo modelo."""
+
     groups: dict[tuple[str, str], dict[str, Any]] = {}
     for record in records:
         key = (str(record["side"]), str(record["bay"]))
-        group = groups.setdefault(key, {"side": key[0], "bay": key[1], "records": 0, "pieces": 0})
+        group = groups.setdefault(key, {"side": key[0], "bay": key[1], "records": 0, "pieces": 0, "entries": []})
         group["records"] += 1
         group["pieces"] += int(record["quantity"])
+        group["entries"].append(record)
     return list(groups.values())
+
+
+SIDE_ORDER = ("EF", "DE")
+
+
+def _route_key(location: Mapping[str, Any]) -> tuple[object, ...]:
+    """Ordem de trajeto no pátio: lado EF e depois DE, vão e camada crescentes."""
+
+    side = str(location.get("side", ""))
+    return (
+        SIDE_ORDER.index(side) if side in SIDE_ORDER else len(SIDE_ORDER),
+        _natural_key(str(location.get("bay", ""))),
+        _natural_key(str(location.get("layer") or "")),
+    )
 
 
 @dataclass(frozen=True)
@@ -322,6 +379,16 @@ class ReportView:
     conference_rows: list[list[object]]
     conference_kinds: list[str]
     has_reference: bool
+    totals_check: TotalsCheck
+    lots_ok: int
+    lots_for_conference: int
+    state_counts: list[tuple[str, int, str]]
+    side_rows: list[list[object]]
+    bay_map_columns: list[str]
+    bay_map_rows: list[list[object]]
+    route_rows: list[list[object]]
+    route_kinds: list[str]
+    reference_summary: list[tuple[str, object]] = field(default_factory=list)
     conciliation_rows: list[list[object]] = field(default_factory=list)
     conciliation_kinds: list[str] = field(default_factory=list)
 
@@ -341,6 +408,28 @@ class ReportView:
 
     def inventory_kinds(self) -> list[str]:
         return [str(record["side"]) for record in self.records] + ["total"]
+
+    def grouped_rows(self) -> tuple[list[list[object]], list[str]]:
+        """Lançamentos por lado e vão com subtotal de cada vão e de cada lado."""
+
+        rows: list[list[object]] = []
+        kinds: list[str] = []
+        for side in SIDE_ORDER:
+            groups = [group for group in self.bay_groups if group["side"] == side]
+            if not groups:
+                continue
+            for group in groups:
+                for record in group["entries"]:
+                    rows.append([record["side"], record["bay"], record.get("layer") or "—", str(record["lot"]), int(record["quantity"])])
+                    kinds.append("record")
+                rows.append(["", "", "", f"Subtotal {side} {group['bay']} · {format_int(group['records'])} reg.", group["pieces"]])
+                kinds.append("subtotal")
+            side_records = sum(group["records"] for group in groups)
+            rows.append(["", "", "", f"Total lado {side} · {format_int(side_records)} reg.", sum(group["pieces"] for group in groups)])
+            kinds.append("side-total")
+        rows.append(["TOTAL", "", "", f"{format_int(self.total_records)} registros", self.total_pieces])
+        kinds.append("total")
+        return rows, kinds
 
 
 def _summary(report: Mapping[str, Any], records: list[Mapping[str, Any]]) -> tuple[list[tuple[str, object]], str]:
@@ -474,16 +563,102 @@ def _conciliation(report: Mapping[str, Any]) -> tuple[list[list[object]], list[s
     return rows, kinds
 
 
+ROUTE_HEADERS = ["Ordem", "Lote", "Total", "Situação", "Local principal", "Outros locais", "Peças fora", "Ação recomendada"]
+SIDE_HEADERS = ["Lado", "Registros", "Peças", "Vãos", "Lotes"]
+
+
+def _route(report: Mapping[str, Any]) -> tuple[list[list[object]], list[str]]:
+    """Lotes para conferência na ordem em que o conferente percorre o pátio."""
+
+    pending: list[tuple[tuple[object, ...], list[object], str]] = []
+    for lot in report["lots"]:
+        presentation = _presentation(lot)
+        if not presentation["requiresConference"]:
+            continue
+        raw_primary = lot.get("primaryLocation")
+        raw_locations = [location for location in lot.get("locations", []) if isinstance(location, Mapping)]
+        if isinstance(raw_primary, Mapping):
+            key: tuple[object, ...] = (0, _route_key(raw_primary))
+        elif raw_locations:
+            key = (0, min(_route_key(location) for location in raw_locations))
+        else:
+            key = (1, ())
+        primary = presentation.get("primaryLocation")
+        out_of_primary = presentation.get("outOfPrimaryQuantity")
+        row: list[object] = [
+            str(lot["lot"]),
+            int(lot["totalQuantity"]),
+            str(presentation["situation"]),
+            str(primary["display"] if primary else "Não definido"),
+            "\n".join(str(location["display"]) for location in presentation.get("otherLocations", [])) or "—",
+            int(out_of_primary) if out_of_primary is not None else None,
+            str(presentation["action"]),
+        ]
+        pending.append((key + (_natural_key(str(lot["lot"])),), row, str(presentation["tone"])))
+    pending.sort(key=lambda item: item[0])
+    rows = [[index, *row] for index, (_, row, _) in enumerate(pending, start=1)]
+    return rows, [kind for _, _, kind in pending]
+
+
+def _side_rows(records: list[Mapping[str, Any]], bay_groups: list[dict[str, Any]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for side in SIDE_ORDER:
+        side_records = [record for record in records if record["side"] == side]
+        rows.append(
+            [
+                side,
+                len(side_records),
+                sum(int(record["quantity"]) for record in side_records),
+                sum(1 for group in bay_groups if group["side"] == side),
+                len({str(record["lot"]) for record in side_records}),
+            ]
+        )
+    return rows
+
+
+def _bay_map(bay_groups: list[dict[str, Any]]) -> tuple[list[str], list[list[object]]]:
+    """Mapa de peças por lado (linhas) e vão (colunas), com totais."""
+
+    columns = sorted({str(group["bay"]) for group in bay_groups}, key=_natural_key)
+    pieces = {(group["side"], group["bay"]): int(group["pieces"]) for group in bay_groups}
+    rows: list[list[object]] = []
+    for side in SIDE_ORDER:
+        values = [pieces.get((side, bay)) for bay in columns]
+        rows.append([side, *values, sum(value or 0 for value in values)])
+    column_totals = [sum(pieces.get((side, bay), 0) for side in SIDE_ORDER) for bay in columns]
+    rows.append(["Total", *column_totals, sum(column_totals)])
+    return columns, rows
+
+
 def build_report_view(report: Mapping[str, Any]) -> ReportView:
     """Valida os totais e prepara a apresentação usada por todos os formatos."""
 
-    verify_report_totals(report)
+    totals_check = verify_report_totals(report)
     records = [dict(record) for record in report["records"]]
+    bay_groups = _bay_groups(records)
     summary, observation = _summary(report, records)
+    summary_values = dict(summary)
     consolidated_rows, consolidated_kinds = _consolidated(report)
     conference_rows, conference_kinds = _conference(report)
+    route_rows, route_kinds = _route(report)
     has_reference = _has_reference(report)
     conciliation_rows, conciliation_kinds = _conciliation(report) if has_reference else ([], [])
+    bay_map_columns, bay_map_rows = _bay_map(bay_groups)
+    review_lots = int(report["summary"].get("reviewLots", 0))
+    state_counts = [
+        ("1 peça fora do local principal", int(summary_values["1 peça fora do local principal"]), "single-piece"),
+        ("Várias peças fora do local principal", int(summary_values["Lotes com múltiplas peças fora do local principal"]), "multiple-pieces"),
+        ("Distribuídos em mais de um local", int(summary_values["Lotes distribuídos em mais de um local"]), "distributed"),
+    ]
+    if review_lots:
+        state_counts.append(("Para revisar", review_lots, "review"))
+    reference_labels = (
+        "Lotes previstos",
+        "Previstos e encontrados",
+        "Previstos e não encontrados",
+        "Lotes físicos fora da referência",
+        "Lotes fragmentados (físico)",
+    )
     inventory_date = parse_report_date(report["inventoryDate"])
     return ReportView(
         inventory_date=inventory_date,
@@ -495,12 +670,22 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
         summary=summary,
         observation=observation,
         records=records,
-        bay_groups=_bay_groups(records),
+        bay_groups=bay_groups,
         consolidated_rows=consolidated_rows,
         consolidated_kinds=consolidated_kinds,
         conference_rows=conference_rows,
         conference_kinds=conference_kinds,
         has_reference=has_reference,
+        totals_check=totals_check,
+        lots_ok=int(summary_values["Lotes OK"]),
+        lots_for_conference=int(summary_values["Lotes para conferência"]),
+        state_counts=state_counts,
+        side_rows=_side_rows(records, bay_groups),
+        bay_map_columns=bay_map_columns,
+        bay_map_rows=bay_map_rows,
+        route_rows=route_rows,
+        route_kinds=route_kinds,
+        reference_summary=[(label, summary_values[label]) for label in reference_labels if label in summary_values],
         conciliation_rows=conciliation_rows,
         conciliation_kinds=conciliation_kinds,
     )
@@ -923,80 +1108,132 @@ def _display(value: object) -> str:
     return str(value)
 
 
-def _display_rows(rows: list[list[object]]) -> list[list[str]]:
-    return [[_display(value) for value in row] for row in rows]
+def _display_rows(rows: list[list[object]], *, keep_blank: bool = False) -> list[list[str]]:
+    """Converte linhas para texto; `keep_blank` mantém vazias as células de subtotal e do mapa."""
+
+    return [["" if keep_blank and value in ("", None) else _display(value) for value in row] for row in rows]
 
 
-def _summary_display_rows(view: ReportView) -> list[list[str]]:
-    return [[label, _display(value)] for label, value in view.summary]
+# PDF e Word: navy só nos cabeçalhos, cor apenas para estado. Lote OK não tem cor.
+NAVY = "003B63"
+NAVY_RGB = RGBColor(0x00, 0x3B, 0x63)
+MUTED = "4F5B66"
+RULE = "C9D1D9"
+SUBTOTAL_FILL = "EEF1F4"
+SIDE_TOTAL_FILL = "DCE3EA"
+_STATE_FILLS = {
+    "single-piece": ALERT_YELLOW,
+    "multiple-pieces": ALERT_ORANGE,
+    "distributed": ALERT_RED,
+    "review": ALERT_ORANGE,
+}
+_DOC_ROW_FILLS = {**_STATE_FILLS, "subtotal": SUBTOTAL_FILL, "side-total": SIDE_TOTAL_FILL, "total": NAVY}
+_DOC_BOLD_KINDS = {"subtotal", "side-total", "total"}
+
+GROUPED_HEADERS = ["Lado", "Vão", "Camada", "Lote", "Peças"]
+ANNEX_HEADERS = ["Lote", "Peças", "Localização", "Situação"]
+ROUTE_NOTE = "Ordem de trajeto no pátio: lado EF e depois DE, vãos e camadas em ordem crescente."
+REFERENCE_NOTE = (
+    "A referência usa somente números de lote da planilha Excel exportada do SAP / SICLA. "
+    "As quantidades abaixo são exclusivamente físicas."
+)
+SECTION_TITLES = (
+    "1. Painel",
+    "2. Lotes para conferência",
+    "3. Lançamentos por lado e vão",
+    "4. Anexo: lotes consolidados",
+    "5. Conciliação com referência de lotes",
+)
 
 
-def _inventory_display_rows(view: ReportView) -> list[list[str]]:
-    rows = _display_rows(view.inventory_rows())
-    rows[-1][1:4] = ["", "", ""]
-    return rows
+def _status_line(view: ReportView) -> str:
+    return f"{format_int(view.lots_ok)} lotes OK × {format_int(view.lots_for_conference)} para conferência"
+
+
+def _kpis(view: ReportView) -> list[tuple[str, str]]:
+    return [
+        ("Registros", format_int(view.total_records)),
+        ("Peças", format_int(view.total_pieces)),
+        ("Lotes", format_int(int(dict(view.summary)["Total de lotes"]))),
+        ("Vãos", format_int(len(view.bay_groups))),
+    ]
+
+
+def _check_rows(view: ReportView) -> list[list[str]]:
+    return [[label, value] for label, value in view.totals_check.rows()] + [["Resultado", "Confere"]]
+
+
+def _map_rows(view: ReportView) -> tuple[list[str], list[list[str]], list[str]]:
+    headers = ["Lado", *view.bay_map_columns, "Total"]
+    rows = _display_rows(view.bay_map_rows, keep_blank=True)
+    return headers, rows, ["body"] * (len(rows) - 1) + ["side-total"]
 
 
 def _pdf_value(value: object) -> str:
     return escape(str(value)).replace("\n", "<br/>")
 
 
-def _pdf_table(rows: list[list[object]], widths: list[float], row_kinds: list[str] | None = None) -> Table:
-    styles = getSampleStyleSheet()
-    cell_style = ParagraphStyle(
+def _pdf_table(
+    rows: list[list[object]],
+    widths: list[float],
+    row_kinds: list[str] | None = None,
+    *,
+    font_size: float = 8,
+    padding: float = 3,
+    numeric: set[int] | None = None,
+) -> Table:
+    """Tabela com cabeçalho navy repetido; fundo só para estado, subtotal e total."""
+
+    numeric = numeric or set()
+    base = ParagraphStyle(
         "report-cell",
-        parent=styles["BodyText"],
         fontName="Helvetica",
-        fontSize=8,
-        leading=10,
+        fontSize=font_size,
+        leading=font_size + 2,
         alignment=TA_LEFT,
-        spaceAfter=0,
         splitLongWords=0,
     )
-    header_style = ParagraphStyle("report-header", parent=cell_style, fontName="Helvetica-Bold", textColor=colors.white, alignment=TA_LEFT)
-    total_style = ParagraphStyle("report-total", parent=cell_style, fontName="Helvetica-Bold", textColor=colors.white)
-    kinds = ["header"] + list(row_kinds or [])
-    rendered = [
-        [
-            Paragraph(
-                _pdf_value(value),
-                header_style if row_index == 0 else total_style if row_index < len(kinds) and kinds[row_index] == "total" else cell_style,
-            )
-            for value in row
-        ]
-        for row_index, row in enumerate(rows)
-    ]
+    styles = {
+        (bold, white, right): ParagraphStyle(
+            f"report-cell-{bold}-{white}-{right}",
+            parent=base,
+            fontName="Helvetica-Bold" if bold else "Helvetica",
+            textColor=colors.white if white else colors.black,
+            alignment=TA_RIGHT if right else TA_LEFT,
+        )
+        for bold in (False, True)
+        for white in (False, True)
+        for right in (False, True)
+    }
+    kinds = ["header"] + list(row_kinds or ["body"] * (len(rows) - 1))
+    rendered = []
+    for row_index, row in enumerate(rows):
+        kind = kinds[row_index] if row_index < len(kinds) else "body"
+        bold = kind in _DOC_BOLD_KINDS or kind == "header"
+        white = kind in {"header", "total"}
+        rendered.append(
+            [
+                Paragraph(_pdf_value(value), styles[(bold, white, column_index in numeric)])
+                for column_index, value in enumerate(row)
+            ]
+        )
     table = Table(rendered, colWidths=widths, repeatRows=1, hAlign="LEFT")
     commands: list[tuple[Any, ...]] = [
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(f"#{BLUE_DARK}")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor(f"#{GREY_BORDER}")),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(f"#{NAVY}")),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.25, colors.HexColor(f"#{RULE}")),
+        ("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor(f"#{RULE}")),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(f"#{BLUE_PALE}")]),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), padding),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), padding),
     ]
-    for row_offset, kind in enumerate(row_kinds or [], start=1):
-        if kind == "total":
-            commands.append(("BACKGROUND", (0, row_offset), (-1, row_offset), colors.HexColor(f"#{BLUE_DARK}")))
-            commands.append(("TEXTCOLOR", (0, row_offset), (-1, row_offset), colors.white))
-        elif kind in _ALERT_COLORS:
-            commands.append(("BACKGROUND", (0, row_offset), (-1, row_offset), colors.HexColor(f"#{_ALERT_COLORS[kind]}")))
+    for row_index, kind in enumerate(kinds[1:], start=1):
+        fill = _DOC_ROW_FILLS.get(kind)
+        if fill:
+            commands.append(("BACKGROUND", (0, row_index), (-1, row_index), colors.HexColor(f"#{fill}")))
     table.setStyle(TableStyle(commands))
     return table
-
-
-def _pdf_page_frame(canvas: Any, document: Any) -> None:
-    page_width, page_height = document.pagesize
-    canvas.saveState()
-    canvas.setStrokeColor(colors.HexColor(f"#{GREY_BORDER}"))
-    canvas.line(document.leftMargin, page_height - 1.35 * cm, page_width - document.rightMargin, page_height - 1.35 * cm)
-    canvas.setFont("Helvetica", 7)
-    canvas.setFillColor(colors.HexColor(f"#{BLUE_DARK}"))
-    canvas.drawString(document.leftMargin, page_height - 1.05 * cm, "INVENTÁRIO · RELATÓRIO OFICIAL")
-    canvas.restoreState()
 
 
 class _NumberedCanvas(pdf_canvas.Canvas):
@@ -1017,7 +1254,7 @@ class _NumberedCanvas(pdf_canvas.Canvas):
             page_width = self._pagesize[0]
             self.saveState()
             self.setFont("Helvetica", 7)
-            self.setFillColor(colors.HexColor(f"#{BLUE_DARK}"))
+            self.setFillColor(colors.HexColor(f"#{NAVY}"))
             self.drawRightString(page_width - 1.3 * cm, 0.75 * cm, f"Página {self._pageNumber} de {total}")
             self.restoreState()
             super().showPage()
@@ -1026,73 +1263,195 @@ class _NumberedCanvas(pdf_canvas.Canvas):
 
 # Espaço mínimo para um título seguido do cabeçalho e das primeiras linhas da tabela.
 _PDF_HEADING_MIN_SPACE = 3.2 * cm
+_PDF_MARGIN = 1.3 * cm
+_PDF_COLUMN_GAP = 0.6 * cm
+
+
+class _ReportDocTemplate(BaseDocTemplate):
+    """A4 horizontal com página de coluna única e página de duas colunas."""
+
+    def __init__(self, buffer: BytesIO, view: ReportView) -> None:
+        super().__init__(
+            buffer,
+            pagesize=landscape(A4),
+            leftMargin=_PDF_MARGIN,
+            rightMargin=_PDF_MARGIN,
+            topMargin=1.6 * cm,
+            bottomMargin=1.2 * cm,
+            title="Relatório de Inventário",
+        )
+        self._header_right = f"Inventário de {view.inventory_date_label} · Revisão {view.revision}"
+        column = (self.width - _PDF_COLUMN_GAP) / 2
+        frame_options = {"leftPadding": 0, "rightPadding": 0, "topPadding": 0, "bottomPadding": 0}
+        single = Frame(self.leftMargin, self.bottomMargin, self.width, self.height, id="single", **frame_options)
+        left = Frame(self.leftMargin, self.bottomMargin, column, self.height, id="left", **frame_options)
+        right = Frame(self.leftMargin + column + _PDF_COLUMN_GAP, self.bottomMargin, column, self.height, id="right", **frame_options)
+        self.addPageTemplates(
+            [
+                PageTemplate(id="one", frames=[single], onPage=self._decorate),
+                PageTemplate(id="two", frames=[left, right], onPage=self._decorate),
+            ]
+        )
+
+    def _decorate(self, canvas: Any, document: Any) -> None:
+        page_width, page_height = document.pagesize
+        canvas.saveState()
+        canvas.setStrokeColor(colors.HexColor(f"#{RULE}"))
+        canvas.line(document.leftMargin, page_height - 1.25 * cm, page_width - document.rightMargin, page_height - 1.25 * cm)
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(colors.HexColor(f"#{NAVY}"))
+        canvas.drawString(document.leftMargin, page_height - 0.95 * cm, "INVENTÁRIO · RELATÓRIO DE ENTREGA")
+        canvas.drawRightString(page_width - document.rightMargin, page_height - 0.95 * cm, self._header_right)
+        canvas.restoreState()
+
+
+def _pdf_kpi_table(view: ReportView, width: float) -> Table:
+    label_style = ParagraphStyle("kpi-label", fontName="Helvetica", fontSize=8, leading=10, textColor=colors.HexColor(f"#{MUTED}"))
+    value_style = ParagraphStyle("kpi-value", fontName="Helvetica-Bold", fontSize=20, leading=24, textColor=colors.HexColor(f"#{NAVY}"))
+    cells = [[Paragraph(label, label_style), Paragraph(value, value_style)] for label, value in _kpis(view)]
+    table = Table([cells], colWidths=[width / len(cells)] * len(cells), hAlign="LEFT")
+    table.setStyle(
+        TableStyle(
+            [
+                ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor(f"#{NAVY}")),
+                ("LINEAFTER", (0, 0), (-2, -1), 0.4, colors.HexColor(f"#{RULE}")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    return table
+
+
+def _pdf_state_table(view: ReportView, width: float) -> Table:
+    style = ParagraphStyle("state", fontName="Helvetica", fontSize=8, leading=10)
+    cells = [Paragraph(f"<b>{format_int(view.lots_ok)}</b> lotes OK", style)] + [
+        Paragraph(f"<b>{format_int(count)}</b> {escape(label)}", style) for label, count, _ in view.state_counts
+    ]
+    table = Table([cells], colWidths=[width / len(cells)] * len(cells), hAlign="LEFT")
+    commands: list[tuple[Any, ...]] = [
+        ("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor(f"#{RULE}")),
+        ("LINEAFTER", (0, 0), (-2, -1), 0.4, colors.HexColor(f"#{RULE}")),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]
+    for index, (_, count, kind) in enumerate(view.state_counts, start=1):
+        if count:
+            commands.append(("BACKGROUND", (index, 0), (index, 0), colors.HexColor(f"#{_STATE_FILLS[kind]}")))
+    table.setStyle(TableStyle(commands))
+    return table
 
 
 def export_pdf(report: dict[str, Any]) -> bytes:
     view = build_report_view(report)
     buffer = BytesIO()
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle("report-title", parent=styles["Title"], textColor=colors.HexColor(f"#{BLUE_DARK}"), fontSize=18, leading=22, alignment=TA_LEFT, spaceAfter=4)
-    subtitle_style = ParagraphStyle("report-subtitle", parent=styles["Normal"], textColor=colors.HexColor("#4F5B66"), fontSize=9, leading=12, spaceAfter=8)
-    heading_style = ParagraphStyle("report-heading", parent=styles["Heading2"], textColor=colors.HexColor(f"#{BLUE_DARK}"), fontSize=12, leading=14, spaceBefore=8, spaceAfter=6, keepWithNext=1)
-    note_style = ParagraphStyle("report-note", parent=styles["BodyText"], fontSize=9, leading=12, spaceBefore=5, spaceAfter=5)
-    document = SimpleDocTemplate(
-        buffer,
-        pagesize=landscape(A4),
-        leftMargin=1.3 * cm,
-        rightMargin=1.3 * cm,
-        topMargin=1.7 * cm,
-        bottomMargin=1.3 * cm,
-        title="Relatório de Inventário",
-    )
+    document = _ReportDocTemplate(buffer, view)
+    width = document.width
+    column = (width - _PDF_COLUMN_GAP) / 2
+    title_style = ParagraphStyle("report-title", fontName="Helvetica-Bold", fontSize=17, leading=21, textColor=colors.HexColor(f"#{NAVY}"))
+    subtitle_style = ParagraphStyle("report-subtitle", fontName="Helvetica", fontSize=9, leading=12, textColor=colors.HexColor(f"#{MUTED}"), spaceAfter=4)
+    heading_style = ParagraphStyle("report-heading", fontName="Helvetica-Bold", fontSize=12, leading=15, textColor=colors.HexColor(f"#{NAVY}"), spaceBefore=6, spaceAfter=5, keepWithNext=1)
+    subheading_style = ParagraphStyle("report-subheading", parent=heading_style, fontSize=9.5, leading=12, spaceBefore=4, spaceAfter=3)
+    status_style = ParagraphStyle("report-status", fontName="Helvetica-Bold", fontSize=10, leading=13, spaceBefore=6, spaceAfter=3)
+    note_style = ParagraphStyle("report-note", fontName="Helvetica", fontSize=8.5, leading=11, spaceBefore=4, spaceAfter=4)
 
     def heading(text: str) -> list[Any]:
-        return [CondPageBreak(_PDF_HEADING_MIN_SPACE), Paragraph(text, heading_style)]
+        return [CondPageBreak(_PDF_HEADING_MIN_SPACE), Paragraph(escape(text), heading_style)]
 
+    side_table = _pdf_table([SIDE_HEADERS] + _display_rows(view.side_rows), [2.0 * cm] + [2.4 * cm] * 4, numeric={1, 2, 3, 4})
+    check_table = _pdf_table([["Conferência dos totais", "Peças / registros"]] + _check_rows(view), [6.6 * cm, 4.2 * cm], numeric={1})
+    map_headers, map_rows, map_kinds = _map_rows(view)
+    map_label = 1.6 * cm
+    map_cell = (width - map_label) / (len(map_headers) - 1)
     story: list[Any] = [
-        Paragraph("Aplicativo Inventário da Laminação de Perfis", title_style),
-        Paragraph("Relatório de Inventário", heading_style),
+        Paragraph("Inventário da Laminação de Perfis", title_style),
         Paragraph(escape(view.generated_line), subtitle_style),
-        *heading("Resumo geral"),
-        _pdf_table([["Indicador", "Valor"]] + _summary_display_rows(view), [14.5 * cm, 11.5 * cm]),
-        *heading("Observação operacional"),
-        Paragraph(escape(view.observation), note_style),
-        Spacer(1, 0.15 * cm),
-        *heading("Inventário"),
-        _pdf_table(
-            [INVENTORY_HEADERS] + _inventory_display_rows(view),
-            [2.0 * cm, 2.0 * cm, 2.4 * cm, 15.0 * cm, 4.0 * cm],
-            view.inventory_kinds(),
+        *heading(SECTION_TITLES[0]),
+        _pdf_kpi_table(view, width),
+        Paragraph(escape(_status_line(view)), status_style),
+        _pdf_state_table(view, width),
+        Spacer(1, 0.3 * cm),
+        Table(
+            [[
+                [Paragraph("Quadro por lado", subheading_style), side_table],
+                [Paragraph("Conferência dos totais", subheading_style), check_table],
+            ]],
+            colWidths=[12.2 * cm, width - 12.2 * cm],
+            hAlign="LEFT",
+            style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0)]),
         ),
-        PageBreak(),
-        Paragraph("Lotes consolidados", heading_style),
-        _pdf_table(
-            [CONSOLIDATED_HEADERS] + _display_rows(view.consolidated_rows),
-            [2.0 * cm, 2.5 * cm, 13.3 * cm, 9.3 * cm],
-            view.consolidated_kinds,
-        ),
-        PageBreak(),
-        Paragraph("Lotes para conferência", heading_style),
-        _pdf_table(
-            [CONFERENCE_HEADERS] + _display_rows(view.conference_rows),
-            [2.0 * cm, 1.6 * cm, 4.5 * cm, 4.2 * cm, 5.0 * cm, 1.7 * cm, 8.1 * cm],
-            view.conference_kinds,
-        ),
+        Paragraph("Mapa de peças por lado e vão", subheading_style),
+        _pdf_table([map_headers] + map_rows, [map_label] + [map_cell] * (len(map_headers) - 1), map_kinds, font_size=7.5, padding=2, numeric=set(range(1, len(map_headers)))),
     ]
-    if view.has_reference:
+    if view.reference_summary:
         story.extend(
             [
-                PageBreak(),
-                Paragraph("Conciliação com referência de lotes", heading_style),
-                Paragraph("A referência usa somente números de lote da planilha Excel exportada do SAP / SICLA. As quantidades abaixo são exclusivamente físicas.", note_style),
+                Paragraph("Referência de lotes (SAP / SICLA)", subheading_style),
                 _pdf_table(
-                    [CONCILIATION_HEADERS] + _display_rows(view.conciliation_rows),
-                    [2.0 * cm, 3.0 * cm, 2.6 * cm, 10.2 * cm, 2.5 * cm, 7.0 * cm],
-                    view.conciliation_kinds,
+                    [["Indicador", "Lotes"]] + [[label, _display(value)] for label, value in view.reference_summary],
+                    [8.0 * cm, 3.0 * cm],
+                    numeric={1},
                 ),
             ]
         )
-    document.build(story, onFirstPage=_pdf_page_frame, onLaterPages=_pdf_page_frame, canvasmaker=_NumberedCanvas)
+    story.append(Paragraph(escape(view.observation), note_style))
+
+    story.extend([PageBreak(), Paragraph(escape(SECTION_TITLES[1]), heading_style), Paragraph(ROUTE_NOTE, note_style)])
+    if view.route_rows:
+        story.append(
+            _pdf_table(
+                [ROUTE_HEADERS] + _display_rows(view.route_rows),
+                [1.2 * cm, 2.0 * cm, 1.3 * cm, 4.2 * cm, 3.4 * cm, 4.2 * cm, 1.5 * cm, width - 17.8 * cm],
+                view.route_kinds,
+                numeric={0, 2, 6},
+            )
+        )
+    else:
+        story.append(Paragraph("Nenhum lote precisa de conferência.", note_style))
+
+    grouped_rows, grouped_kinds = view.grouped_rows()
+    story.extend(
+        [
+            NextPageTemplate("two"),
+            PageBreak(),
+            Paragraph(escape(SECTION_TITLES[2]), heading_style),
+            _pdf_table(
+                [GROUPED_HEADERS] + _display_rows(grouped_rows, keep_blank=True),
+                [1.2 * cm, 1.2 * cm, 1.6 * cm, column - 6.0 * cm, 2.0 * cm],
+                grouped_kinds,
+                font_size=7.5,
+                padding=1.4,
+                numeric={4},
+            ),
+            PageBreak(),
+            Paragraph(escape(SECTION_TITLES[3]), heading_style),
+            _pdf_table(
+                [ANNEX_HEADERS] + _display_rows(view.consolidated_rows),
+                [2.1 * cm, 1.3 * cm, column - 7.6 * cm, 4.2 * cm],
+                view.consolidated_kinds,
+                font_size=7.5,
+                padding=1.4,
+                numeric={1},
+            ),
+        ]
+    )
+    if view.has_reference:
+        story.extend(
+            [
+                NextPageTemplate("one"),
+                PageBreak(),
+                Paragraph(escape(SECTION_TITLES[4]), heading_style),
+                Paragraph(REFERENCE_NOTE, note_style),
+                _pdf_table(
+                    [CONCILIATION_HEADERS] + _display_rows(view.conciliation_rows),
+                    [2.0 * cm, 3.0 * cm, 2.6 * cm, 10.2 * cm, 2.5 * cm, width - 20.3 * cm],
+                    view.conciliation_kinds,
+                    numeric={4},
+                ),
+            ]
+        )
+    document.build(story, canvasmaker=_NumberedCanvas)
     return buffer.getvalue()
 
 
@@ -1102,6 +1461,7 @@ def _docx_set_shading(cell: Any, fill: str) -> None:
     if shading is None:
         shading = OxmlElement("w:shd")
         properties.append(shading)
+    shading.set(qn("w:val"), "clear")
     shading.set(qn("w:fill"), fill)
 
 
@@ -1118,52 +1478,87 @@ def _docx_set_row_flags(row: Any, *, header: bool = False) -> None:
         properties.append(repeat)
 
 
-def _docx_cell_text(cell: Any, value: object, *, header: bool = False, white: bool = False) -> None:
+def _docx_cell_text(
+    cell: Any,
+    value: object,
+    *,
+    bold: bool = False,
+    white: bool = False,
+    right: bool = False,
+    size: float = 7.5,
+) -> None:
     cell.text = ""
+    lines = str(value).split("\n")
     paragraph = cell.paragraphs[0]
-    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER if header else WD_ALIGN_PARAGRAPH.LEFT
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT if right else WD_ALIGN_PARAGRAPH.LEFT
+    paragraph.paragraph_format.space_before = Pt(0)
     paragraph.paragraph_format.space_after = Pt(0)
-    run = paragraph.add_run(str(value))
-    run.font.name = "Arial"
-    run.font.size = Pt(8 if header else 7.5)
-    run.font.bold = header or white
-    if white:
-        run.font.color.rgb = RGBColor(255, 255, 255)
+    for index, line in enumerate(lines):
+        run = paragraph.add_run(line)
+        run.font.name = "Arial"
+        run.font.size = Pt(size)
+        run.font.bold = bold
+        if white:
+            run.font.color.rgb = RGBColor(255, 255, 255)
+        if index < len(lines) - 1:
+            run.add_break()
+
+
+def _docx_set_widths(table: Any, widths: list[float]) -> None:
+    """Grava a largura na grade e nas células: Word e LibreOffice leem lugares diferentes."""
+
+    table.autofit = False
+    for index, width in enumerate(widths):
+        table.columns[index].width = Cm(width)
+        for cell in table.columns[index].cells:
+            cell.width = Cm(width)
 
 
 def _docx_add_table(
-    document: Document,
+    container: Any,
     headers: list[str],
     rows: list[list[str]],
     widths: list[float],
     *,
     row_kinds: list[str] | None = None,
+    numeric: set[int] | None = None,
+    size: float = 7.5,
 ) -> Any:
-    table = document.add_table(rows=1, cols=len(headers))
+    """Tabela com cabeçalho navy repetido; fundo só para estado, subtotal e total."""
+
+    numeric = numeric or set()
+    table = container.add_table(rows=1, cols=len(headers))
     table.style = "Table Grid"
-    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table.alignment = WD_TABLE_ALIGNMENT.LEFT
     table.autofit = False
     _docx_set_row_flags(table.rows[0], header=True)
     for column_index, header in enumerate(headers):
         cell = table.rows[0].cells[column_index]
         cell.width = Cm(widths[column_index])
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        _docx_set_shading(cell, BLUE_DARK)
-        _docx_cell_text(cell, header, header=True, white=True)
+        _docx_set_shading(cell, NAVY)
+        _docx_cell_text(cell, header, bold=True, white=True, right=column_index in numeric, size=size)
+    kinds = row_kinds or ["body"] * len(rows)
     for row_offset, values in enumerate(rows):
-        kind = (row_kinds or ["body"] * len(rows))[row_offset]
+        kind = kinds[row_offset]
         row = table.add_row()
         _docx_set_row_flags(row)
-        fill = _ALERT_COLORS.get(kind, BLUE_PALE if row_offset % 2 else WHITE)
-        white = kind == "total"
-        if white:
-            fill = BLUE_DARK
+        fill = _DOC_ROW_FILLS.get(kind)
         for column_index, value in enumerate(values):
             cell = row.cells[column_index]
             cell.width = Cm(widths[column_index])
-            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-            _docx_set_shading(cell, fill)
-            _docx_cell_text(cell, value, white=white)
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+            if fill:
+                _docx_set_shading(cell, fill)
+            _docx_cell_text(
+                cell,
+                value,
+                bold=kind in _DOC_BOLD_KINDS,
+                white=kind == "total",
+                right=column_index in numeric,
+                size=size,
+            )
+    _docx_set_widths(table, widths)
     return table
 
 
@@ -1183,10 +1578,14 @@ def _docx_add_field(paragraph: Any, instruction_text: str) -> None:
     run._r.append(field_end)
 
 
-def _docx_add_text(paragraph: Any, text: str) -> None:
+def _docx_add_text(paragraph: Any, text: str, *, size: float = 8, bold: bool = False, color: RGBColor | None = None) -> Any:
     run = paragraph.add_run(text)
     run.font.name = "Arial"
-    run.font.size = Pt(8)
+    run.font.size = Pt(size)
+    run.font.bold = bold
+    if color is not None:
+        run.font.color.rgb = color
+    return run
 
 
 def _docx_add_page_field(paragraph: Any) -> None:
@@ -1196,10 +1595,82 @@ def _docx_add_page_field(paragraph: Any) -> None:
     _docx_add_field(paragraph, "NUMPAGES")
 
 
-def _docx_heading(document: Document, text: str) -> Any:
-    heading = document.add_heading(text, level=1)
-    heading.paragraph_format.keep_with_next = True
-    return heading
+def _docx_paragraph(container: Any, text: str = "", *, size: float = 8.5, bold: bool = False, color: RGBColor | None = None, after: float = 3) -> Any:
+    paragraph = container.add_paragraph()
+    paragraph.paragraph_format.space_before = Pt(0)
+    paragraph.paragraph_format.space_after = Pt(after)
+    if text:
+        _docx_add_text(paragraph, text, size=size, bold=bold, color=color)
+    return paragraph
+
+
+def _docx_heading(container: Any, text: str, *, size: float = 12, before: float = 6) -> Any:
+    paragraph = container.add_paragraph()
+    paragraph.paragraph_format.space_before = Pt(before)
+    paragraph.paragraph_format.space_after = Pt(4)
+    paragraph.paragraph_format.keep_with_next = True
+    _docx_add_text(paragraph, text, size=size, bold=True, color=NAVY_RGB)
+    return paragraph
+
+
+def _docx_set_columns(section: Any, count: int, space_cm: float = 0.6) -> None:
+    properties = section._sectPr
+    columns = properties.find(qn("w:cols"))
+    if columns is None:
+        columns = OxmlElement("w:cols")
+        properties.append(columns)
+    columns.set(qn("w:num"), str(count))
+    columns.set(qn("w:space"), str(int(space_cm * 567)))
+
+
+def _docx_layout_table(document: Document, widths: list[float]) -> Any:
+    """Tabela invisível usada só para dispor blocos lado a lado."""
+
+    table = document.add_table(rows=1, cols=len(widths))
+    _docx_set_widths(table, widths)
+    borders = OxmlElement("w:tblBorders")
+    for edge in ("top", "left", "bottom", "right", "insideH", "insideV"):
+        element = OxmlElement(f"w:{edge}")
+        element.set(qn("w:val"), "nil")
+        borders.append(element)
+    table._tbl.tblPr.append(borders)
+    for cell in table.rows[0].cells:
+        cell.paragraphs[0].paragraph_format.space_after = Pt(0)
+    return table
+
+
+def _docx_kpis(document: Document, view: ReportView, width: float) -> None:
+    kpis = _kpis(view)
+    table = document.add_table(rows=1, cols=len(kpis))
+    table.style = "Table Grid"
+    table.autofit = False
+    for index, (label, value) in enumerate(kpis):
+        cell = table.rows[0].cells[index]
+        cell.width = Cm(width / len(kpis))
+        cell.text = ""
+        label_paragraph = cell.paragraphs[0]
+        label_paragraph.paragraph_format.space_after = Pt(0)
+        _docx_add_text(label_paragraph, label, size=8, color=RGBColor(0x4F, 0x5B, 0x66))
+        value_paragraph = cell.add_paragraph()
+        value_paragraph.paragraph_format.space_after = Pt(2)
+        _docx_add_text(value_paragraph, value, size=18, bold=True, color=NAVY_RGB)
+    _docx_set_widths(table, [width / len(kpis)] * len(kpis))
+
+
+def _docx_states(document: Document, view: ReportView, width: float) -> None:
+    cells = [(f"{format_int(view.lots_ok)} lotes OK", None)] + [
+        (f"{format_int(count)} {label}", _STATE_FILLS[kind] if count else None) for label, count, kind in view.state_counts
+    ]
+    table = document.add_table(rows=1, cols=len(cells))
+    table.style = "Table Grid"
+    table.autofit = False
+    for index, (text, fill) in enumerate(cells):
+        cell = table.rows[0].cells[index]
+        cell.width = Cm(width / len(cells))
+        if fill:
+            _docx_set_shading(cell, fill)
+        _docx_cell_text(cell, text, size=8)
+    _docx_set_widths(table, [width / len(cells)] * len(cells))
 
 
 def export_docx(report: dict[str, Any]) -> bytes:
@@ -1210,67 +1681,91 @@ def export_docx(report: dict[str, Any]) -> bytes:
     section.page_width = Cm(29.7)
     section.page_height = Cm(21.0)
     section.top_margin = Cm(1.4)
-    section.bottom_margin = Cm(1.3)
+    section.bottom_margin = Cm(1.2)
     section.left_margin = Cm(1.2)
     section.right_margin = Cm(1.2)
-    section.header_distance = Cm(0.7)
-    section.footer_distance = Cm(0.7)
+    section.header_distance = Cm(0.6)
+    section.footer_distance = Cm(0.6)
+    width = 29.7 - 2.4
+    column = (width - 0.6) / 2
     header = section.header.paragraphs[0]
-    header.text = "INVENTÁRIO · RELATÓRIO OFICIAL"
-    header.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    header.runs[0].font.name = "Arial"
-    header.runs[0].font.size = Pt(8)
-    header.runs[0].font.color.rgb = RGBColor(31, 78, 120)
+    header.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    _docx_add_text(header, f"INVENTÁRIO · RELATÓRIO DE ENTREGA · Inventário de {view.inventory_date_label} · Revisão {view.revision}", size=7.5, color=NAVY_RGB)
     footer = section.footer.paragraphs[0]
     footer.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     _docx_add_page_field(footer)
-
     document.core_properties.title = "Relatório de Inventário"
-    title = document.add_heading("Aplicativo Inventário da Laminação de Perfis", level=0)
-    title.runs[0].font.name = "Arial"
-    title.runs[0].font.color.rgb = RGBColor(31, 78, 120)
-    document.add_paragraph("Relatório de Inventário")
-    document.add_paragraph(view.generated_line)
-    _docx_heading(document, "Resumo geral")
-    _docx_add_table(document, ["Indicador", "Valor"], _summary_display_rows(view), [7.0, 10.0])
-    _docx_heading(document, "Observação operacional")
-    document.add_paragraph(view.observation)
-    _docx_heading(document, "Inventário")
+
+    _docx_paragraph(document, "Inventário da Laminação de Perfis", size=17, bold=True, color=NAVY_RGB, after=2)
+    _docx_paragraph(document, view.generated_line, size=9, color=RGBColor(0x4F, 0x5B, 0x66), after=4)
+    _docx_heading(document, SECTION_TITLES[0], before=2)
+    _docx_kpis(document, view, width)
+    _docx_paragraph(document, _status_line(view), size=10, bold=True, after=2).paragraph_format.space_before = Pt(5)
+    _docx_states(document, view, width)
+    layout = _docx_layout_table(document, [12.6, width - 12.6])
+    left, right = layout.rows[0].cells
+    _docx_heading(left, "Quadro por lado", size=9.5, before=6)
+    _docx_add_table(left, SIDE_HEADERS, _display_rows(view.side_rows), [2.0, 2.4, 2.4, 2.4, 2.4], numeric={1, 2, 3, 4})
+    _docx_heading(right, "Conferência dos totais", size=9.5, before=6)
+    _docx_add_table(right, ["Conferência dos totais", "Peças / registros"], _check_rows(view), [6.6, 4.2], numeric={1})
+    map_headers, map_rows, map_kinds = _map_rows(view)
+    _docx_heading(document, "Mapa de peças por lado e vão", size=9.5, before=6)
+    map_cell = (width - 1.6) / (len(map_headers) - 1)
+    _docx_add_table(document, map_headers, map_rows, [1.6] + [map_cell] * (len(map_headers) - 1), row_kinds=map_kinds, numeric=set(range(1, len(map_headers))), size=7)
+    if view.reference_summary:
+        _docx_heading(document, "Referência de lotes (SAP / SICLA)", size=9.5, before=6)
+        _docx_add_table(document, ["Indicador", "Lotes"], [[label, _display(value)] for label, value in view.reference_summary], [8.0, 3.0], numeric={1})
+    _docx_paragraph(document, view.observation).paragraph_format.space_before = Pt(5)
+
+    document.add_page_break()
+    _docx_heading(document, SECTION_TITLES[1], before=0)
+    _docx_paragraph(document, ROUTE_NOTE)
+    if view.route_rows:
+        _docx_add_table(
+            document,
+            ROUTE_HEADERS,
+            _display_rows(view.route_rows),
+            [1.2, 2.1, 1.3, 4.2, 3.4, 4.2, 1.5, width - 17.9],
+            row_kinds=view.route_kinds,
+            numeric={0, 2, 6},
+        )
+    else:
+        _docx_paragraph(document, "Nenhum lote precisa de conferência.")
+
+    columns_section = document.add_section(WD_SECTION.NEW_PAGE)
+    _docx_set_columns(columns_section, 2)
+    grouped_rows, grouped_kinds = view.grouped_rows()
+    _docx_heading(document, SECTION_TITLES[2], before=0)
     _docx_add_table(
         document,
-        INVENTORY_HEADERS,
-        _inventory_display_rows(view),
-        [1.5, 1.45, 2.0, 7.0, 2.4],
-        row_kinds=view.inventory_kinds(),
+        GROUPED_HEADERS,
+        _display_rows(grouped_rows, keep_blank=True),
+        [1.2, 1.2, 1.6, column - 6.0, 2.0],
+        row_kinds=grouped_kinds,
+        numeric={4},
     )
     document.add_page_break()
-    _docx_heading(document, "Lotes consolidados")
+    _docx_heading(document, SECTION_TITLES[3], before=0)
     _docx_add_table(
         document,
-        CONSOLIDATED_HEADERS,
+        ANNEX_HEADERS,
         _display_rows(view.consolidated_rows),
-        [2.4, 2.5, 14.5, 7.5],
+        [2.1, 1.3, column - 7.6, 4.2],
         row_kinds=view.consolidated_kinds,
-    )
-    document.add_page_break()
-    _docx_heading(document, "Lotes para conferência")
-    _docx_add_table(
-        document,
-        CONFERENCE_HEADERS,
-        _display_rows(view.conference_rows),
-        [2.2, 1.5, 4.5, 4.2, 5.0, 2.0, 8.0],
-        row_kinds=view.conference_kinds,
+        numeric={1},
     )
     if view.has_reference:
-        document.add_page_break()
-        _docx_heading(document, "Conciliação com referência de lotes")
-        document.add_paragraph("A referência usa somente números de lote da planilha Excel exportada do SAP / SICLA. As quantidades abaixo são exclusivamente físicas.")
+        reference_section = document.add_section(WD_SECTION.NEW_PAGE)
+        _docx_set_columns(reference_section, 1)
+        _docx_heading(document, SECTION_TITLES[4], before=0)
+        _docx_paragraph(document, REFERENCE_NOTE)
         _docx_add_table(
             document,
             CONCILIATION_HEADERS,
             _display_rows(view.conciliation_rows),
-            [2.2, 3.0, 2.4, 10.6, 2.4, 7.0],
+            [2.0, 3.0, 2.6, 10.2, 2.5, width - 20.3],
             row_kinds=view.conciliation_kinds,
+            numeric={4},
         )
     buffer = BytesIO()
     document.save(buffer)

@@ -150,15 +150,18 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
 
     pdf_reader = PdfReader(BytesIO(pdf))
     pdf_text = "".join(page.extract_text() or "" for page in pdf_reader.pages)
+    flat_pdf_text = " ".join(pdf_text.split())
     assert pdf_reader.pages[0].mediabox.width > pdf_reader.pages[0].mediabox.height
     assert "2710000001" in pdf_text
     assert "2720000090" in pdf_text
-    assert "1 PEÇA FORA DO LOCAL PRINCIPAL" in pdf_text
-    assert "5 PEÇAS FORA DO LOCAL PRINCIPAL" in pdf_text
-    assert "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL" in pdf_text
+    assert "1 PEÇA FORA DO LOCAL PRINCIPAL" in flat_pdf_text
+    assert "5 PEÇAS FORA DO LOCAL PRINCIPAL" in flat_pdf_text
+    assert "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL" in flat_pdf_text
     assert "PEÇA_SOLTEIRA" not in pdf_text
-    for label, value in (("Total de registros", "100"), ("Total de peças", "1.269"), ("Total de lotes", "95"), ("Lotes OK", "91"), ("Lotes para conferência", "4")):
-        assert f"{label}\n{value}" in pdf_text
+    pdf_lines = [line.strip() for line in pdf_text.splitlines()]
+    for label, value in (("Registros", "100"), ("Peças", "1.269"), ("Lotes", "95")):
+        assert pdf_lines[pdf_lines.index(label) + 1] == value
+    assert "91 lotes OK × 4 para conferência" in pdf_text
     document = Document(BytesIO(docx))
     docx_text = "\n".join(cell.text for table in document.tables for row in table.rows for cell in row.cells)
     assert "2710000001" in docx_text
@@ -167,16 +170,6 @@ def test_100_records_generate_valid_equal_xls_and_xlsx_reports() -> None:
     assert "5 PEÇAS FORA DO LOCAL PRINCIPAL" in docx_text
     assert "LOTE DISTRIBUÍDO EM MAIS DE UM LOCAL" in docx_text
     assert "PEÇA_SOLTEIRA" not in docx_text
-    docx_summary = {
-        row.cells[0].text: row.cells[1].text
-        for table in document.tables
-        for row in table.rows
-        if len(row.cells) == 2
-    }
-    assert {label: docx_summary[label] for label in ("Total de registros", "Total de peças", "Total de lotes", "Lotes OK", "Lotes para conferência")} == {
-        "Total de registros": "100",
-        "Total de peças": "1.269",
-        "Total de lotes": "95",
-        "Lotes OK": "91",
-        "Lotes para conferência": "4",
-    }
+    kpi_table = next(table for table in document.tables if table.rows[0].cells[0].text.startswith("Registros\n"))
+    assert [cell.text for cell in kpi_table.rows[0].cells] == ["Registros\n100", "Peças\n1.269", "Lotes\n95", "Vãos\n" + str(len({(entry.side, entry.bay) for entry in volume_entries()}))]
+    assert "91 lotes OK × 4 para conferência" in "\n".join(paragraph.text for paragraph in document.paragraphs)

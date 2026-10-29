@@ -9,7 +9,7 @@ import { Icon } from "@/components/icon";
 import { restoreSession } from "@/lib/auth-client";
 import { createInventory } from "@/lib/inventory-repository";
 
-export type AppRailRoute = "home" | "history" | "team" | "pending" | "admin";
+export type AppRailRoute = "home" | "inventory" | "history" | "team" | "pending" | "admin";
 
 interface AppRailProps {
   active: AppRailRoute;
@@ -60,7 +60,7 @@ export function AppRail({ active, creating = false, onCreate, showTeam = false, 
         <button className="dashboard-nav-link nav-create" type="button" onClick={() => void createFromRail()} disabled={isCreating} aria-label={isCreating ? "Criando inventário" : "Novo inventário"}>
           <span aria-hidden="true"><Icon name="plus" size={17} /></span>{isCreating ? "Criando…" : "Novo inventário"}
         </button>
-        <Link className="dashboard-nav-link nav-in-progress" href="/dashboard#em-andamento">
+        <Link className={`${activeClass(active, "inventory")} nav-in-progress`} href="/dashboard#em-andamento" aria-current={active === "inventory" ? "page" : undefined}>
           <span aria-hidden="true"><Icon name="boxes" size={17} /></span>Em andamento
         </Link>
         <Link className={activeClass(active, "history")} href="/historico" aria-current={active === "history" ? "page" : undefined}>

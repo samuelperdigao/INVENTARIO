@@ -9,7 +9,7 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
   await page.getByRole("button", { name: /^Iniciar novo inventário/ }).click();
   await page.getByRole("button", { name: "Continuar sem planilha", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Novo registro" })).toBeVisible();
-  const recordMetric = page.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value');
+  const recordMetric = page.locator('[aria-label="Resumo do inventário"] [data-metric="records"] [data-metric-value]');
 
   const entries: Array<{ side: "EF" | "DE"; bay: string; layer?: string; lot: string; quantity: number }> = [
     { side: "EF", bay: "15", layer: "A1", lot: "2710000001", quantity: 19 },
@@ -47,10 +47,10 @@ test("processa 100 lançamentos, finaliza e baixa os quatro formatos", async ({ 
     await expect(recordMetric).toHaveText(String(index + 1));
   }
 
-  const metrics = page.locator('[aria-label="Resumo do inventário"] .metric-card .metric-value');
+  const metrics = page.locator('[aria-label="Resumo do inventário"] [data-metric-value]');
   await expect(metrics.nth(0)).toHaveText("100");
   await expect(metrics.nth(1)).toHaveText("95");
-  await expect(metrics.nth(2)).toHaveText("1269");
+  await expect(metrics.nth(2), "números formatados em pt-BR").toHaveText("1.269");
 
   await page.locator(".control-stage-summary").filter({ hasText: "Sincronização" }).click();
   await page.getByRole("button", { name: "Sincronizar agora", exact: true }).click();

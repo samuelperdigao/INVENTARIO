@@ -25,7 +25,7 @@ test("participa de um inventário com seis dígitos sem expor UUID ou token", as
   await expect(secondPage.getByText(/Bem-vindo\(a\)/)).toBeVisible();
   await secondPage.getByLabel("Código de participação").fill(participationCode!);
   await secondPage.getByRole("button", { name: "Participar agora" }).click();
-  await expect(secondPage.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value')).toHaveText("1");
+  await expect(secondPage.locator('[aria-label="Resumo do inventário"] [data-metric="records"] [data-metric-value]')).toHaveText("1");
 
   await page.getByRole("button", { name: "LE" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("17");
@@ -38,24 +38,24 @@ test("participa de um inventário com seis dígitos sem expor UUID ou token", as
   await secondPage.getByLabel("Lote").fill("2712345679");
   await secondPage.getByLabel("Quantidade de peças").fill("4");
   await secondPage.getByRole("button", { name: "Adicionar" }).click();
-  await expect(secondPage.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value')).toHaveText("2");
+  await expect(secondPage.locator('[aria-label="Resumo do inventário"] [data-metric="records"] [data-metric-value]')).toHaveText("2");
 
   const thirdContext = await browser.newContext();
   const thirdPage = await thirdContext.newPage();
   await login(thirdPage, thirdParticipantEmail);
   await thirdPage.getByLabel("Código de participação").fill(participationCode!);
   await thirdPage.getByRole("button", { name: "Participar agora" }).click();
-  await expect(thirdPage.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value')).toHaveText("2");
+  await expect(thirdPage.locator('[aria-label="Resumo do inventário"] [data-metric="records"] [data-metric-value]')).toHaveText("2");
   await thirdPage.getByRole("button", { name: "LE" }).click();
   await thirdPage.getByRole("textbox", { name: "Vão" }).fill("18");
   await thirdPage.getByLabel("Lote").fill("2712345690");
   await thirdPage.getByLabel("Quantidade de peças").fill("2");
   await thirdPage.getByRole("button", { name: "Adicionar" }).click();
-  await expect(thirdPage.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value')).toHaveText("3");
-  await expect(page.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value')).toHaveText("3", { timeout: 30_000 });
-  await expect(secondPage.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value')).toHaveText("3", { timeout: 30_000 });
+  await expect(thirdPage.locator('[aria-label="Resumo do inventário"] [data-metric="records"] [data-metric-value]')).toHaveText("3");
+  await expect(page.locator('[aria-label="Resumo do inventário"] [data-metric="records"] [data-metric-value]')).toHaveText("3", { timeout: 30_000 });
+  await expect(secondPage.locator('[aria-label="Resumo do inventário"] [data-metric="records"] [data-metric-value]')).toHaveText("3", { timeout: 30_000 });
 
-  await expect(page.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value')).toHaveText("3", { timeout: 30_000 });
+  await expect(page.locator('[aria-label="Resumo do inventário"] [data-metric="records"] [data-metric-value]')).toHaveText("3", { timeout: 30_000 });
   await expect(page.getByRole("textbox", { name: "Vão" })).toHaveValue("17");
   await expect(page.getByRole("combobox", { name: "Camada" })).toHaveValue("A2");
   await expect(page.getByRole("textbox", { name: "Lote" })).toHaveValue("2712345689");

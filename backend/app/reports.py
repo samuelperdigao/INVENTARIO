@@ -419,6 +419,28 @@ class ReportView:
         kinds.append("total")
         return rows, kinds
 
+    def grouped_rows(self) -> tuple[list[list[object]], list[str]]:
+        """Lançamentos por lado e vão com subtotal de cada vão e de cada lado."""
+
+        rows: list[list[object]] = []
+        kinds: list[str] = []
+        for side in SIDE_ORDER:
+            groups = [group for group in self.bay_groups if group["side"] == side]
+            if not groups:
+                continue
+            for group in groups:
+                for record in group["entries"]:
+                    rows.append([record["side"], record["bay"], record.get("layer") or "—", str(record["lot"]), int(record["quantity"])])
+                    kinds.append("record")
+                rows.append(["", "", "", f"Subtotal {side} {group['bay']} · {format_int(group['records'])} reg.", group["pieces"]])
+                kinds.append("subtotal")
+            side_records = sum(group["records"] for group in groups)
+            rows.append(["", "", "", f"Total lado {side} · {format_int(side_records)} reg.", sum(group["pieces"] for group in groups)])
+            kinds.append("side-total")
+        rows.append(["TOTAL", "", "", f"{format_int(self.total_records)} registros", self.total_pieces])
+        kinds.append("total")
+        return rows, kinds
+
 
 def _summary(report: Mapping[str, Any], records: list[Mapping[str, Any]]) -> tuple[list[tuple[str, object]], str]:
     summary = report["summary"]

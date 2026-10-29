@@ -1001,7 +1001,7 @@ code { padding: 2px 5px; border-radius: 6px; background: #edf3fa; color: #304866
 
 
 
-html, body { max-width: 100%; overflow-x: hidden; }
+html, body { max-width: 100%; overflow-x: clip; } /* clip não cria contêiner de rolagem: mantém o menu lateral sticky */
 
 
 
@@ -5036,7 +5036,7 @@ body:has(.inventory-shell) {
 
 
 @media (max-width: 639px) {
-  body { overflow-x: hidden; }
+  body { overflow-x: clip; }
 
 
 

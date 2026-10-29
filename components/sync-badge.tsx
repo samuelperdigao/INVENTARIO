@@ -55,13 +55,15 @@ interface SyncBadgeProps {
   /** Horário (HH:mm) da última alteração confirmada; mostrado quando sincronizado. */
   time?: string;
   tone?: "light" | "navy";
+  /** Anuncia mudanças para leitores de tela. Desligue em listas para não criar várias regiões vivas. */
+  live?: boolean;
 }
 
-export function SyncBadge({ state, time, tone = "light" }: SyncBadgeProps) {
+export function SyncBadge({ state, time, tone = "light", live = true }: SyncBadgeProps) {
   const label = labels[state];
   const showTime = state === "synced" && time;
   return (
-    <span className={`${styles.badge} ${styles[tone]} ${styles[state]}`} role="status" aria-label={showTime ? `${label} às ${time}` : label}>
+    <span className={`${styles.badge} ${styles[tone]} ${styles[state]}`} role={live ? "status" : undefined} aria-label={showTime ? `${label} às ${time}` : label}>
       <CloudIcon state={state} />
       <span aria-hidden="true">{label}{showTime ? <span className={styles.time}> · {time}</span> : null}</span>
     </span>

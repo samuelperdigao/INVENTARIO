@@ -306,3 +306,21 @@ test("mantém título do controle e número da etapa ativa legíveis sobre o fun
     }
   }
 });
+
+test("mantém o título do login legível sobre o painel navy", async ({ page }) => {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 1366, height: 768 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/acesso");
+    const ratio = await page.evaluate(() => {
+      const aside = document.querySelector<HTMLElement>("[aria-label='Apresentação do sistema']");
+      const title = aside?.querySelector<HTMLElement>("h1");
+      if (!aside || !title) throw new Error("Painel de apresentação não encontrado");
+      const rgb = (value: string) => (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+      const lum = (value: string) => rgb(value).map((c) => c / 255).map((c) => c <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4).reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
+      const fg = lum(getComputedStyle(title).color);
+      const bg = lum(getComputedStyle(aside).backgroundColor);
+      return (Math.max(fg, bg) + .05) / (Math.min(fg, bg) + .05);
+    });
+    expect(ratio, `título do login em ${viewport.width}px precisa atingir contraste WCAG AA`).toBeGreaterThanOrEqual(4.5);
+  }
+});

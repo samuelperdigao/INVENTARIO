@@ -18,7 +18,7 @@
 - Alterações de schema exigem nova migration Alembic. Nunca reescreva uma migration aplicada em produção.
 - Nunca exponha UUID, token interno, bearer token, NP, senha ou segredo de infraestrutura na interface, documentação ou logs.
 - Não altere contratos de API, regras de negócio, autenticação, autorização ou finalização sem cobertura de testes e solicitação compatível.
-- A finalização da V1 é irreversível. Não implemente reabertura implicitamente.
+- A finalização é irreversível na operação. A única reabertura existente é a administrativa explícita (`/admin`), que incrementa a geração operacional e registra auditoria; não implemente outra forma de reabertura.
 
 ## Desenvolvimento e produção
 

@@ -1,5 +1,20 @@
 # Status do projeto
 
+## Alinhamento documental — 29/10/2026
+
+Correção somente de documentação, sem alteração de código, schema, API ou
+deploy.
+
+- README e `docs/ARQUITETURA.md` passam a citar `0010_participant_sync_sessions`
+  como última revisão da cadeia e o `preDeployCommand` do Render como o caminho
+  que aplica as migrations em produção.
+- `docs/ARQUITETURA.md` e `docs/ADMINISTRACAO.md` alinhados ao parser SAP, que
+  aceita o cabeçalho `Lote` ou `Lotes`.
+- `AGENTS.md` esclarece que a única reabertura existente é a administrativa
+  explícita.
+- Estado real do Neon não foi reconsultado; `git diff --check` aprovado. Gates
+  de código não se aplicam a esta alteração e ficam a cargo do `validate` da PR.
+
 ## Ajustes adicionais de interface — 28/10/2026
 
 Alterações locais na branch `codex/sidebar-proportions`, sem commit ou deploy.

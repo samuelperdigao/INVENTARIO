@@ -38,7 +38,7 @@ informativa e assíncrona: falha, ausência de rede ou lote fora da referência
 jamais impedem salvar o lançamento local.
 
 No backend, `reference_service.py` valida o `.xlsx` em memória, identifica exclusivamente a
-coluna cujo cabeçalho é `Lotes` (comparação somente com trim e casefold) e
+coluna cujo cabeçalho é `Lote` ou `Lotes` (comparação somente com trim e casefold) e
 normaliza os valores. Cabeçalho ausente, duplicado em mais de uma coluna ou
 tentativa de selecionar outra coluna encerram apenas aquela importação com
 mensagem orientativa. Persistem somente `inventory_references` e
@@ -105,7 +105,7 @@ reabertura muda somente o estado operacional e a geração.
 
 - PostgreSQL é obrigatório em produção.
 - SQLite é usado apenas em desenvolvimento e testes.
-- A cadeia Alembic atual é linear de `0001_central_sync` até `0008_inventory_lot_references`.
+- A cadeia Alembic atual é linear de `0001_central_sync` até `0010_participant_sync_sessions`.
 - Migrations publicadas são imutáveis; correções futuras devem ser novas revisões.
 - Downgrade existe para validação e recuperação controlada, mas não deve ser executado em produção sem plano específico.
 

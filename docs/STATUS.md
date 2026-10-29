@@ -1,5 +1,31 @@
 # Status do projeto
 
+## Cabeçalhos e etapas (PR 2 do redesenho) — 29/10/2026
+
+Sem alterar API, IndexedDB, sincronização, autenticação, regras de lote,
+finalização ou exportações.
+
+- Topo navy compartilhado (`components/hero.module.css`) com a foto do pátio já
+  existente em `public/industrial-yard-hero.jpg`, faixa de segurança âmbar e
+  somente tokens `--inv-*`. Aplicado ao painel e à tela do inventário.
+- Painel: saudação, frase de situação e três números locais (em andamento,
+  falta enviar, recebidos). Ações "Novo inventário" e "Entrar com código" no
+  topo, em qualquer largura. Removida a seção de atalhos duplicada.
+- Inventário: botão "Painel" (nome acessível "Voltar ao painel"), um único
+  título, linha de contexto e código da equipe.
+- Selo de sincronização (`components/sync-badge.tsx`) substitui o ícone antigo,
+  com cinco estados: sincronizado (com horário), falta enviar, sem internet,
+  erro e finalizado. Estado sempre em texto e ícone, nunca só cor.
+- Etapas (`components/inventory-steps.tsx`): a etapa atual fica destacada sem
+  esconder o número; cada etapa mostra o estado (em andamento, concluída,
+  disponível, falta enviar, bloqueada com o motivo). No celular, os cinco nomes
+  ficam visíveis.
+- Testes atualizados para a nova estrutura (lista acessível de etapas, ações
+  do topo); o teste de contraste mede as ações sobre o navy real.
+- ESLint, TypeScript, Vitest (86), build e Playwright (20 cenários) aprovados
+  localmente.
+- Pendente: validação em Android e iPhone físicos.
+
 ## Base visual (PR 1 do redesenho) — 29/10/2026
 
 Primeira etapa do novo visual, sem alterar API, IndexedDB, sincronização,

@@ -1,0 +1,29 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--inv-radius-pill);
+  font-size: .85rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.icon { flex: none; }
+.time { font-weight: 500; }
+
+/* Fundo claro */
+.light.synced, .light.finished { background: var(--inv-ok-soft); color: var(--inv-ok); }
+.light.pending { background: var(--inv-warn-soft); color: var(--inv-warn); }
+.light.offline { background: var(--inv-offline-soft); color: var(--inv-offline); }
+.light.error { background: var(--inv-danger-soft); color: var(--inv-danger); }
+.light .time { opacity: .9; }
+
+/* Sobre o navy: texto branco, cor do estado só no ícone */
+.navy { border-color: var(--inv-on-navy-line); background: var(--inv-on-navy-fill); color: var(--inv-on-navy); }
+.navy .time { color: var(--inv-on-navy-2); }
+.navy.synced .icon, .navy.finished .icon { color: var(--inv-on-navy-ok); }
+.navy.pending .icon { color: var(--inv-safety); }
+.navy.offline .icon { color: var(--inv-on-navy-2); }
+.navy.error .icon { color: #ffb4ab; }

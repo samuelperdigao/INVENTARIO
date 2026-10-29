@@ -1,0 +1,187 @@
+/* Topo navy compartilhado (painel e inventário). Só tokens --inv-*; nenhuma regra global alcança estas classes. */
+.hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--inv-space-5);
+  padding: 26px 30px 30px;
+  border-radius: var(--inv-radius-xl);
+  color: var(--inv-on-navy);
+  background-color: var(--inv-navy);
+  background-image:
+    linear-gradient(100deg, rgba(0, 34, 58, .97) 0%, rgba(0, 59, 99, .93) 48%, rgba(0, 59, 99, .68) 100%),
+    url("/industrial-yard-hero.jpg");
+  background-size: cover;
+  background-position: center 62%;
+  box-shadow: var(--inv-shadow-2);
+}
+
+/* Faixa de segurança do pátio: acento único, decorativo. */
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 4px;
+  background: var(--inv-safety);
+}
+
+.intro {
+  flex: 1 1 360px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kicker {
+  margin: 0;
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--inv-on-navy-2);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  color: var(--inv-on-navy);
+}
+
+.lead {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--inv-on-navy-2);
+}
+
+.lead strong { color: var(--inv-on-navy); font-weight: 650; }
+
+.topRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--inv-space-3);
+  width: 100%;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px 0 12px;
+  border: 1px solid var(--inv-on-navy-line);
+  border-radius: var(--inv-radius-pill);
+  background: var(--inv-on-navy-fill);
+  color: var(--inv-on-navy);
+  font-size: .9rem;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background var(--inv-dur-fast) var(--inv-ease-out);
+}
+.backLink:hover { background: rgba(255, 255, 255, .18); }
+.backLink:focus-visible,
+.actionPrimary:focus-visible,
+.actionGhost:focus-visible { outline: 3px solid var(--inv-safety); outline-offset: 2px; }
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--inv-space-2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--inv-on-navy-line);
+  border-radius: var(--inv-radius-pill);
+  background: var(--inv-on-navy-fill);
+  color: var(--inv-on-navy-2);
+  font-size: .82rem;
+  font-weight: 600;
+}
+
+.code {
+  font-family: var(--inv-font-mono);
+  font-weight: 600;
+  letter-spacing: .06em;
+  color: var(--inv-on-navy);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: var(--inv-space-2);
+}
+
+.actionPrimary,
+.actionGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--inv-touch);
+  padding: 0 20px;
+  border-radius: var(--inv-radius-md);
+  font: inherit;
+  font-size: .95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--inv-dur-fast) var(--inv-ease-out), transform var(--inv-dur-fast) var(--inv-ease-out);
+}
+.actionPrimary { border: 0; background: var(--inv-surface); color: var(--inv-action); }
+.actionPrimary:hover:not(:disabled) { background: var(--inv-action-soft); }
+.actionGhost { border: 1px solid rgba(255, 255, 255, .42); background: rgba(255, 255, 255, .06); color: var(--inv-on-navy); }
+.actionGhost:hover:not(:disabled) { background: rgba(255, 255, 255, .14); }
+.actionPrimary:active:not(:disabled),
+.actionGhost:active:not(:disabled) { transform: scale(.98); }
+.actionPrimary:disabled,
+.actionGhost:disabled { opacity: .6; cursor: progress; }
+
+.stats {
+  flex: 0 1 440px;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 14px;
+  background: rgba(0, 34, 58, .72);
+}
+.stat dt { font-size: .82rem; font-weight: 500; color: var(--inv-on-navy-2); }
+.stat dd { margin: 0; font-size: 2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--inv-on-navy); }
+.statWarn dd { color: var(--inv-safety); }
+
+@media (max-width: 639px) {
+  .hero { padding: 18px 16px 22px; gap: var(--inv-space-4); border-radius: var(--inv-radius-lg); background-position: 72% 60%; }
+  .hero::after { height: 3px; }
+  .stats { flex-basis: 100%; gap: 8px; }
+  .stat { padding: 10px 12px; }
+  .stat dd { font-size: 1.5rem; }
+  .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .actionPrimary, .actionGhost { padding: 0 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backLink, .actionPrimary, .actionGhost { transition: none; }
+}

@@ -39,14 +39,15 @@ test("mantém ações e estados do painel com contraste e área de toque adequad
       return (light + .05) / (dark + .05);
     }
 
-    const primary = document.querySelector<HTMLElement>(".action-card.primary-action");
-    const primaryText = primary?.querySelector<HTMLElement>("strong");
-    const secondary = document.querySelector<HTMLElement>(".action-card:not(.primary-action)");
-    const secondaryText = secondary?.querySelector<HTMLElement>("strong");
-    if (!primary || !primaryText || !secondary || !secondaryText) throw new Error("Ações rápidas não encontradas");
+    // Ações do topo navy: a principal tem fundo branco próprio; a secundária é contornada sobre o navy do topo.
+    const hero = document.querySelector<HTMLElement>("section[aria-labelledby='dashboard-title']");
+    const buttons = hero ? Array.from(hero.querySelectorAll<HTMLButtonElement>("button")) : [];
+    const primary = buttons.find((button) => button.getAttribute("aria-label") === "Iniciar novo inventário");
+    const secondary = buttons.find((button) => button.textContent?.includes("Entrar com código"));
+    if (!hero || !primary || !secondary) throw new Error("Ações do topo não encontradas");
     return {
-      primaryContrast: contrast(getComputedStyle(primaryText).color, getComputedStyle(primary).backgroundColor),
-      secondaryContrast: contrast(getComputedStyle(secondaryText).color, getComputedStyle(secondary).backgroundColor),
+      primaryContrast: contrast(getComputedStyle(primary).color, getComputedStyle(primary).backgroundColor),
+      secondaryContrast: contrast(getComputedStyle(secondary).color, getComputedStyle(hero).backgroundColor),
       primaryHeight: primary.getBoundingClientRect().height,
       secondaryHeight: secondary.getBoundingClientRect().height,
     };
@@ -90,7 +91,7 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
   await expect(page.getByRole("button", { name: "Importar planilha SAP / SICLA", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Continuar sem planilha SAP / SICLA", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Controle do inventário", exact: true })).toBeVisible();
-  await expect(page.locator(".inventory-process")).toHaveAttribute("aria-label", /Etapa atual: Lançar/);
+  await expect(page.getByRole("list", { name: /Etapas do inventário/ })).toHaveAttribute("aria-label", /Etapa atual: Lançar/);
   await expect(page.locator(".control-stage-summary").filter({ hasText: "Sincronização" })).toBeVisible();
   await expect(page.locator(".control-stage-summary").filter({ hasText: "Análise" })).toBeVisible();
   await expect(page.locator(".control-stage-summary").filter({ hasText: "Finalização" })).toBeVisible();
@@ -118,7 +119,7 @@ test("mantém a tela operacional legível nas resoluções de campo", async ({ p
       const rail = document.querySelector<HTMLElement>(".app-rail");
       const workflow = document.querySelector<HTMLElement>(".workflow-strip");
       const workspace = document.querySelector<HTMLElement>(".entry-workspace");
-      const currentStep = document.querySelector<HTMLElement>(".inventory-process li.active");
+      const currentStep = document.querySelector<HTMLElement>('ol[aria-label^="Etapas do inventário"] [aria-current="step"]');
       const quantity = document.querySelector<HTMLElement>("#quantity");
       const submit = document.querySelector<HTMLElement>(".entry-form-submit");
       const quantityRect = quantity?.getBoundingClientRect();
@@ -297,7 +298,7 @@ test("mantém título do controle e número da etapa ativa legíveis sobre o fun
         title: contrastOf(header?.querySelector("h2") ?? null),
         eyebrow: contrastOf(header?.querySelector(".eyebrow") ?? null),
         hint: contrastOf(document.querySelector(".control-panel-hint")),
-        activeStep: contrastOf(document.querySelector(".inventory-process li.active > span")),
+        activeStep: contrastOf(document.querySelector('ol[aria-label^="Etapas do inventário"] [aria-current="step"] > span > span')),
       };
     });
     for (const [label, value] of Object.entries(results)) {

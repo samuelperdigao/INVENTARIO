@@ -1,0 +1,60 @@
+/* Etapas: a atual fica destacada sem esconder o número; estado sempre em texto. */
+.steps {
+  list-style: none;
+  margin: var(--inv-space-3) 0;
+  padding: 18px 22px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border: 1px solid var(--inv-line-soft);
+  border-radius: var(--inv-radius-lg);
+  background: var(--inv-surface);
+  box-shadow: var(--inv-shadow-2);
+}
+
+.step { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.track { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.line { flex: 1; height: 2px; margin-right: 8px; border-radius: 2px; background: var(--inv-line-soft); }
+.done .line { background: var(--inv-ok); }
+
+.marker {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--inv-radius-pill);
+  font-size: .875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.label { font-size: .95rem; font-weight: 650; color: var(--inv-ink); overflow-wrap: anywhere; }
+.detail { font-size: .75rem; font-weight: 500; color: var(--inv-ink-3); }
+
+.current .marker { background: var(--inv-action); color: #ffffff; box-shadow: 0 0 0 4px var(--inv-action-soft); }
+.current .label { color: var(--inv-action); font-weight: 750; }
+.current .detail { color: var(--inv-accent); font-weight: 650; }
+
+.done .marker { background: var(--inv-ok); color: #ffffff; }
+.done .detail { color: var(--inv-ok); font-weight: 650; }
+
+.available .marker { border: 2px solid var(--inv-line); background: var(--inv-surface); color: var(--inv-ink-2); }
+
+.pending .marker { border: 2px solid var(--inv-warn); background: var(--inv-warn-soft); color: var(--inv-warn); }
+.pending .detail { color: var(--inv-warn); font-weight: 650; }
+
+.locked .marker { background: var(--inv-surface-sunk); color: var(--inv-ink-3); }
+.locked .label { color: var(--inv-ink-2); }
+
+@media (max-width: 639px) {
+  .steps { padding: 14px 2px 12px; }
+  .step { align-items: center; text-align: center; gap: 4px; }
+  .track { position: relative; width: 100%; justify-content: center; }
+  /* No celular a linha liga os centros dos marcadores */
+  .line { position: absolute; left: calc(50% + 18px); right: calc(-50% + 18px); top: 50%; margin: 0; }
+  .marker { width: 28px; height: 28px; font-size: .8rem; position: relative; z-index: 1; }
+  .label { font-size: .75rem; letter-spacing: -.01em; overflow-wrap: normal; white-space: nowrap; }
+  .detail { display: none; }
+}

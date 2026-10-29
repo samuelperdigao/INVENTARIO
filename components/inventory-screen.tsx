@@ -15,6 +15,7 @@ import { Icon } from "@/components/icon";
 import { InventorySteps, deriveInventorySteps } from "@/components/inventory-steps";
 import { SyncBadge, syncBadgeState, useOnline } from "@/components/sync-badge";
 import heroStyles from "@/components/hero.module.css";
+import summaryStyles from "@/components/inventory-summary.module.css";
 import { getCurrentUser, restoreSession, type AuthUser } from "@/lib/auth-client";
 import { findRemoteDuplicateLotEntries } from "@/lib/duplicate-client";
 import { formatBrazilianDate } from "@/lib/local-date";
@@ -60,6 +61,8 @@ function entriesScreenKey(value: InventoryEntry[]): string {
     }))
     .sort((left, right) => left.id.localeCompare(right.id)));
 }
+
+const numberFormat = new Intl.NumberFormat("pt-BR");
 
 function formatClock(iso: string): string {
   const date = new Date(iso);
@@ -246,6 +249,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
 
   const totalPieces = useMemo(() => entries.reduce((sum, entry) => sum + entry.quantity, 0), [entries]);
   const distinctLots = useMemo(() => new Set(entries.map((entry) => entry.lot.trim())).size, [entries]);
+  const distinctBays = useMemo(() => new Set(entries.map((entry) => `${entry.side}-${entry.bay}`)).size, [entries]);
 
   async function saveEntry(draft: EntryDraft, entryId?: string, allowDuplicate = false): Promise<void> {
     setError(undefined);
@@ -362,9 +366,9 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
 
   return (
     <main className="shell app-page-shell inventory-shell">
-      <AppRail active="home" showTeam={sessionUser?.teams.some((team) => team.role === "ADMIN")} showAdmin={sessionUser?.systemAdmin} />
+      <AppRail active="inventory" showTeam={sessionUser?.teams.some((team) => team.role === "ADMIN")} showAdmin={sessionUser?.systemAdmin} />
       <div className="inventory-content">
-      <header className={heroStyles.hero}>
+      <header className={`${heroStyles.hero} ${heroStyles.compact}`}>
         <div className={heroStyles.topRow}>
           <Link className={heroStyles.backLink} href="/dashboard" aria-label="Voltar ao painel">
             <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>Painel
@@ -373,7 +377,7 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
         <div className={heroStyles.intro}>
           <p className={heroStyles.kicker}>{readOnly ? "Inventário finalizado" : "Coleta em andamento"}</p>
           <h1 className={heroStyles.title}>Inventário {formatBrazilianDate(inventory.date)}</h1>
-          <p className={heroStyles.lead}>Aberto às {formatClock(inventory.createdAt)} · <strong>{entries.length} {entries.length === 1 ? "registro" : "registros"}</strong> · salvo neste aparelho, funciona sem internet</p>
+          <p className={heroStyles.lead}>Aberto às {formatClock(inventory.createdAt)} · <strong>{entries.length} {entries.length === 1 ? "registro" : "registros"}</strong><span className={heroStyles.leadExtra}> · salvo neste aparelho, funciona sem internet</span></p>
         </div>
         <div className={heroStyles.meta}>
           <SyncBadge tone="navy" state={syncBadgeState(inventory.syncStatus, readOnly, online)} time={formatClock(inventory.updatedAt)} />
@@ -383,12 +387,12 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
 
       <InventorySteps steps={deriveInventorySteps({ entries: entries.length, synced: inventory.syncStatus === "SYNCED", finished: readOnly })} />
 
-      <section className="metric-grid" aria-label="Resumo do inventário">
-        <div className="metric-card metric-card--records"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="boxes" size={18} /></span><span className="metric-card-kicker">Coleta</span></div><div className="metric-card-copy"><span className="metric-label">Registros</span><span className="metric-value">{entries.length}</span></div></div>
-        <div className="metric-card metric-card--lots"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="file" size={18} /></span><span className="metric-card-kicker">Rastreio</span></div><div className="metric-card-copy"><span className="metric-label">Lotes</span><span className="metric-value">{distinctLots}</span></div></div>
-        <div className="metric-card metric-card--pieces"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="chart" size={18} /></span><span className="metric-card-kicker">Volume</span></div><div className="metric-card-copy"><span className="metric-label">Peças lançadas</span><span className="metric-value">{totalPieces}</span></div></div>
-        <div className="metric-card metric-card--status"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="check" size={18} /></span><span className="metric-card-kicker">Estado</span></div><div className="metric-card-copy"><span className="metric-label">Situação</span><span className="metric-value">{readOnly ? "Finalizado" : "Em andamento"}</span></div></div>
-      </section>
+      <dl className={summaryStyles.summary} aria-label="Resumo do inventário">
+        <div className={summaryStyles.item} data-metric="records"><dt className={summaryStyles.label}>Registros</dt><dd className={summaryStyles.value} data-metric-value>{numberFormat.format(entries.length)}</dd></div>
+        <div className={summaryStyles.item} data-metric="lots"><dt className={summaryStyles.label}>Lotes</dt><dd className={summaryStyles.value} data-metric-value>{numberFormat.format(distinctLots)}</dd></div>
+        <div className={summaryStyles.item} data-metric="pieces"><dt className={summaryStyles.label}>Peças</dt><dd className={summaryStyles.value} data-metric-value>{numberFormat.format(totalPieces)}</dd></div>
+        <div className={summaryStyles.item} data-metric="bays"><dt className={summaryStyles.label}>Vãos</dt><dd className={summaryStyles.value} data-metric-value>{numberFormat.format(distinctBays)}</dd></div>
+      </dl>
 
       {error && <p className="error" role="alert">{error}</p>}
       {syncMessage ? <p className="notice" role="status">{syncMessage}</p> : null}
@@ -400,9 +404,11 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
           <EntryList inventoryId={inventory.id} entries={entries} onEdit={(entry) => { setEditing(entry); setFormDirty(false); }} onDelete={setPendingDeletion} readOnly={readOnly} highlightedEntryId={highlightedEntryId} compact />
         </div>
         <InventoryControlPanel inventory={displayedInventory} entries={entries} onChanged={refresh} />
-        {displayedInventory.status === "OPEN" && entries.length === 0 && displayedInventory.isOwner !== false ? <section className="card section-card stack" aria-label="Excluir inventário vazio">
-          <div className="section-header"><div><p className="eyebrow">Gestão</p><h2>Inventário vazio</h2><p className="muted">Se esta conferência foi criada por engano, você pode removê-la sem deixar mais um inventário aberto no painel.</p></div></div>
-          <div className="actions"><button className="danger" type="button" disabled={deletingInventory} onClick={() => setConfirmingInventoryDeletion(true)}>Excluir inventário vazio</button></div>
+        {displayedInventory.status === "OPEN" && entries.length === 0 && displayedInventory.isOwner !== false ? <section className={summaryStyles.options} aria-label="Excluir inventário vazio">
+          <p className={summaryStyles.optionsCopy}><strong>Criou por engano?</strong>Um inventário sem registros pode ser removido para não ficar aberto no painel.</p>
+          <button className={summaryStyles.dangerLink} type="button" disabled={deletingInventory} onClick={() => setConfirmingInventoryDeletion(true)}>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>Excluir inventário vazio
+          </button>
         </section> : null}
       </div>
       <ConfirmDialog

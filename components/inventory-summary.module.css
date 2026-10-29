@@ -1,0 +1,68 @@
+/* Resumo em uma faixa única (substitui os quatro cartões). Só tokens --inv-*. */
+.summary {
+  margin: 0 0 var(--inv-space-4);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--inv-line-soft);
+  border-radius: var(--inv-radius-lg);
+  background: var(--inv-surface);
+  box-shadow: var(--inv-shadow-1);
+}
+
+.item {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  min-width: 0;
+  padding: 14px 18px;
+}
+.item + .item { border-left: 1px solid var(--inv-line-soft); }
+
+.label { font-size: .82rem; font-weight: 500; color: var(--inv-ink-2); }
+.value {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 750;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--inv-ink);
+}
+
+@media (max-width: 639px) {
+  .summary { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: var(--inv-space-3); }
+  .item { padding: 10px 8px 10px 12px; }
+  .label { font-size: .75rem; }
+  .value { font-size: 1.35rem; }
+}
+
+/* Opções de gestão: discretas, longe da ação principal */
+.options {
+  margin-top: var(--inv-space-5);
+  padding-top: var(--inv-space-4);
+  border-top: 1px solid var(--inv-line-soft);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--inv-space-3);
+}
+.optionsCopy { margin: 0; max-width: 60ch; font-size: .875rem; color: var(--inv-ink-2); }
+.optionsCopy strong { display: block; color: var(--inv-ink); font-size: .95rem; }
+.dangerLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--inv-radius-md);
+  background: transparent;
+  color: var(--inv-danger);
+  font: inherit;
+  font-size: .95rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.dangerLink:hover:not(:disabled) { border-color: var(--inv-danger); background: var(--inv-danger-soft); }
+.dangerLink:focus-visible { outline: 3px solid var(--inv-focus); outline-offset: 2px; }
+.dangerLink:disabled { opacity: .6; cursor: progress; }

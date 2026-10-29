@@ -25,7 +25,7 @@ export function deriveInventorySteps({ entries, synced, finished }: StepInput): 
     hasEntries ? { label: "Lançar", state: "done", detail: `${entries} ${entries === 1 ? "registro" : "registros"}` } : { label: "Lançar", state: "current", detail: "Em andamento" },
     hasEntries ? { label: "Conferir", state: "current", detail: "Em andamento" } : { label: "Conferir", state: "locked", detail: "Após o 1º registro" },
     synced ? { label: "Sincronizar", state: "done", detail: "Concluída" } : { label: "Sincronizar", state: "pending", detail: "Falta enviar" },
-    hasEntries ? { label: "Analisar", state: "available", detail: "Disponível" } : { label: "Analisar", state: "locked", detail: "Após o 1º registro" },
+    { label: "Analisar", state: "available", detail: "Disponível" },
     synced ? { label: "Finalizar", state: "available", detail: "Disponível" } : { label: "Finalizar", state: "locked", detail: "Após sincronizar" },
   ];
 }

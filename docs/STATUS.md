@@ -1,5 +1,26 @@
 # Status do projeto
 
+## Corpo da tela do inventário (PR 3 do redesenho) — 29/10/2026
+
+Sem alterar API, IndexedDB, sincronização, autenticação, regras de lote,
+finalização ou exportações.
+
+- Os quatro cartões de indicador viram uma faixa única de resumo (registros,
+  lotes, peças e vãos), com números formatados em pt-BR (`1.269`, não `1269`).
+- No celular, o topo do inventário fica mais compacto. Os campos Lado e Vão
+  aparecem na primeira tela; antes, o formulário começava por volta de 650 px.
+- O botão "Adicionar registro" continua no fluxo, logo abaixo da quantidade,
+  e não fixo no rodapé. Decisão mantida do teste existente: com o teclado
+  aberto, uma barra fixa cobriria os campos.
+- "Excluir inventário vazio" deixa de ser um botão vermelho do tamanho da ação
+  principal e vira uma opção discreta no fim da página, com a mesma confirmação.
+- Dentro do inventário, o menu marca "Em andamento" (antes marcava "Início").
+- A etapa Analisar segue o painel de controle e aparece como disponível.
+- Testes usam `data-metric` em vez de classes visuais para ler o resumo.
+- ESLint, TypeScript, Vitest (86), build e Playwright (20 cenários) aprovados
+  localmente.
+- Pendente: validação em Android e iPhone físicos.
+
 ## Cabeçalhos e etapas (PR 2 do redesenho) — 29/10/2026
 
 Sem alterar API, IndexedDB, sincronização, autenticação, regras de lote,

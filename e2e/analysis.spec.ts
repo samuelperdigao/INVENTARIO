@@ -14,7 +14,7 @@ test("envia lançamentos ao motor online e identifica o cache quando fica offlin
   await page.getByLabel("Lote").fill("2712345678");
   await page.getByLabel("Quantidade de peças").fill("19");
   await page.getByRole("button", { name: "Adicionar" }).click();
-  await expect(page.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value')).toHaveText("1", { timeout: 30_000 });
+  await expect(page.locator('[aria-label="Resumo do inventário"] [data-metric="records"] [data-metric-value]')).toHaveText("1", { timeout: 30_000 });
 
   await page.getByRole("button", { name: "LE" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("21");
@@ -24,7 +24,7 @@ test("envia lançamentos ao motor online e identifica o cache quando fica offlin
   await page.getByRole("button", { name: "Adicionar" }).click();
   await expect(page.getByRole("dialog", { name: "Lote já registrado" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Adicionar mesmo assim" }).click();
-  await expect(page.locator('[aria-label="Resumo do inventário"] .metric-card--records .metric-value')).toHaveText("2");
+  await expect(page.locator('[aria-label="Resumo do inventário"] [data-metric="records"] [data-metric-value]')).toHaveText("2");
 
   await page.locator(".control-stage-summary").filter({ hasText: "Análise" }).click();
   await page.getByRole("button", { name: "Atualizar análise" }).click();

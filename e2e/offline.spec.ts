@@ -6,7 +6,7 @@ test("lança localmente e recarrega offline depois de o shell ser armazenado", a
   await login(page, ownerEmail);
   await page.getByRole("button", { name: "Iniciar novo inventário" }).click();
   await page.getByRole("button", { name: "Continuar sem planilha", exact: true }).click();
-  await page.getByRole("button", { name: "LE" }).click();
+  await page.getByRole("button", { name: "EF" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("15");
   await page.getByLabel("Camada").selectOption("A1");
   await page.getByLabel("Lote").fill("2712345678");

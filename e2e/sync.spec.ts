@@ -8,7 +8,7 @@ test("participa de um inventário com seis dígitos sem expor UUID ou token", as
   await expect(page.getByText(/Bem-vindo\(a\)/)).toBeVisible();
   await page.getByRole("button", { name: "Iniciar novo inventário" }).click();
   await page.getByRole("button", { name: "Continuar sem planilha", exact: true }).click();
-  await page.getByRole("button", { name: "LE" }).click();
+  await page.getByRole("button", { name: "EF" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("15");
   await page.getByLabel("Camada").selectOption("A1");
   await page.getByLabel("Lote").fill("2712345678");
@@ -27,13 +27,13 @@ test("participa de um inventário com seis dígitos sem expor UUID ou token", as
   await secondPage.getByRole("button", { name: "Participar agora" }).click();
   await expect(secondPage.locator('[aria-label="Resumo do inventário"] [data-metric="records"] [data-metric-value]')).toHaveText("1");
 
-  await page.getByRole("button", { name: "LE" }).click();
+  await page.getByRole("button", { name: "EF" }).click();
   await page.getByRole("textbox", { name: "Vão" }).fill("17");
   await page.getByLabel("Camada").selectOption("A2");
   await page.getByLabel("Lote").fill("2712345689");
   await page.getByLabel("Quantidade de peças").fill("7");
 
-  await secondPage.getByRole("button", { name: "LP" }).click();
+  await secondPage.getByRole("button", { name: "DE" }).click();
   await secondPage.getByRole("textbox", { name: "Vão" }).fill("16");
   await secondPage.getByLabel("Lote").fill("2712345679");
   await secondPage.getByLabel("Quantidade de peças").fill("4");
@@ -46,7 +46,7 @@ test("participa de um inventário com seis dígitos sem expor UUID ou token", as
   await thirdPage.getByLabel("Código de participação").fill(participationCode!);
   await thirdPage.getByRole("button", { name: "Participar agora" }).click();
   await expect(thirdPage.locator('[aria-label="Resumo do inventário"] [data-metric="records"] [data-metric-value]')).toHaveText("2");
-  await thirdPage.getByRole("button", { name: "LE" }).click();
+  await thirdPage.getByRole("button", { name: "EF" }).click();
   await thirdPage.getByRole("textbox", { name: "Vão" }).fill("18");
   await thirdPage.getByLabel("Lote").fill("2712345690");
   await thirdPage.getByLabel("Quantidade de peças").fill("2");

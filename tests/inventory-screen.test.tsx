@@ -48,14 +48,14 @@ it("exibe confirmação para lote repetido antes de aceitar a segunda ocorrênci
   render(<InventoryScreen inventoryId={inventory.id} />);
 
   await screen.findByRole("heading", { name: "Novo registro" });
-  await user.click(screen.getByRole("button", { name: "LP" }));
+  await user.click(screen.getByRole("button", { name: "DE" }));
   await user.type(screen.getByLabelText("Vão"), "15");
   await user.type(screen.getByLabelText("Lote"), "2712345678");
   await user.type(screen.getByLabelText("Quantidade de peças"), "19");
   await user.click(screen.getByRole("button", { name: "Adicionar" }));
   await waitFor(() => expect(screen.getByText("1 registro(s)", { exact: true })).toBeInTheDocument(), { timeout: 5_000 });
 
-  await user.click(screen.getByRole("button", { name: "LE" }));
+  await user.click(screen.getByRole("button", { name: "EF" }));
   await user.clear(screen.getByLabelText("Vão"));
   await user.type(screen.getByLabelText("Vão"), "21");
   await user.type(screen.getByLabelText("Lote"), "2712345678");

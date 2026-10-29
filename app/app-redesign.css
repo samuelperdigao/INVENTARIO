@@ -1,22 +1,22 @@
 /* Operational workspace: quiet surfaces, readable type, and one clear action per area. */
 :root {
-  --workspace-ink: #0b2239;
-  --workspace-muted: #435a70;
-  --workspace-line: #c4d0db;
-  --workspace-canvas: #f3f6f9;
-  --workspace-surface: #ffffff;
-  --workspace-surface-soft: #f7fafc;
+  --workspace-ink: var(--inv-ink);
+  --workspace-muted: var(--inv-ink-2);
+  --workspace-line: var(--inv-line);
+  --workspace-canvas: var(--inv-canvas);
+  --workspace-surface: var(--inv-surface);
+  --workspace-surface-soft: var(--inv-surface-soft);
   --workspace-soft: #e8eef4;
-  --workspace-action: #003b63;
-  --workspace-action-hover: #002b49;
-  --workspace-accent: #1c527c;
-  --workspace-success: #176b45;
-  --workspace-success-soft: #e9f6ee;
-  --workspace-warning: #8a5a00;
-  --workspace-warning-soft: #fff5d8;
-  --workspace-danger: #a3312b;
-  --workspace-danger-soft: #fff0ee;
-  --workspace-focus: #1c527c;
+  --workspace-action: var(--inv-action);
+  --workspace-action-hover: var(--inv-action-hover);
+  --workspace-accent: var(--inv-accent);
+  --workspace-success: var(--inv-ok);
+  --workspace-success-soft: var(--inv-ok-soft);
+  --workspace-warning: var(--inv-warn);
+  --workspace-warning-soft: var(--inv-warn-soft);
+  --workspace-danger: var(--inv-danger);
+  --workspace-danger-soft: var(--inv-danger-soft);
+  --workspace-focus: var(--inv-focus);
 }
 
 html { background: var(--workspace-canvas); }
@@ -883,6 +883,7 @@ body:has(.landing-shell) { background: var(--workspace-canvas) !important; }
 .inventory-process li.active { border-color: var(--workspace-line) !important; background: var(--workspace-soft) !important; color: var(--workspace-action) !important; }
 .inventory-process li.active > span,
 .inventory-shell .side-button[aria-pressed="true"] { background: var(--workspace-action) !important; border-color: var(--workspace-action) !important; }
+.inventory-process li.active > span { color: #ffffff !important; }
 .inventory-shell .reference-panel,
 .inventory-shell .entries-section,
 .inventory-shell .entry-workspace > form { border-color: #c9d9e6 !important; }
@@ -1072,3 +1073,15 @@ body:has(.auth-shell) { background: var(--workspace-canvas) !important; }
   .app-page-shell .action-card,
   .app-page-shell .dashboard-nav-link { transition: none !important; transform: none !important; }
 }
+
+/* Inventário indisponível: alinha com a paleta workspace (antes usava o azul antigo) */
+.unavailable-shell { background: var(--workspace-canvas); }
+.unavailable-shell .unavailable-card { border: 1px solid var(--workspace-line); background: var(--workspace-surface); box-shadow: 0 1px 2px rgba(11, 34, 57, .06); }
+.unavailable-shell .unavailable-icon { border-color: var(--workspace-line); background: var(--workspace-soft); color: var(--workspace-action); }
+.unavailable-shell .eyebrow { color: var(--workspace-action); }
+.unavailable-shell h1 { color: var(--workspace-ink); }
+.unavailable-shell .muted { color: var(--workspace-muted); }
+.unavailable-shell .notice { border-color: var(--workspace-line); background: var(--workspace-surface-soft); color: var(--workspace-ink); }
+.unavailable-shell .primary { background: var(--workspace-action); box-shadow: none; }
+.unavailable-shell .primary:hover { background: var(--workspace-action-hover); }
+.unavailable-shell .secondary { border-color: var(--workspace-line); color: var(--workspace-action); }

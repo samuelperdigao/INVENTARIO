@@ -1,5 +1,26 @@
 # Status do projeto
 
+## Arquivos de entrega — PR C (Excel) — 29/10/2026
+
+Só apresentação: dados, API, regras de lote, motor, finalização, PDF e Word
+inalterados.
+
+- PR B (#52) integrada em `main` no commit `71ee4e2`. Vercel: deploy de
+  produção `READY` nesse SHA; Quality Gates e Production Smoke do push verdes.
+  A revisão do Render continua sem confirmação deste ambiente (mesmo bloqueio
+  de rede registrado no PR B).
+- Excel `.xls` e `.xlsx` reorganizados nas abas PAINEL, CONFERÊNCIA,
+  LANÇAMENTOS, POR VÃO, LOTES (lado, vão e camada em colunas) e CONCILIAÇÃO
+  (só com referência SAP). Cabeçalho na linha 1 de cada aba de dados.
+- Os dois formatos saem da mesma lista de abas; teste golden compara o `.xls`
+  com o `.xlsx` célula por célula, com e sem referência SAP.
+- Filtro automático e gráfico de peças por vão apenas no `.xlsx`.
+- Cores de estado, navy `#003b63` e lote OK sem cor também no Excel; no `.xls`
+  as cores ficam na paleta do arquivo.
+- Gates locais: ESLint, TypeScript, Vitest (86), build, Pytest (97) e
+  Playwright (20 cenários, com a mesma config temporária do Chromium
+  pré-instalado) aprovados.
+
 ## Arquivos de entrega — PR B (PDF e Word) — 29/10/2026
 
 Só apresentação: dados, API, regras de lote, motor, finalização e Excel

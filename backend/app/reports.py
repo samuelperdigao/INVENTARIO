@@ -22,6 +22,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 from openpyxl import Workbook
+from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.page import PageMargins
@@ -173,10 +174,6 @@ def build_consolidated_report(
 
 
 REPORT_TIMEZONE_NAME = "America/Sao_Paulo"
-NO_CONFERENCE_ROW: list[object] = ["—", None, "Nenhum lote para conferência", "—", "—", None, "Nenhum lote precisa de conferência."]
-INVENTORY_HEADERS = ["Lado", "Vão", "Camada", "Lote", "Quantidade de peças"]
-CONSOLIDATED_HEADERS = ["Lote", "Total de peças", "Localização", "Situação"]
-CONFERENCE_HEADERS = ["Lote", "Total", "Situação", "Local principal", "Outros locais", "Peças fora", "Ação recomendada"]
 CONCILIATION_HEADERS = ["Lote", "Referência", "Físico", "Localização", "Qtd. física", "Condição"]
 
 
@@ -376,8 +373,6 @@ class ReportView:
     bay_groups: list[dict[str, Any]]
     consolidated_rows: list[list[object]]
     consolidated_kinds: list[str]
-    conference_rows: list[list[object]]
-    conference_kinds: list[str]
     has_reference: bool
     totals_check: TotalsCheck
     lots_ok: int
@@ -389,6 +384,8 @@ class ReportView:
     route_rows: list[list[object]]
     route_kinds: list[str]
     reference_summary: list[tuple[str, object]] = field(default_factory=list)
+    lot_location_rows: list[list[object]] = field(default_factory=list)
+    lot_location_kinds: list[str] = field(default_factory=list)
     conciliation_rows: list[list[object]] = field(default_factory=list)
     conciliation_kinds: list[str] = field(default_factory=list)
 
@@ -399,15 +396,6 @@ class ReportView:
     @property
     def generated_line(self) -> str:
         return f"{self.subtitle} · Gerado em: {self.generated_at_label}"
-
-    def inventory_rows(self) -> list[list[object]]:
-        return [
-            [record["side"], record["bay"], record.get("layer") or "—", str(record["lot"]), int(record["quantity"])]
-            for record in self.records
-        ] + [["TOTAL", "", "", "", self.total_pieces]]
-
-    def inventory_kinds(self) -> list[str]:
-        return [str(record["side"]) for record in self.records] + ["total"]
 
     def grouped_rows(self) -> tuple[list[list[object]], list[str]]:
         """Lançamentos por lado e vão com subtotal de cada vão e de cada lado."""
@@ -494,34 +482,6 @@ def _consolidated(report: Mapping[str, Any]) -> tuple[list[list[object]], list[s
     return rows, kinds
 
 
-def _conference(report: Mapping[str, Any]) -> tuple[list[list[object]], list[str]]:
-    """Uma linha por lote que exige conferência; Peças fora é None quando não se aplica."""
-
-    rows: list[list[object]] = []
-    kinds: list[str] = []
-    for lot in report["lots"]:
-        presentation = _presentation(lot)
-        if not presentation["requiresConference"]:
-            continue
-        primary = presentation.get("primaryLocation")
-        out_of_primary = presentation.get("outOfPrimaryQuantity")
-        rows.append(
-            [
-                str(lot["lot"]),
-                int(lot["totalQuantity"]),
-                str(presentation["situation"]),
-                str(primary["display"] if primary else "Não definido"),
-                "\n".join(str(location["display"]) for location in presentation.get("otherLocations", [])) or "—",
-                int(out_of_primary) if out_of_primary is not None else None,
-                str(presentation["action"]),
-            ]
-        )
-        kinds.append(str(presentation["tone"]))
-    if not rows:
-        return [list(NO_CONFERENCE_ROW)], ["ok"]
-    return rows, kinds
-
-
 def _reference_label(lot: Mapping[str, Any]) -> str:
     status = lot.get("referenceStatus")
     if status in {"EXPECTED_FOUND", "EXPECTED_MISSING"}:
@@ -600,6 +560,41 @@ def _route(report: Mapping[str, Any]) -> tuple[list[list[object]], list[str]]:
     return rows, [kind for _, _, kind in pending]
 
 
+def _location_identity(location: Mapping[str, Any]) -> tuple[str, str, str]:
+    return (str(location.get("side", "")), str(location.get("bay", "")), str(location.get("layer") or ""))
+
+
+def _lot_locations(report: Mapping[str, Any]) -> tuple[list[list[object]], list[str]]:
+    """Uma linha por lote e local, com lado, vão e camada em colunas próprias."""
+
+    rows: list[list[object]] = []
+    kinds: list[str] = []
+    for lot in report["lots"]:
+        presentation = _presentation(lot)
+        tone = str(presentation.get("tone", "review"))
+        raw_primary = lot.get("primaryLocation")
+        primary_key = _location_identity(raw_primary) if isinstance(raw_primary, Mapping) else None
+        locations = sorted(
+            (location for location in lot.get("locations", []) if isinstance(location, Mapping)),
+            key=_route_key,
+        )
+        base = [str(lot["lot"]), str(presentation["situation"]), int(lot["totalQuantity"])]
+        if not locations:
+            rows.append(base + [None, None, None, 0, "—"])
+            kinds.append(tone)
+            continue
+        for location in locations:
+            if tone == "ok":
+                primary = "Sim"
+            elif primary_key is None:
+                primary = "Não definido"
+            else:
+                primary = "Sim" if _location_identity(location) == primary_key else "Não"
+            rows.append(base + [str(location["side"]), str(location["bay"]), location.get("layer") or "—", int(location["quantity"]), primary])
+            kinds.append(tone)
+    return rows, kinds
+
+
 def _side_rows(records: list[Mapping[str, Any]], bay_groups: list[dict[str, Any]]) -> list[list[object]]:
     rows: list[list[object]] = []
     for side in SIDE_ORDER:
@@ -639,11 +634,11 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
     summary, observation = _summary(report, records)
     summary_values = dict(summary)
     consolidated_rows, consolidated_kinds = _consolidated(report)
-    conference_rows, conference_kinds = _conference(report)
     route_rows, route_kinds = _route(report)
     has_reference = _has_reference(report)
     conciliation_rows, conciliation_kinds = _conciliation(report) if has_reference else ([], [])
     bay_map_columns, bay_map_rows = _bay_map(bay_groups)
+    lot_location_rows, lot_location_kinds = _lot_locations(report)
     review_lots = int(report["summary"].get("reviewLots", 0))
     state_counts = [
         ("1 peça fora do local principal", int(summary_values["1 peça fora do local principal"]), "single-piece"),
@@ -673,8 +668,6 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
         bay_groups=bay_groups,
         consolidated_rows=consolidated_rows,
         consolidated_kinds=consolidated_kinds,
-        conference_rows=conference_rows,
-        conference_kinds=conference_kinds,
         has_reference=has_reference,
         totals_check=totals_check,
         lots_ok=int(summary_values["Lotes OK"]),
@@ -686,128 +679,264 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
         route_rows=route_rows,
         route_kinds=route_kinds,
         reference_summary=[(label, summary_values[label]) for label in reference_labels if label in summary_values],
+        lot_location_rows=lot_location_rows,
+        lot_location_kinds=lot_location_kinds,
         conciliation_rows=conciliation_rows,
         conciliation_kinds=conciliation_kinds,
     )
 
 
-def _excel_summary_rows(view: ReportView) -> list[list[object]]:
-    """No Excel a data fica como célula de data e a observação vira a última linha."""
-
-    first: list[list[object]] = [["Data do inventário", view.inventory_date or view.inventory_date_label]]
-    return first + [[label, value] for label, value in view.summary] + [["Observações importantes", view.observation]]
-
-
-def _excel_summary_subtitle(view: ReportView) -> str:
-    return f"Revisão: {view.revision} · Gerado em: {view.generated_at_label}"
-
-
-def _excel_inventory_rows(view: ReportView) -> list[list[object]]:
-    rows = view.inventory_rows()
-    for row in rows[:-1]:
-        row[1] = _bay_value(str(row[1]))
-    return rows
-
-
 EXCEL_FOOTER = "Página &P de &N"
 EXCEL_DATE_FORMAT = "DD/MM/YYYY"
 EXCEL_THOUSANDS_FORMAT = "#,##0"
+EXCEL_NAVY = "003B63"
+EXCEL_SECTION_FILL = "DCE3EA"
+
+RECORD_HEADERS = ["Lado", "Vão", "Camada", "Lote", "Quantidade de peças"]
+BAY_HEADERS = ["Lado", "Vão", "Registros", "Peças"]
+LOT_LOCATION_HEADERS = ["Lote", "Situação", "Total do lote", "Lado", "Vão", "Camada", "Peças no local", "Local principal"]
+NO_ROUTE_ROW: list[object] = [None, "—", None, "Nenhum lote para conferência", "—", "—", None, "Nenhum lote precisa de conferência."]
 
 
-def _xlsx_add_sheet(
-    workbook: Workbook,
-    name: str,
-    headers: list[str],
-    rows: list[list[object]],
-    *,
-    title: str,
-    subtitle: str,
-    widths: list[int],
-    text_columns: set[int] | None = None,
-    number_columns: set[int] | None = None,
-    row_kinds: list[str] | None = None,
-    landscape: bool = True,
-) -> None:
-    sheet = workbook.create_sheet(name)
-    last_column = len(headers)
-    last_letter = get_column_letter(last_column)
-    sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=last_column)
-    sheet.merge_cells(start_row=2, start_column=1, end_row=2, end_column=last_column)
-    sheet.cell(1, 1, title)
-    sheet.cell(2, 1, subtitle)
-    sheet.cell(1, 1).font = Font(name="Arial", size=15, bold=True, color=WHITE)
-    sheet.cell(1, 1).fill = PatternFill("solid", fgColor=BLUE_DARK)
-    sheet.cell(1, 1).alignment = Alignment(horizontal="left", vertical="center")
-    sheet.cell(2, 1).font = Font(name="Arial", size=10, italic=True, color=BLUE_DARK)
-    sheet.cell(2, 1).fill = PatternFill("solid", fgColor=BLUE_LIGHT)
-    sheet.cell(2, 1).alignment = Alignment(horizontal="left", vertical="center")
-    sheet.row_dimensions[1].height = 28
-    sheet.row_dimensions[2].height = 20
-    sheet.row_dimensions[3].height = 8
+@dataclass(frozen=True)
+class ExcelSheet:
+    """Uma aba do Excel. O `.xls` e o `.xlsx` renderizam a mesma lista de abas.
 
-    header_row = 4
-    for column_index, header in enumerate(headers, start=1):
-        cell = sheet.cell(header_row, column_index, header)
-        cell.font = Font(name="Arial", size=10, bold=True, color=WHITE)
-        cell.fill = PatternFill("solid", fgColor=BLUE_DARK)
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    sheet.row_dimensions[header_row].height = 30
+    Abas de dados têm o cabeçalho na linha 1; a aba PAINEL é um quadro com
+    blocos rotulados. `number_columns` recebem separador de milhar e
+    `text_columns` são gravadas como texto (lotes).
+    """
 
-    text_columns = text_columns or set()
-    number_columns = number_columns or set()
-    row_kinds = row_kinds or ["body"] * len(rows)
-    border = Border(
-        left=Side(style="thin", color=GREY_BORDER),
-        right=Side(style="thin", color=GREY_BORDER),
-        top=Side(style="thin", color=GREY_BORDER),
-        bottom=Side(style="thin", color=GREY_BORDER),
-    )
-    white_fill = PatternFill("solid", fgColor=WHITE)
-    alternate_fill = PatternFill("solid", fgColor=BLUE_PALE)
-    for row_offset, values in enumerate(rows):
-        row_number = header_row + 1 + row_offset
-        kind = row_kinds[row_offset] if row_offset < len(row_kinds) else "body"
-        row_fill = PatternFill("solid", fgColor=_ALERT_COLORS[kind]) if kind in _ALERT_COLORS else (alternate_fill if row_offset % 2 else white_fill)
-        row_font = Font(name="Arial", size=10, color="000000")
-        if kind == "total":
-            row_fill = PatternFill("solid", fgColor=BLUE_DARK)
-            row_font = Font(name="Arial", size=10, bold=True, color=WHITE)
-        for column_index, value in enumerate(values, start=1):
-            cell = sheet.cell(row_number, column_index, value)
-            cell.font = row_font
-            cell.fill = row_fill
+    name: str
+    rows: list[list[object]]
+    kinds: list[str]
+    widths: list[int]
+    number_columns: frozenset[int] = frozenset()
+    text_columns: frozenset[int] = frozenset()
+    data: bool = True
+    landscape: bool = True
+
+
+def _excel_panel(view: ReportView) -> ExcelSheet:
+    check = view.totals_check
+    rows: list[list[object]] = [
+        ["Inventário da Laminação de Perfis — relatório de entrega"],
+        ["Data do inventário", view.inventory_date or view.inventory_date_label],
+        ["Revisão", view.revision],
+        ["Gerado em", view.generated_at_label],
+        [],
+        ["Indicadores"],
+        *[[label, value] for label, value in view.summary],
+        ["Observações importantes", view.observation],
+        [],
+        ["Conferência dos totais"],
+        ["Verificação", "Peças / registros"],
+        ["Soma dos lançamentos", check.records_pieces],
+        ["Soma dos lotes", check.lots_pieces],
+        ["Total do resumo", check.summary_pieces],
+        ["Soma dos subtotais por vão", check.bay_pieces],
+        ["Registros: lançados × resumo", f"{format_int(check.records)} × {format_int(check.summary_records)}"],
+        ["Resultado", "Confere"],
+        [],
+        ["Quadro por lado"],
+        SIDE_HEADERS,
+        *[list(row) for row in view.side_rows],
+        [],
+        ["Mapa de peças por vão"],
+        ["Vão", *SIDE_ORDER, "Total"],
+    ]
+    kinds = ["title", "label", "label", "label", "blank", "section"]
+    kinds += ["label"] * (len(view.summary) + 1)
+    kinds += ["blank", "section", "header"] + ["label"] * 6
+    kinds += ["blank", "section", "header"] + ["body"] * len(view.side_rows)
+    kinds += ["blank", "section", "header"]
+    side_values = {row[0]: row[1:-1] for row in view.bay_map_rows}
+    totals = {row[0]: row[-1] for row in view.bay_map_rows}
+    for index, bay in enumerate(view.bay_map_columns):
+        values = [side_values[side][index] for side in SIDE_ORDER]
+        rows.append([_bay_value(bay), *values, sum(value or 0 for value in values)])
+        kinds.append("body")
+    rows.append(["Total", *[totals[side] for side in SIDE_ORDER], totals["Total"]])
+    kinds.append("total")
+    return ExcelSheet("PAINEL", rows, kinds, [38, 22, 14, 14, 14], number_columns=frozenset({1, 2, 3, 4}), data=False, landscape=False)
+
+
+def excel_sheets(view: ReportView) -> list[ExcelSheet]:
+    """Abas do Excel na ordem de entrega: PAINEL e abas de dados."""
+
+    route_rows = [list(row) for row in view.route_rows] or [list(NO_ROUTE_ROW)]
+    route_kinds = list(view.route_kinds) or ["body"]
+    records = [
+        [record["side"], _bay_value(str(record["bay"])), record.get("layer") or "—", str(record["lot"]), int(record["quantity"])]
+        for record in view.records
+    ]
+    bays = [[group["side"], _bay_value(str(group["bay"])), group["records"], group["pieces"]] for group in view.bay_groups]
+    lot_rows = [
+        [row[0], row[1], row[2], row[3], _bay_value(str(row[4])) if row[4] else row[4], row[5], row[6], row[7]]
+        for row in view.lot_location_rows
+    ]
+    sheets = [
+        _excel_panel(view),
+        ExcelSheet(
+            "CONFERÊNCIA",
+            [ROUTE_HEADERS, *route_rows],
+            ["header", *route_kinds],
+            [8, 14, 9, 36, 22, 26, 10, 60],
+            number_columns=frozenset({2, 6}),
+            text_columns=frozenset({1}),
+        ),
+        ExcelSheet(
+            "LANÇAMENTOS",
+            [RECORD_HEADERS, *records],
+            ["header", *["body"] * len(records)],
+            [9, 9, 11, 16, 20],
+            number_columns=frozenset({4}),
+            text_columns=frozenset({3}),
+            landscape=False,
+        ),
+        ExcelSheet(
+            "POR VÃO",
+            [BAY_HEADERS, *bays],
+            ["header", *["body"] * len(bays)],
+            [9, 9, 12, 12],
+            number_columns=frozenset({2, 3}),
+            landscape=False,
+        ),
+        ExcelSheet(
+            "LOTES",
+            [LOT_LOCATION_HEADERS, *lot_rows],
+            ["header", *view.lot_location_kinds],
+            [14, 36, 13, 8, 8, 10, 14, 15],
+            number_columns=frozenset({2, 6}),
+            text_columns=frozenset({0}),
+        ),
+    ]
+    if view.has_reference:
+        sheets.append(
+            ExcelSheet(
+                "CONCILIAÇÃO",
+                [CONCILIATION_HEADERS, *[list(row) for row in view.conciliation_rows]],
+                ["header", *view.conciliation_kinds],
+                [14, 20, 16, 40, 12, 46],
+                number_columns=frozenset({4}),
+                text_columns=frozenset({0}),
+            )
+        )
+    return sheets
+
+
+def _excel_page_header(view: ReportView) -> str:
+    return f"Inventário de {view.inventory_date_label} · Revisão {view.revision}"
+
+
+def _excel_number_format(sheet: ExcelSheet, column: int, value: object) -> str:
+    if isinstance(value, date):
+        return EXCEL_DATE_FORMAT
+    if column in sheet.text_columns:
+        return "@"
+    if isinstance(value, int) and column in sheet.number_columns:
+        return EXCEL_THOUSANDS_FORMAT
+    if isinstance(value, int):
+        return "0"
+    return "General"
+
+
+def _excel_line_count(values: list[object], widths: list[int]) -> int:
+    """Linhas visuais da célula mais alta, considerando quebras e a largura da coluna."""
+
+    count = 1
+    for value, width in zip(values, widths):
+        if value is None or isinstance(value, (int, date)):
+            continue
+        usable = max(width - 2, 1)
+        count = max(count, sum(max(1, -(-len(line) // usable)) for line in str(value).split("\n")))
+    return count
+
+
+def _excel_print_scale(sheet: ExcelSheet) -> int:
+    """Escala explícita para o BIFF8 caber na largura do A4 (≈95 ou ≈140 caracteres)."""
+
+    printable = 140 if sheet.landscape else 95
+    return max(40, min(100, int(100 * printable / sum(sheet.widths))))
+
+
+def _xlsx_write_sheet(workbook: Workbook, sheet: ExcelSheet, header_text: str) -> Any:
+    worksheet = workbook.create_sheet(sheet.name)
+    border = Border(*(Side(style="thin", color=GREY_BORDER),) * 4)
+    navy = PatternFill("solid", fgColor=EXCEL_NAVY)
+    section_fill = PatternFill("solid", fgColor=EXCEL_SECTION_FILL)
+    for row_index, (values, kind) in enumerate(zip(sheet.rows, sheet.kinds), start=1):
+        fill = None
+        font = Font(name="Arial", size=10)
+        if kind == "title":
+            font = Font(name="Arial", size=14, bold=True, color=EXCEL_NAVY)
+        elif kind == "section":
+            font = Font(name="Arial", size=11, bold=True, color=EXCEL_NAVY)
+        elif kind == "header":
+            fill, font = navy, Font(name="Arial", size=10, bold=True, color=WHITE)
+        elif kind == "total":
+            fill, font = section_fill, Font(name="Arial", size=10, bold=True)
+        elif kind in _STATE_FILLS:
+            fill = PatternFill("solid", fgColor=_STATE_FILLS[kind])
+        for column_index, value in enumerate(values):
+            cell = worksheet.cell(row_index, column_index + 1, value)
+            cell.font = font
+            if kind in {"title", "section", "blank"}:
+                continue
+            if kind == "label" and column_index == 0:
+                cell.font = Font(name="Arial", size=10, bold=True)
+            if fill is not None:
+                cell.fill = fill
             cell.border = border
-            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            if isinstance(value, date):
-                cell.number_format = EXCEL_DATE_FORMAT
-            elif column_index in text_columns:
-                cell.number_format = "@"
-            elif column_index in number_columns:
-                cell.number_format = EXCEL_THOUSANDS_FORMAT
-            elif isinstance(value, int):
-                cell.number_format = "0"
-        if name == "INVENTÁRIO" and values and values[0] in {"DE", "EF"}:
-            side_cell = sheet.cell(row_number, 1)
-            side_cell.font = Font(name="Arial", size=10, bold=True, color=BLUE_DARK)
-            side_cell.fill = PatternFill("solid", fgColor=BLUE_LIGHT)
-            side_cell.alignment = Alignment(horizontal="center", vertical="center")
-        sheet.row_dimensions[row_number].height = 26 if any(len(str(value or "")) > 34 for value in values) else 20
+            cell.alignment = Alignment(
+                horizontal="right" if isinstance(value, (int, date)) and kind != "header" else "left",
+                vertical="top",
+                wrap_text=True,
+            )
+            if kind != "header":
+                cell.number_format = _excel_number_format(sheet, column_index, value)
+        lines = _excel_line_count(values, sheet.widths)
+        if lines > 1:
+            worksheet.row_dimensions[row_index].height = 13 * lines + 2
+    for column_index, width in enumerate(sheet.widths, start=1):
+        worksheet.column_dimensions[get_column_letter(column_index)].width = width
+    last_letter = get_column_letter(len(sheet.widths))
+    if sheet.data:
+        worksheet.freeze_panes = "A2"
+        worksheet.auto_filter.ref = f"A1:{last_letter}{len(sheet.rows)}"
+        worksheet.print_title_rows = "1:1"
+    worksheet.sheet_view.showGridLines = False
+    worksheet.print_options.gridLines = False
+    worksheet.sheet_properties.pageSetUpPr.fitToPage = True
+    worksheet.page_setup.paperSize = worksheet.PAPERSIZE_A4
+    worksheet.page_setup.orientation = "landscape" if sheet.landscape else "portrait"
+    worksheet.page_setup.fitToWidth = 1
+    worksheet.page_setup.fitToHeight = 0
+    worksheet.page_margins = PageMargins(left=0.4, right=0.4, top=0.6, bottom=0.6, header=0.25, footer=0.25)
+    worksheet.oddHeader.left.text = header_text
+    worksheet.oddFooter.center.text = EXCEL_FOOTER
+    worksheet.print_area = f"A1:{last_letter}{len(sheet.rows)}"
+    return worksheet
 
-    last_row = max(header_row, header_row + len(rows))
-    sheet.freeze_panes = "A5"
-    sheet.sheet_view.showGridLines = False
-    sheet.print_options.gridLines = False
-    for column_index, width in enumerate(widths, start=1):
-        sheet.column_dimensions[get_column_letter(column_index)].width = width
-    sheet.sheet_properties.pageSetUpPr.fitToPage = True
-    sheet.page_setup.paperSize = sheet.PAPERSIZE_A4
-    sheet.page_setup.orientation = "landscape" if landscape else "portrait"
-    sheet.page_setup.fitToWidth = 1
-    sheet.page_setup.fitToHeight = 0
-    sheet.page_margins = PageMargins(left=0.25, right=0.25, top=0.5, bottom=0.5, header=0.2, footer=0.2)
-    sheet.oddFooter.center.text = EXCEL_FOOTER
-    sheet.print_title_rows = "1:4"
-    sheet.print_area = f"A1:{last_letter}{last_row}"
+
+def _xlsx_add_bay_chart(worksheet: Any, sheet: ExcelSheet) -> None:
+    """Gráfico de peças por vão e lado na aba PAINEL (extra exclusivo do .xlsx)."""
+
+    header_row = next(index for index, row in enumerate(sheet.rows, start=1) if row[:1] == ["Vão"])
+    last_bay_row = len(sheet.rows) - 1
+    chart = BarChart()
+    chart.type = "col"
+    chart.grouping = "clustered"
+    chart.title = "Peças por vão"
+    chart.y_axis.title = "Peças"
+    chart.x_axis.title = "Vão"
+    chart.height = 9
+    chart.width = 22
+    data = Reference(worksheet, min_col=2, max_col=1 + len(SIDE_ORDER), min_row=header_row, max_row=last_bay_row)
+    categories = Reference(worksheet, min_col=1, min_row=header_row + 1, max_row=last_bay_row)
+    chart.add_data(data, titles_from_data=True)
+    chart.set_categories(categories)
+    worksheet.add_chart(chart, "G2")
 
 
 def generate_xlsx_report(report: dict[str, Any]) -> bytes:
@@ -816,66 +945,11 @@ def generate_xlsx_report(report: dict[str, Any]) -> bytes:
     view = build_report_view(report)
     workbook = Workbook()
     workbook.remove(workbook.active)
-    _xlsx_add_sheet(
-        workbook,
-        "RESUMO",
-        ["Indicador", "Valor"],
-        _excel_summary_rows(view),
-        title="Aplicativo Inventário da Laminação de Perfis",
-        subtitle=_excel_summary_subtitle(view),
-        widths=[38, 92],
-        number_columns={2},
-        landscape=False,
-    )
-    _xlsx_add_sheet(
-        workbook,
-        "INVENTÁRIO",
-        INVENTORY_HEADERS,
-        _excel_inventory_rows(view),
-        title="INVENTÁRIO",
-        subtitle=view.subtitle,
-        widths=[12, 12, 14, 18, 22],
-        text_columns={4},
-        number_columns={5},
-        row_kinds=view.inventory_kinds(),
-    )
-    _xlsx_add_sheet(
-        workbook,
-        "LOTES CONSOLIDADOS",
-        CONSOLIDATED_HEADERS,
-        view.consolidated_rows,
-        title="LOTES CONSOLIDADOS",
-        subtitle=view.subtitle,
-        widths=[18, 18, 70, 46],
-        text_columns={1},
-        number_columns={2},
-        row_kinds=view.consolidated_kinds,
-    )
-    _xlsx_add_sheet(
-        workbook,
-        "LOTES PARA CONFERÊNCIA",
-        CONFERENCE_HEADERS,
-        view.conference_rows,
-        title="LOTES PARA CONFERÊNCIA",
-        subtitle=view.subtitle,
-        widths=[18, 16, 42, 34, 46, 16, 72],
-        text_columns={1},
-        number_columns={2, 6},
-        row_kinds=view.conference_kinds,
-    )
-    if view.has_reference:
-        _xlsx_add_sheet(
-            workbook,
-            "CONCILIAÇÃO",
-            CONCILIATION_HEADERS,
-            view.conciliation_rows,
-            title="CONCILIAÇÃO COM REFERÊNCIA DE LOTES",
-            subtitle=view.subtitle,
-            widths=[18, 24, 18, 70, 16, 54],
-            text_columns={1},
-            number_columns={5},
-            row_kinds=view.conciliation_kinds,
-        )
+    header_text = _excel_page_header(view)
+    for sheet in excel_sheets(view):
+        worksheet = _xlsx_write_sheet(workbook, sheet, header_text)
+        if sheet.name == "PAINEL":
+            _xlsx_add_bay_chart(worksheet, sheet)
     buffer = BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()
@@ -887,128 +961,87 @@ def export_xlsx(report: dict[str, Any]) -> bytes:
     return generate_xlsx_report(report)
 
 
-_XLS_BORDER = "borders: left thin, right thin, top thin, bottom thin;"
+# Cores próprias gravadas na paleta do arquivo BIFF8 (índices livres 0x21+),
+# para o .xls ter os mesmos tons do .xlsx, do PDF e do Word.
+_XLS_PALETTE = {
+    "report_navy": (0x21, EXCEL_NAVY),
+    "report_section": (0x22, EXCEL_SECTION_FILL),
+    "report_yellow": (0x23, ALERT_YELLOW),
+    "report_orange": (0x24, ALERT_ORANGE),
+    "report_red": (0x25, ALERT_RED),
+}
+_XLS_BORDER = "borders: left thin, right thin, top thin, bottom thin, left_colour grey25, right_colour grey25, top_colour grey25, bottom_colour grey25;"
 _XLS_STYLE_SPECS = {
-    "title": "font: name Arial, height 280, bold on, colour white; pattern: pattern solid, fore_colour dark_blue; align: horiz left, vert centre;",
-    "subtitle": "font: name Arial, height 200, italic on, colour dark_blue; pattern: pattern solid, fore_colour pale_blue; align: horiz left, vert centre;",
-    "header": "font: name Arial, height 200, bold on, colour white; pattern: pattern solid, fore_colour dark_blue; align: horiz center, vert centre, wrap on;",
-    "body": "font: name Arial, height 200; align: horiz center, vert centre, wrap on;",
-    "body_alt": "font: name Arial, height 200; pattern: pattern solid, fore_colour pale_blue; align: horiz center, vert centre, wrap on;",
-    "body_de": "font: name Arial, height 200, bold on, colour dark_blue; pattern: pattern solid, fore_colour pale_blue; align: horiz center, vert centre;",
-    "body_ef": "font: name Arial, height 200, bold on, colour dark_blue; pattern: pattern solid, fore_colour ice_blue; align: horiz center, vert centre;",
-    "total": "font: name Arial, height 200, bold on, colour white; pattern: pattern solid, fore_colour dark_blue; align: horiz center, vert centre;",
-    "alert_red": "font: name Arial, height 200; pattern: pattern solid, fore_colour rose; align: horiz center, vert centre, wrap on;",
-    "alert_orange": "font: name Arial, height 200; pattern: pattern solid, fore_colour light_orange; align: horiz center, vert centre, wrap on;",
-    "alert_yellow": "font: name Arial, height 200; pattern: pattern solid, fore_colour light_yellow; align: horiz center, vert centre, wrap on;",
-    "good": "font: name Arial, height 200; pattern: pattern solid, fore_colour light_green; align: horiz center, vert centre, wrap on;",
+    "title": "font: name Arial, height 280, bold on, colour report_navy;",
+    "section": "font: name Arial, height 220, bold on, colour report_navy;",
+    "header": f"font: name Arial, height 200, bold on, colour white; pattern: pattern solid, fore_colour report_navy; align: vert top, wrap on; {_XLS_BORDER}",
+    "label": f"font: name Arial, height 200, bold on; align: vert top, wrap on; {_XLS_BORDER}",
+    "body": f"font: name Arial, height 200; align: vert top, wrap on; {_XLS_BORDER}",
+    "total": f"font: name Arial, height 200, bold on; pattern: pattern solid, fore_colour report_section; align: vert top, wrap on; {_XLS_BORDER}",
+    "single-piece": f"font: name Arial, height 200; pattern: pattern solid, fore_colour report_yellow; align: vert top, wrap on; {_XLS_BORDER}",
+    "multiple-pieces": f"font: name Arial, height 200; pattern: pattern solid, fore_colour report_orange; align: vert top, wrap on; {_XLS_BORDER}",
+    "review": f"font: name Arial, height 200; pattern: pattern solid, fore_colour report_orange; align: vert top, wrap on; {_XLS_BORDER}",
+    "distributed": f"font: name Arial, height 200; pattern: pattern solid, fore_colour report_red; align: vert top, wrap on; {_XLS_BORDER}",
 }
 
 
 class _XlsStyles:
-    """Cache de estilos BIFF8 por nome e formato numérico."""
+    """Cache de estilos BIFF8 por tipo de linha, formato e alinhamento."""
 
     def __init__(self) -> None:
-        self._cache: dict[tuple[str, str], xlwt.XFStyle] = {}
+        self._cache: dict[tuple[str, str, bool], xlwt.XFStyle] = {}
 
-    def get(self, name: str, number_format: str = "General") -> xlwt.XFStyle:
-        key = (name, number_format)
+    def get(self, name: str, number_format: str = "General", right: bool = False) -> xlwt.XFStyle:
+        key = (name, number_format, right)
         if key not in self._cache:
-            self._cache[key] = xlwt.easyxf(f"{_XLS_STYLE_SPECS[name]} {_XLS_BORDER}", num_format_str=number_format)
+            spec = _XLS_STYLE_SPECS.get(name, _XLS_STYLE_SPECS["body"])
+            if right:
+                spec = spec.replace("align: vert top", "align: horiz right, vert top")
+            self._cache[key] = xlwt.easyxf(spec, num_format_str=number_format)
         return self._cache[key]
 
 
-def _xls_row_style_name(kind: str, row_offset: int) -> str:
-    if kind == "total":
-        return "total"
-    if kind == "single-piece":
-        return "alert_yellow"
-    if kind in {"multiple-pieces", "review"}:
-        return "alert_orange"
-    if kind == "distributed":
-        return "alert_red"
-    if kind == "ok":
-        return "good"
-    return "body_alt" if row_offset % 2 else "body"
-
-
-def _xls_row_height(values: list[object]) -> int:
-    """Reserva altura BIFF8 suficiente para texto quebrado e múltiplos locais."""
-
-    line_count = max(
-        (str(value or "").count("\n") + 1 for value in values),
-        default=1,
-    )
-    if any(len(str(value or "")) > 34 for value in values):
-        line_count = max(line_count, 2)
-    return min(1200, 300 * line_count)
-
-
-def _xls_add_sheet(
-    workbook: xlwt.Workbook,
-    styles: _XlsStyles,
-    name: str,
-    headers: list[str],
-    rows: list[list[object]],
-    *,
-    title: str,
-    subtitle: str,
-    widths: list[int],
-    text_columns: set[int] | None = None,
-    number_columns: set[int] | None = None,
-    row_kinds: list[str] | None = None,
-    landscape: bool = True,
-    print_scaling: int = 85,
-) -> None:
-    sheet = workbook.add_sheet(name)
-    text_columns = text_columns or set()
-    number_columns = number_columns or set()
-    row_kinds = row_kinds or ["body"] * len(rows)
-    sheet.write_merge(0, 0, 0, len(headers) - 1, title, styles.get("title"))
-    sheet.write_merge(1, 1, 0, len(headers) - 1, subtitle, styles.get("subtitle"))
-    for column_index, header in enumerate(headers):
-        sheet.write(3, column_index, header, styles.get("header"))
-    sheet.row(0).height = 560
-    sheet.row(1).height = 360
-    sheet.row(3).height = 520
-    for column_index, width in enumerate(widths):
-        sheet.col(column_index).width = min(width * 256, 65535)
-
-    for row_offset, values in enumerate(rows):
-        row_number = 4 + row_offset
-        kind = row_kinds[row_offset] if row_offset < len(row_kinds) else "body"
-        base_name = _xls_row_style_name(kind, row_offset)
+def _xls_write_sheet(workbook: xlwt.Workbook, styles: _XlsStyles, sheet: ExcelSheet, header_text: str) -> None:
+    worksheet = workbook.add_sheet(sheet.name)
+    for row_index, (values, kind) in enumerate(zip(sheet.rows, sheet.kinds)):
         for column_index, value in enumerate(values):
-            style_name = base_name
-            if name == "INVENTÁRIO" and column_index == 0 and value in {"DE", "EF"}:
-                style_name = "body_de" if value == "DE" else "body_ef"
-            if isinstance(value, date):
-                number_format = EXCEL_DATE_FORMAT
-            elif column_index in text_columns:
-                number_format = "@"
+            if kind in {"title", "section", "blank"}:
+                worksheet.write(row_index, column_index, value, styles.get(kind if kind != "blank" else "section"))
+                continue
+            style_name = "label" if kind == "label" and column_index == 0 else ("body" if kind == "label" else kind)
+            if kind == "header":
+                worksheet.write(row_index, column_index, value, styles.get("header"))
+                continue
+            number_format = _excel_number_format(sheet, column_index, value)
+            if number_format == "@":
                 value = str(value)
-            elif column_index in number_columns:
-                number_format = EXCEL_THOUSANDS_FORMAT
-            elif isinstance(value, int):
-                number_format = "0"
-            else:
-                number_format = "General"
-            sheet.write(row_number, column_index, value, styles.get(style_name, number_format))
-        sheet.row(row_number).height = _xls_row_height(values)
-
-    sheet.set_panes_frozen(True)
-    sheet.set_horz_split_pos(4)
-    sheet.set_vert_split_pos(0)
-    sheet.show_grid = False
-    sheet.print_grid = False
-    sheet.set_portrait(not landscape)
-    sheet.set_paper_size_code(9)  # A4 no catálogo BIFF8.
-    sheet.set_fit_width_to_pages(1)
-    sheet.set_fit_height_to_pages(0)
-    sheet.set_print_scaling(print_scaling)
+            worksheet.write(
+                row_index,
+                column_index,
+                value,
+                styles.get(style_name, number_format, isinstance(value, (int, date))),
+            )
+        lines = _excel_line_count(values, sheet.widths)
+        if lines > 1:
+            worksheet.row(row_index).height_mismatch = True
+            worksheet.row(row_index).height = min(2400, 255 * lines + 30)
+    for column_index, width in enumerate(sheet.widths):
+        worksheet.col(column_index).width = min(width * 256, 65535)
+    if sheet.data:
+        worksheet.set_panes_frozen(True)
+        worksheet.set_horz_split_pos(1)
+        worksheet.set_vert_split_pos(0)
+    worksheet.show_grid = False
+    worksheet.print_grid = False
+    worksheet.set_portrait(not sheet.landscape)
+    worksheet.set_paper_size_code(9)  # A4 no catálogo BIFF8.
+    worksheet.set_fit_width_to_pages(1)
+    worksheet.set_fit_height_to_pages(0)
+    worksheet.set_print_scaling(_excel_print_scale(sheet))
     # O setter público do xlwt tenta decodificar `str` no Python 3 e falha;
     # o campo interno recebe o texto já em Unicode, como os valores padrão.
-    sheet._Worksheet__header_str = ""
-    sheet._Worksheet__footer_str = f"&C{EXCEL_FOOTER}"
+    worksheet._Worksheet__header_str = f"&L{header_text}"
+    worksheet._Worksheet__footer_str = f"&C{EXCEL_FOOTER}"
 
 
 def generate_xls_report(report: dict[str, Any]) -> bytes:
@@ -1016,75 +1049,13 @@ def generate_xls_report(report: dict[str, Any]) -> bytes:
 
     view = build_report_view(report)
     workbook = xlwt.Workbook(encoding="utf-8")
+    for name, (index, rgb) in _XLS_PALETTE.items():
+        xlwt.add_palette_colour(name, index)
+        workbook.set_colour_RGB(index, int(rgb[0:2], 16), int(rgb[2:4], 16), int(rgb[4:6], 16))
     styles = _XlsStyles()
-    _xls_add_sheet(
-        workbook,
-        styles,
-        "RESUMO",
-        ["Indicador", "Valor"],
-        _excel_summary_rows(view),
-        title="Aplicativo Inventário da Laminação de Perfis",
-        subtitle=_excel_summary_subtitle(view),
-        widths=[38, 92],
-        number_columns={1},
-        landscape=False,
-        print_scaling=60,
-    )
-    _xls_add_sheet(
-        workbook,
-        styles,
-        "INVENTÁRIO",
-        INVENTORY_HEADERS,
-        _excel_inventory_rows(view),
-        title="INVENTÁRIO",
-        subtitle=view.subtitle,
-        widths=[12, 12, 14, 18, 22],
-        text_columns={3},
-        number_columns={4},
-        row_kinds=view.inventory_kinds(),
-    )
-    _xls_add_sheet(
-        workbook,
-        styles,
-        "LOTES CONSOLIDADOS",
-        CONSOLIDATED_HEADERS,
-        view.consolidated_rows,
-        title="LOTES CONSOLIDADOS",
-        subtitle=view.subtitle,
-        widths=[18, 18, 70, 46],
-        text_columns={0},
-        number_columns={1},
-        row_kinds=view.consolidated_kinds,
-    )
-    _xls_add_sheet(
-        workbook,
-        styles,
-        "LOTES PARA CONFERÊNCIA",
-        CONFERENCE_HEADERS,
-        view.conference_rows,
-        title="LOTES PARA CONFERÊNCIA",
-        subtitle=view.subtitle,
-        widths=[18, 16, 42, 34, 46, 16, 72],
-        text_columns={0},
-        number_columns={1, 5},
-        row_kinds=view.conference_kinds,
-        print_scaling=60,
-    )
-    if view.has_reference:
-        _xls_add_sheet(
-            workbook,
-            styles,
-            "CONCILIAÇÃO",
-            CONCILIATION_HEADERS,
-            view.conciliation_rows,
-            title="CONCILIAÇÃO COM REFERÊNCIA DE LOTES",
-            subtitle=view.subtitle,
-            widths=[18, 24, 18, 70, 16, 54],
-            text_columns={0},
-            number_columns={4},
-            row_kinds=view.conciliation_kinds,
-            print_scaling=55,
-        )
+    header_text = _excel_page_header(view)
+    for sheet in excel_sheets(view):
+        _xls_write_sheet(workbook, styles, sheet, header_text)
     buffer = BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()

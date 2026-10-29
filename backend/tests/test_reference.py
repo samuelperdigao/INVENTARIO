@@ -442,12 +442,13 @@ def test_reference_conciliation_reaches_all_report_formats() -> None:
 
     xlsx = load_workbook(BytesIO(export_xlsx(report)))
     assert "CONCILIAÇÃO" in xlsx.sheetnames
-    xlsx_rows = [xlsx["CONCILIAÇÃO"].cell(row, 1).value for row in range(5, xlsx["CONCILIAÇÃO"].max_row + 1)]
+    assert xlsx.sheetnames[-1] == "CONCILIAÇÃO"
+    xlsx_rows = [xlsx["CONCILIAÇÃO"].cell(row, 1).value for row in range(2, xlsx["CONCILIAÇÃO"].max_row + 1)]
     assert xlsx_rows == ["2712345678", "2812345678", "2898765432"]
 
     xls = open_workbook(file_contents=export_xls(report))
     conciliation = xls.sheet_by_name("CONCILIAÇÃO")
-    assert [conciliation.cell_value(row, 0) for row in range(4, conciliation.nrows)] == ["2712345678", "2812345678", "2898765432"]
+    assert [conciliation.cell_value(row, 0) for row in range(1, conciliation.nrows)] == ["2712345678", "2812345678", "2898765432"]
 
     pdf_text = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(export_pdf(report))).pages)
     assert "Conciliação com referência de lotes" in pdf_text

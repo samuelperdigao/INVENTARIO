@@ -79,33 +79,42 @@ Inventario_2026-09-12.xlsx
 
 ### Abas e compatibilidade visual
 
-Sem referência SAP, os dois arquivos têm as abas nesta ordem:
+Os dois arquivos são gerados a partir da mesma lista de abas
+(`excel_sheets(view)` em `backend/app/reports.py`), por isso trazem
+exatamente a mesma informação, célula por célula; um teste golden compara o
+`.xls` com o `.xlsx`. Sem referência SAP, as abas são:
 
-1. `RESUMO`
-2. `INVENTÁRIO`
-3. `LOTES CONSOLIDADOS`
-4. `LOTES PARA CONFERÊNCIA`
+1. `PAINEL`: data do inventário (célula de data), revisão, "Gerado em",
+   indicadores (registros, peças, lotes, vãos, lotes OK, lotes para
+   conferência e contagem por estado, peças e registros por lado), observação,
+   quadro "Conferência dos totais", quadro por lado e mapa de peças por vão
+   (linhas por vão, colunas EF, DE e Total).
+2. `CONFERÊNCIA`: uma linha por lote para conferência, na ordem de trajeto no
+   pátio, com Ordem, Lote, Total, Situação, Local principal, Outros locais,
+   Peças fora e Ação recomendada. Sem lote para conferência, uma linha avisa
+   que nenhum lote precisa de conferência.
+3. `LANÇAMENTOS`: cada lançamento exatamente como foi gerado (Lado, Vão,
+   Camada, Lote, Quantidade de peças).
+4. `POR VÃO`: Lado, Vão, Registros e Peças de cada vão.
+5. `LOTES`: uma linha por lote e local, com Lote, Situação, Total do lote,
+   Lado, Vão, Camada, Peças no local e Local principal (`Sim`, `Não` ou `Não
+   definido` para lote distribuído). A soma de "Peças no local" é o total de
+   peças do inventário.
 
-Com referência SAP ativa, é acrescentada uma quinta aba:
+Com referência SAP ativa, é acrescentada a aba `CONCILIAÇÃO`.
 
-5. `CONCILIAÇÃO`
+Nas abas de dados o cabeçalho fica na linha 1, congelado, sem linhas de
+título acima; data e revisão vão para o cabeçalho de impressão e o rodapé traz
+`Página X de Y`. Só o `.xlsx` recebe filtro automático nas abas de dados e um
+gráfico de peças por vão e lado na aba `PAINEL`; esses são extras de
+navegação e não acrescentam informação que falte ao `.xls`.
 
 Tipos de célula: Vão e Quantidade são números (o vão só vira número quando a
 conversão é exata, como `12`; um valor como `08` continua texto para sair
 exatamente como lançado), Lote é texto de 10 dígitos com formato `@`, `Peças
 fora` é numérica e fica vazia quando não se aplica, e a data do inventário é
-célula de data (`DD/MM/YYYY`) na primeira linha de `RESUMO`. O subtítulo de
-`RESUMO` traz revisão e "Gerado em"; as demais abas trazem data e revisão.
-
-`LOTES CONSOLIDADOS` tem somente Lote, Total de peças, Localização e Situação.
-Todo lote exportado é texto com exatamente 10 dígitos ASCII e prefixo `27` ou
-`28`, conforme a regra única do domínio.
-Para lote OK, a localização mostra apenas lado, vão e camada. Para conferência,
-cada local aparece com sua quantidade.
-
-`LOTES PARA CONFERÊNCIA` possui uma linha por lote e as colunas Lote, Total,
-Situação, Local principal, Outros locais, Peças fora e Ação recomendada. A
-aba não contém lotes OK.
+célula de data (`DD/MM/YYYY`). Todo lote exportado é texto com exatamente 10
+dígitos ASCII e prefixo `27` ou `28`, conforme a regra única do domínio.
 
 ### Conciliação opcional com SAP
 
@@ -116,24 +125,21 @@ referência; a quantidade exibida continua sendo exclusivamente a quantidade
 lançada fisicamente. A aba não é criada quando o inventário não possui
 referência.
 
-O relatório usa azul escuro `#1F4E78`, azul claro `#D9EAF7`, branco e cinza
-neutro. OK recebe verde; uma peça fora recebe amarelo; múltiplas peças fora
-recebem laranja; lote distribuído sem local principal confiável recebe
-vermelho. O Excel legado mantém cabeçalho congelado, larguras definidas,
-impressão em A4, quantidades numéricas, lotes como texto, linhas alternadas,
-conteúdo centralizado e linhas de grade ocultas. Os dois formatos são
-exportados sem filtros ou menus de filtro nas colunas.
+Cor indica apenas estado, como no PDF e no Word: amarelo para uma peça fora,
+laranja para múltiplas peças fora ou revisão, vermelho para lote distribuído;
+lote OK não tem cor. Cabeçalhos usam navy `#003b63`. No `.xls` essas cores
+são gravadas na paleta do próprio arquivo BIFF8 para manter os mesmos tons.
+Linhas de grade ficam ocultas e a impressão é em A4.
 
-No `.xls`, as linhas que contêm mais de um local ou texto longo recebem altura
-proporcional à quebra de linha. `RESUMO`, `LOTES CONSOLIDADOS` e `LOTES PARA
-CONFERÊNCIA` usam escala explícita de impressão, com redução adicional nas abas
-mais largas, para manter suas colunas na largura imprimível do A4 legado.
+No `.xls`, as linhas com mais de um local ou texto longo recebem altura
+proporcional à quebra de linha, e cada aba usa escala explícita de impressão
+calculada pela soma das larguras, para caber na largura imprimível do A4.
 
-O `.xls` não usa macros, links externos, tabelas estruturadas, fórmulas
-dinâmicas ou recursos do Microsoft 365. Valores e totais são calculados no
-backend. Por ser BIFF8, o arquivo possui o limite histórico de 65.536 linhas
-por planilha e pode apresentar pequenas diferenças de renderização em relação
-ao `.xlsx`.
+O `.xls` não usa macros, links externos, tabelas estruturadas, filtros,
+gráficos, fórmulas dinâmicas ou recursos do Microsoft 365. Valores e totais
+são calculados no backend. Por ser BIFF8, o arquivo possui o limite histórico
+de 65.536 linhas por planilha e pode apresentar pequenas diferenças de
+renderização em relação ao `.xlsx`.
 
 ### Testes
 
@@ -152,7 +158,7 @@ célula corretos no Excel, horário local, ausência de título órfão e falha
 explícita quando os totais são adulterados.
 
 Os testes verificam assinatura OLE do `.xls`, ZIP válido do `.xlsx`, abas,
-ausência de filtros e linhas de grade, tamanho, totais iguais, lotes tratados
+filtro e gráfico só no `.xlsx`, ausência de linhas de grade, tamanho, totais iguais, lotes tratados
 como texto e as mesmas situações visíveis nos quatro formatos.
 
 ## PDF e Word

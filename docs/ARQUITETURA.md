@@ -105,7 +105,7 @@ reabertura muda somente o estado operacional e a geração.
 
 - PostgreSQL é obrigatório em produção.
 - SQLite é usado apenas em desenvolvimento e testes.
-- A cadeia Alembic atual é linear de `0001_central_sync` até `0008_inventory_lot_references`.
+- A cadeia Alembic atual é linear de `0001_central_sync` até `0010_participant_sync_sessions`.
 - Migrations publicadas são imutáveis; correções futuras devem ser novas revisões.
 - Downgrade existe para validação e recuperação controlada, mas não deve ser executado em produção sem plano específico.
 

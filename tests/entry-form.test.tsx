@@ -8,7 +8,7 @@ import type { InventoryEntry } from "@/lib/models";
 
 async function fillValidForm(): Promise<void> {
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "LE" }));
+  await user.click(screen.getByRole("button", { name: "EF" }));
   await user.type(screen.getByLabelText("Vão"), "12");
   await user.selectOptions(screen.getByLabelText("Camada (opcional)"), "A2");
   await user.type(screen.getByLabelText("Lote"), "2712345678");
@@ -21,7 +21,7 @@ it("valida lado, vão, lote e quantidade sem exigir camada", async () => {
   expect(await screen.findByRole("alert")).toHaveTextContent("Selecione o lado");
 
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "LE" }));
+  await user.click(screen.getByRole("button", { name: "EF" }));
   fireEvent.submit(screen.getByRole("button", { name: "Adicionar" }).closest("form")!);
   expect(await screen.findByRole("alert")).toHaveTextContent("Informe o vão");
 
@@ -39,7 +39,7 @@ it("salva lançamento sem camada quando os demais campos são válidos", async (
   const onSave = vi.fn().mockResolvedValue(undefined);
   render(<EntryForm onSave={onSave} onCancelEdit={vi.fn()} />);
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "LP" }));
+  await user.click(screen.getByRole("button", { name: "DE" }));
   await user.type(screen.getByLabelText("Vão"), "21");
   await user.type(screen.getByLabelText("Lote"), "2812345678");
   await user.type(screen.getByLabelText("Quantidade de peças"), "7");
@@ -56,7 +56,7 @@ it("retém lado e vão, reseta a camada e limpa lote/quantidade depois de salvar
   await userEvent.setup().click(screen.getByRole("button", { name: "Adicionar" }));
 
   await waitFor(() => expect(onSave).toHaveBeenCalledWith({ side: "EF", bay: "12", layer: "A2", lot: "2712345678", quantity: 3 }, undefined, false));
-  expect(screen.getByRole("button", { name: "LE" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: "EF" })).toHaveAttribute("aria-pressed", "true");
   expect(screen.getByLabelText("Vão")).toHaveValue("12");
   expect(screen.getByLabelText("Camada (opcional)")).toHaveValue("");
   expect(screen.getByLabelText("Lote")).toHaveValue("");
@@ -69,7 +69,7 @@ it("não deixa a camada de um lançamento vazar para o lançamento seguinte", as
   render(<EntryForm onSave={onSave} onCancelEdit={vi.fn()} />);
   const user = userEvent.setup();
 
-  await user.click(screen.getByRole("button", { name: "LE" }));
+  await user.click(screen.getByRole("button", { name: "EF" }));
   await user.type(screen.getByLabelText("Vão"), "12");
   await user.selectOptions(screen.getByLabelText("Camada (opcional)"), "A2");
   await user.type(screen.getByLabelText("Lote"), "2712345678");

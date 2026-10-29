@@ -1,5 +1,17 @@
 # Status do projeto
 
+## Lados EF/DE no aplicativo — 29/10/2026
+
+- A nomenclatura oficial dos lados é **EF/DE**; LE/LP era antiga. O aplicativo
+  passa a exibir EF/DE em todas as telas (lançamento, listas, locais de lotes,
+  pendências, admin e prévia da página inicial), igual aos arquivos exportados.
+  Os valores gravados já eram `EF`/`DE`; muda só o rótulo exibido.
+- Correção de registro: as contagens de Playwright nas entradas dos PRs 2, 3 e
+  4 incluíam um cenário temporário de captura. Os números reais são 19, 19 e
+  20 cenários.
+- ESLint, TypeScript, Vitest (86) e Playwright (20 cenários) aprovados
+  localmente.
+
 ## Login, home e barra de baixo (PR 4 do redesenho) — 29/10/2026
 
 Sem alterar API, IndexedDB, sincronização, autenticação, regras de lote,
@@ -18,7 +30,7 @@ finalização ou exportações. Os campos, nomes e fluxos do formulário de aces
 - Barra de baixo (celular/tablet): quatro destinos (Início, Em andamento,
   Histórico, Mais), sem a ação "Novo inventário", que fica no topo do painel;
   o rótulo "Mais" passa a ter o mesmo tamanho dos outros.
-- ESLint, TypeScript, Vitest (86), build e Playwright (21 cenários) aprovados
+- ESLint, TypeScript, Vitest (86), build e Playwright (20 cenários) aprovados
   localmente.
 - Pendente: validação em Android e iPhone físicos.
 
@@ -39,7 +51,7 @@ finalização ou exportações.
 - Dentro do inventário, o menu marca "Em andamento" (antes marcava "Início").
 - A etapa Analisar segue o painel de controle e aparece como disponível.
 - Testes usam `data-metric` em vez de classes visuais para ler o resumo.
-- ESLint, TypeScript, Vitest (86), build e Playwright (20 cenários) aprovados
+- ESLint, TypeScript, Vitest (86), build e Playwright (19 cenários) aprovados
   localmente.
 - Pendente: validação em Android e iPhone físicos.
 
@@ -65,7 +77,7 @@ finalização ou exportações.
   ficam visíveis.
 - Testes atualizados para a nova estrutura (lista acessível de etapas, ações
   do topo); o teste de contraste mede as ações sobre o navy real.
-- ESLint, TypeScript, Vitest (86), build e Playwright (20 cenários) aprovados
+- ESLint, TypeScript, Vitest (86), build e Playwright (19 cenários) aprovados
   localmente.
 - Pendente: validação em Android e iPhone físicos.
 

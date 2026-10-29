@@ -370,7 +370,7 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
           <div className={styles.modalHead}><div><p className={styles.eyebrow}>AÇÃO ADMINISTRATIVA</p><h2 id="admin-action-title">{actionLabels[action]}</h2></div>
             <button type="button" aria-label="Fechar" onClick={() => setAction(undefined)} disabled={busy}>×</button></div>
           {(action === "create" || action === "edit") ? <div className={styles.formGrid}>
-            <label>Lado <select value={side} onChange={(event) => setSide(event.target.value as "DE" | "EF")}><option value="DE">LP</option><option value="EF">LE</option></select></label>
+            <label>Lado <select value={side} onChange={(event) => setSide(event.target.value as "DE" | "EF")}><option value="DE">DE</option><option value="EF">EF</option></select></label>
             <label>Vão <input required maxLength={100} value={bay} onChange={(event) => setBay(event.target.value)} /></label>
             <label>Camada <select value={layer} onChange={(event) => setLayer(event.target.value)}><option value="">Sem camada</option>{INVENTORY_LAYERS.map((item) => <option key={item}>{item}</option>)}</select></label>
             <label>Lote <input required inputMode="numeric" minLength={10} maxLength={10} pattern="(27|28)[0-9]{8}" value={lot} onChange={(event) => setLot(event.target.value)} /></label>

@@ -1,8 +1,7 @@
 export type Side = "EF" | "DE";
 
+/** Rótulo do lado exibido ao operador. A nomenclatura oficial é EF/DE (LE/LP era antiga). */
 export function formatSideLabel(side: Side | string): string {
-  if (side === "EF") return "LE";
-  if (side === "DE") return "LP";
   return side;
 }
 export const INVENTORY_LAYERS = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"] as const;

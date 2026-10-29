@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import heroStyles from "@/components/hero.module.css";
 import styles from "@/components/inventory-home.module.css";
 import { AppRail } from "@/components/app-rail";
 import { BrandLogo } from "@/components/brand-logo";
@@ -154,6 +155,8 @@ export function InventoryHome() {
     }
   }
 
+  const pendingCount = inventories.filter((inventory) => inventory.syncStatus !== "SYNCED").length;
+
   if (loading || !user) return <main className="shell"><div className="dashboard-loading" role="status" aria-label="Carregando seu painel"><span /><span /><span /></div></main>;
 
   return (
@@ -172,29 +175,30 @@ export function InventoryHome() {
         </div>
       </header>
 
-      <section className={`dashboard-hero ${styles.hero}`}>
-        <div className={styles.heroIntro}>
-          <p className="eyebrow"><span className={styles.heroMobileCopy}>Painel operacional</span><span className={styles.heroDesktopCopy}>Beam Blanks e Blocos</span></p>
-          <h1>Bem-vindo(a), {firstName(user.displayName)}!</h1>
-          <p><span className={styles.heroMobileCopy}>Aplicativo de Inventário de Beam Blanks e Blocos</span><span className={styles.heroDesktopCopy}>Aplicativo de Inventário da Laminação de Perfis</span></p>
+      <section className={heroStyles.hero} aria-labelledby="dashboard-title">
+        <div className={heroStyles.intro}>
+          <p className={heroStyles.kicker}>Laminação de Perfis · Beam Blanks e Blocos</p>
+          <h1 className={heroStyles.title} id="dashboard-title">Bem-vindo(a), {firstName(user.displayName)}!</h1>
+          <p className={heroStyles.lead}>{inventories.length === 0
+            ? "Nenhum inventário em andamento neste aparelho."
+            : <>Você tem <strong>{inventories.length} {inventories.length === 1 ? "inventário em andamento" : "inventários em andamento"}</strong>.{pendingCount > 0 ? ` ${pendingCount === 1 ? "Um ainda precisa" : `${pendingCount} ainda precisam`} ser enviado${pendingCount === 1 ? "" : "s"}.` : " Tudo enviado."}</>}</p>
+          <div className={heroStyles.actions}>
+            <button className={heroStyles.actionPrimary} type="button" onClick={() => void handleCreate()} disabled={creating} aria-label={creating ? "Criando inventário" : "Iniciar novo inventário"}>
+              <Icon name="plus" size={18} />{creating ? "Criando…" : "Novo inventário"}
+            </button>
+            <button className={heroStyles.actionGhost} type="button" onClick={() => { document.getElementById("participar")?.scrollIntoView({ behavior: "smooth" }); document.querySelector<HTMLInputElement>("#participar input")?.focus({ preventScroll: true }); }}>
+              <Icon name="users" size={18} />Entrar com código
+            </button>
+          </div>
         </div>
-        <div className={styles.heroActions}>
-          <div className="dashboard-status"><span className="live-dot">Conta verificada</span><small>{user.email}</small></div>
-          <button className={`primary ${styles.heroAction}`} type="button" onClick={() => void handleCreate()} disabled={creating}>
-            <Icon name="plus" size={18} />
-            <span>{creating ? "Criando inventário…" : "Iniciar novo inventário"}</span>
-          </button>
-        </div>
+        <dl className={heroStyles.stats}>
+          <div className={heroStyles.stat}><dt>Em andamento</dt><dd>{inventories.length}</dd></div>
+          <div className={`${heroStyles.stat} ${pendingCount > 0 ? heroStyles.statWarn : ""}`}><dt>Falta enviar</dt><dd>{pendingCount}</dd></div>
+          <div className={heroStyles.stat}><dt>Recebidos</dt><dd>{assigned.length}</dd></div>
+        </dl>
       </section>
 
       {error ? <p className="error" role="alert">{error}</p> : null}
-      <section className="quick-actions" aria-labelledby="quick-actions-title">
-        <div className="section-header"><div><p className="eyebrow">Próximo passo</p><h2 id="quick-actions-title">Comece uma conferência</h2></div></div>
-        <div className="action-grid">
-          <button className="action-card primary-action" type="button" onClick={() => void handleCreate()} disabled={creating} aria-label={creating ? "Criando inventário" : "Iniciar novo inventário"}><span className="action-icon"><Icon name="plus" size={20} /></span><span><strong>{creating ? "Criando…" : "Novo inventário"}</strong><small>Começar neste dispositivo</small></span></button>
-          <button className="action-card" type="button" onClick={() => document.getElementById("participar")?.scrollIntoView({ behavior: "smooth" })}><span className="action-icon"><Icon name="users" size={20} /></span><span><strong>Participar</strong><small>Entrar com código da equipe</small></span></button>
-        </div>
-      </section>
 
       <div className="dashboard-grid">
         <section className={`card section-card stack ${styles.recordsPanel}`} id="em-andamento" aria-label="Inventários locais abertos">

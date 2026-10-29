@@ -12,6 +12,9 @@ import { ReferencePanel, createReferenceLotChecker } from "@/components/referenc
 import { AppRail } from "@/components/app-rail";
 import { BrandLogo } from "@/components/brand-logo";
 import { Icon } from "@/components/icon";
+import { InventorySteps, deriveInventorySteps } from "@/components/inventory-steps";
+import { SyncBadge, syncBadgeState, useOnline } from "@/components/sync-badge";
+import heroStyles from "@/components/hero.module.css";
 import { getCurrentUser, restoreSession, type AuthUser } from "@/lib/auth-client";
 import { findRemoteDuplicateLotEntries } from "@/lib/duplicate-client";
 import { formatBrazilianDate } from "@/lib/local-date";
@@ -58,8 +61,14 @@ function entriesScreenKey(value: InventoryEntry[]): string {
     .sort((left, right) => left.id.localeCompare(right.id)));
 }
 
+function formatClock(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
 export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
   const router = useRouter();
+  const online = useOnline();
   const [inventory, setInventory] = useState<Inventory>();
   const [sessionUser, setSessionUser] = useState<AuthUser>();
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
@@ -350,38 +359,29 @@ export function InventoryScreen({ inventoryId }: { inventoryId: string }) {
     : inventory;
   const readOnly = displayedInventory.status === "FINISHED";
   const showEntryForm = displayedInventory.status === "OPEN" || formDirty;
-  const workflowSteps = [
-    ["01", "Lançar", "Registrar itens"],
-    ["02", "Conferir", "Revisar registros"],
-    ["03", "Sincronizar", "Enviar dados"],
-    ["04", "Analisar", "Ver lotes para conferência"],
-    ["05", "Finalizar", "Gerar relatório"],
-  ] as const;
-  const currentStep = readOnly ? "Finalizar" : entries.length > 0 ? "Conferir" : "Lançar";
 
   return (
     <main className="shell app-page-shell inventory-shell">
       <AppRail active="home" showTeam={sessionUser?.teams.some((team) => team.role === "ADMIN")} showAdmin={sessionUser?.systemAdmin} />
       <div className="inventory-content">
-      <header className="inventory-header">
-        <div className="inventory-header-row">
-          <div className="inventory-header-copy">
-            <Link className="back-link" href="/dashboard">← Voltar ao painel</Link>
-            <div className="inventory-header-topline"><span className="inventory-header-topline-dot" aria-hidden="true" /> <span>{readOnly ? "Inventário finalizado" : "Coleta em andamento"}</span><i aria-hidden="true">/</i><span>{entries.length ? `${entries.length} registro(s) capturado(s)` : "Aguardando primeiro lançamento"}</span></div>
-            <p className="eyebrow">Inventário em operação</p>
-            <h1>Inventário {formatBrazilianDate(inventory.date)}</h1>
-             <p className="muted">Registros físicos ficam salvos neste dispositivo e seguem disponíveis sem internet.</p>
-          </div>
-          <span className={`status-pill ${readOnly || inventory.syncStatus === "SYNCED" ? "good" : "pending"}`}>{readOnly ? "Finalizado" : inventory.syncStatus === "SYNCED" ? "Sincronizado" : "Salvo localmente"}</span>
+      <header className={heroStyles.hero}>
+        <div className={heroStyles.topRow}>
+          <Link className={heroStyles.backLink} href="/dashboard" aria-label="Voltar ao painel">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>Painel
+          </Link>
+        </div>
+        <div className={heroStyles.intro}>
+          <p className={heroStyles.kicker}>{readOnly ? "Inventário finalizado" : "Coleta em andamento"}</p>
+          <h1 className={heroStyles.title}>Inventário {formatBrazilianDate(inventory.date)}</h1>
+          <p className={heroStyles.lead}>Aberto às {formatClock(inventory.createdAt)} · <strong>{entries.length} {entries.length === 1 ? "registro" : "registros"}</strong> · salvo neste aparelho, funciona sem internet</p>
+        </div>
+        <div className={heroStyles.meta}>
+          <SyncBadge tone="navy" state={syncBadgeState(inventory.syncStatus, readOnly, online)} time={formatClock(inventory.updatedAt)} />
+          {!readOnly && inventory.participationCode ? <span className={heroStyles.chip}>Equipe <span className={heroStyles.code}>{inventory.participationCode.replace(/^(\d{3})(\d{3})$/, "$1 $2")}</span></span> : null}
         </div>
       </header>
 
-      <p className="inventory-progress-label">Etapa atual: <strong>{currentStep}</strong></p>
-      <ol className="inventory-process" aria-label={`Etapas do inventário. Etapa atual: ${currentStep}`}>
-        {workflowSteps.map(([number, label]) => <li className={label === currentStep ? "active" : ""} key={number} aria-current={label === currentStep ? "step" : undefined}>
-          <span>{number}</span><strong>{label}</strong>
-        </li>)}
-      </ol>
+      <InventorySteps steps={deriveInventorySteps({ entries: entries.length, synced: inventory.syncStatus === "SYNCED", finished: readOnly })} />
 
       <section className="metric-grid" aria-label="Resumo do inventário">
         <div className="metric-card metric-card--records"><div className="metric-card-top"><span className="metric-card-icon" aria-hidden="true"><Icon name="boxes" size={18} /></span><span className="metric-card-kicker">Coleta</span></div><div className="metric-card-copy"><span className="metric-label">Registros</span><span className="metric-value">{entries.length}</span></div></div>

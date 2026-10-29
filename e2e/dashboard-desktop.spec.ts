@@ -11,7 +11,7 @@ test("prioriza a operação no desktop e mantém o fluxo utilizável em todos os
   const primaryAction = page.getByRole("button", { name: /Iniciar novo inventário/ });
   await expect(primaryAction).toBeVisible();
   await expect(primaryAction).toBeEnabled();
-  await expect(page.locator(".quick-actions")).toBeHidden();
+  await expect(page.locator(".quick-actions"), "atalhos duplicados foram removidos no redesenho").toHaveCount(0);
   await expect(page.getByText("Quando você criar ou abrir uma conferência, ela aparecerá aqui.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Criar inventário" })).toBeVisible();
 
@@ -41,13 +41,9 @@ test("prioriza a operação no desktop e mantém o fluxo utilizável em todos os
     );
     expect(hasHorizontalOverflow, `overflow at ${viewport.width} × ${viewport.height}`).toBe(false);
 
-    if (viewport.width >= 1200) {
-      await expect(page.locator(".quick-actions")).toBeHidden();
-      await expect(page.getByRole("button", { name: /Iniciar novo inventário/ })).toBeVisible();
-    } else {
-      await expect(page.locator(".quick-actions")).toBeVisible();
-      await expect(page.locator(".action-grid .primary-action")).toBeVisible();
-    }
+    // O topo navy mantém as duas ações principais visíveis em qualquer largura.
+    await expect(page.getByRole("button", { name: /Iniciar novo inventário/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Entrar com código" })).toBeVisible();
   }
 });
 

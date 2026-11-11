@@ -1,5 +1,31 @@
 # Status do projeto
 
+## Cadastro: senha sem mínimo e NP único — 10/11/2026
+
+- PR #54 integrada em `main` no commit `196c12b`. A senha não tem mais o
+  mínimo de 12 caracteres (cadastro e redefinição; só não pode ficar vazia) e
+  o cadastro pede o NP pessoal uma única vez; a API deixou de exigir
+  `recoveryPinConfirmation` no registro (campo extra enviado por clientes
+  antigos é ignorado). A configuração de NP para contas existentes mantém a
+  confirmação.
+- Vercel: deploy de produção `READY` em `196c12b`.
+- Render: `inventory-api` estava `live` em `194d5ee` (#43, 28/10/2026); as
+  alterações de backend de #44 a #53 nunca tinham sido publicadas na API. O
+  deploy `dep-dbprtnm7bikc73b7k95g` foi disparado manualmente e ficou `live`
+  em `196c12b`. Entre #43 e #54 não há migration nem dependência nova.
+- Validação: `/healthz` e `/backend-api/healthz` com 200; requisição inválida
+  de registro confirma a nova validação no Render e pelo proxy da Vercel;
+  Production Smoke manual verde em `196c12b`.
+- Limitação real: o `inventory-api` está configurado com auto-deploy por
+  commit, mas o Render não publicou nenhum push desde 28/10/2026. Até corrigir
+  a integração com o GitHub, cada mudança de backend exige deploy manual
+  (painel do Render, `pnpm deploy:production` ou API) e confirmação do SHA
+  `live`. Entre o merge e esse deploy, frontend e API ficaram incompatíveis no
+  cadastro por cerca de 50 minutos.
+- Gates locais: ESLint, TypeScript, build e Pytest (97) aprovados; as 6 falhas
+  de `tests/auth-client.test.ts` também ocorrem na `main` neste ambiente
+  (Node 26 local).
+
 ## Arquivos de entrega — PR C (Excel) — 29/10/2026
 
 Só apresentação: dados, API, regras de lote, motor, finalização, PDF e Word

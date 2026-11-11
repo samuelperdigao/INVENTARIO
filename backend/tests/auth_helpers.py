@@ -13,7 +13,6 @@ def register_verified(
             "password": "senha-segura-123",
             "passwordConfirmation": "senha-segura-123",
             "recoveryPin": recovery_pin,
-            "recoveryPinConfirmation": recovery_pin,
             "displayName": email.split("@")[0],
         },
     )

@@ -133,7 +133,6 @@ export async function registerAccount(input: {
   password: string;
   passwordConfirmation: string;
   recoveryPin: string;
-  recoveryPinConfirmation: string;
   displayName: string;
 }): Promise<AuthUser> {
   return (await authRequest("/api/v1/auth/register", { method: "POST", body: JSON.stringify(input) })).user;

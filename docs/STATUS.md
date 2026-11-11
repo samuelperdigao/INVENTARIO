@@ -1,5 +1,25 @@
 # Status do projeto
 
+## Exclusão em lote na administração — 10/11/2026
+
+- Novo endpoint `POST /api/v1/admin/inventories/delete-batch` (somente
+  administrador global): recebe até 100 itens com revisão e geração esperadas,
+  aplica o mesmo tombstone da exclusão individual e registra
+  `INVENTORY_DELETED` por inventário. É atômico: um item alterado, já excluído
+  ou repetido recusa o lote inteiro e nada é excluído.
+- A exclusão individual passou a usar a mesma rotina (`_soft_delete`), sem
+  mudança de contrato.
+- Em "Todos os inventários": caixa de seleção por linha, "Selecionar esta
+  página", "Selecionar todos os N resultados" (respeita os filtros), contador,
+  "Limpar seleção" e "Excluir selecionados" com confirmação. Acima de 100
+  itens o frontend envia lotes de 100; se um lote falhar, os anteriores já
+  ficam excluídos e a mensagem informa quantos foram.
+- Excluídos continuam em "Inventários excluídos" e no histórico; não há
+  exclusão física.
+- Gates locais: ESLint, TypeScript, build e Pytest (98) aprovados; Vitest
+  83/89 (3 novos testes da seleção em lote aprovados) — as 6 falhas de `tests/auth-client.test.ts` também ocorrem na `main`
+  neste ambiente (Node 26 local, `localStorage` indefinido no teste), sem
+  relação com esta mudança.
 ## Cadastro: senha sem mínimo e NP único — 10/11/2026
 
 - PR #54 integrada em `main` no commit `196c12b`. A senha não tem mais o

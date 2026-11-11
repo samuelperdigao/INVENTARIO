@@ -125,6 +125,17 @@
 .danger { border-color: #a84254; background: #a84254; }
 .record { border-radius: 10px; padding-inline: 9px; }
 .record:hover { background: #f4f8fb; }
+.bulkBar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 8px; padding: 10px 12px; border: 1px solid #dbe7f2; border-radius: 12px; background: #f7fbff; }
+.bulkBar .danger { min-height: 38px; padding: 7px 14px; }
+.bulkCount { margin-left: auto; color: #4d6c89; font-size: .82rem; font-weight: 700; }
+.selectAll, .recordCheck { display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: .85rem; font-weight: 700; color: #234f78; }
+.selectAll input, .recordCheck input { width: 18px; height: 18px; margin: 0; accent-color: #145da4; cursor: pointer; }
+.selectableRecord { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid #e4edf6; border-radius: 10px; }
+.selectableRecord:last-child { border: 0; }
+.selectableRecord .record { flex: 1; border: 0; }
+.selectedRecord { background: #eef5fd; }
+.recordCheck { align-self: stretch; padding: 0 6px 0 10px; }
+.batchList { margin: 0 0 14px; padding-left: 18px; display: grid; gap: 5px; font-size: .86rem; color: #3d5873; max-height: 220px; overflow: auto; }
 @media (max-width: 1180px) { .metrics { grid-template-columns: repeat(3, 1fr); }.twoColumns { grid-template-columns: 1fr; } }
 @media (max-width: 860px) {
   .shell { display: block; padding-bottom: 82px; }.sidebar { display: none; }.content { padding: 0 18px 42px; }

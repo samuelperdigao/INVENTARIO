@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import styles from "@/components/admin-panel.module.css";
 import { BrandLogo } from "@/components/brand-logo";
@@ -40,14 +40,37 @@ function statusLabel(item: AdminInventory): string {
   return item.tombstone ? "Excluído" : item.status === "OPEN" ? "Aberto" : "Finalizado";
 }
 
-function RecordList({ items }: { items: AdminInventory[] }) {
-  return <div className={styles.records}>{items.map((item) =>
-    <Link href={`/admin/inventarios/${item.id}`} className={styles.record} key={item.id}>
+const BATCH_LIMIT = 100;
+
+function RecordList({ items, selected, onToggle }: {
+  items: AdminInventory[];
+  selected?: ReadonlyMap<string, AdminInventory>;
+  onToggle?: (item: AdminInventory) => void;
+}) {
+  return <div className={styles.records}>{items.map((item) => {
+    const link = <Link href={`/admin/inventarios/${item.id}`} className={styles.record} key={item.id}>
       <span className={styles.dateBadge}><small>INVENTÁRIO</small><strong>{formatBrazilianDate(item.date)}</strong></span>
       <span className={styles.recordBody}><strong>{item.ownerName || "Responsável não informado"}</strong><small>{item.lotCount} lotes · {item.pieceCount} peças · {item.recordCount} lançamentos</small></span>
       <span className={styles.status}>{statusLabel(item)}</span><span className={styles.chevron} aria-hidden="true">›</span>
-    </Link>,
-  )}{items.length === 0 ? <p className={styles.empty}>Nenhum inventário encontrado.</p> : null}</div>;
+    </Link>;
+    if (!selected || !onToggle) return link;
+    const checked = selected.has(item.id);
+    return <div className={`${styles.selectableRecord} ${checked ? styles.selectedRecord : ""}`} key={item.id}>
+      <label className={styles.recordCheck}>
+        <input type="checkbox" checked={checked} onChange={() => onToggle(item)}
+          aria-label={`Selecionar inventário de ${formatBrazilianDate(item.date)} · ${item.ownerName || "responsável não informado"}`} />
+      </label>{link}</div>;
+  })}{items.length === 0 ? <p className={styles.empty}>Nenhum inventário encontrado.</p> : null}</div>;
+}
+
+function PageCheckbox({ checked, indeterminate, disabled, onChange }: {
+  checked: boolean; indeterminate: boolean; disabled: boolean; onChange: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (ref.current) ref.current.indeterminate = indeterminate; }, [indeterminate]);
+  return <label className={styles.selectAll}>
+    <input ref={ref} type="checkbox" checked={checked} disabled={disabled} onChange={onChange} />
+    Selecionar esta página</label>;
 }
 
 export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
@@ -89,6 +112,20 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
   const [file, setFile] = useState<File>();
   const [preview, setPreview] = useState<{ uniqueLots: number; ignoredRows: number; warnings: string[] }>();
   const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<Map<string, AdminInventory>>(() => new Map());
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [selectingAll, setSelectingAll] = useState(false);
+
+  const listParams = useCallback((name: Section, index: number, pageSize?: number): URLSearchParams => {
+    const params = new URLSearchParams({ page: String(index), order, deleted: String(name === "deleted") });
+    if (pageSize) params.set("pageSize", String(pageSize));
+    if (search) params.set("query", search);
+    if (status) params.set("status", status);
+    if (owner) params.set("ownerId", owner);
+    if (from) params.set("dateFrom", from);
+    if (to) params.set("dateTo", to);
+    return params;
+  }, [from, to, search, status, owner, order]);
 
   const loadDetail = useCallback(async (id: string, entriesPage = 1) => {
     const [data, history, reports, reference] = await Promise.all([
@@ -109,15 +146,78 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
     } else if (name === "audit") {
       setAudit(await adminGet<AdminPage<AdminAudit>>(`/audit?page=${activityPage}`));
     } else {
-      const params = new URLSearchParams({ page: String(index), order, deleted: String(name === "deleted") });
-      if (search) params.set("query", search);
-      if (status) params.set("status", status);
-      if (owner) params.set("ownerId", owner);
-      if (from) params.set("dateFrom", from);
-      if (to) params.set("dateTo", to);
-      setListing(await adminGet<AdminPage<AdminInventory>>(`/inventories?${params}`));
+      const result = await adminGet<AdminPage<AdminInventory>>(`/inventories?${listParams(name, index)}`);
+      setListing(result);
+      // Mantém a seleção com a revisão mais recente dos itens recarregados.
+      setSelected((current) => {
+        if (current.size === 0) return current;
+        const next = new Map(current);
+        for (const item of result.items) if (next.has(item.id)) next.set(item.id, item);
+        return next;
+      });
     }
-  }, [from, to, search, status, owner, order]);
+  }, [from, to, listParams]);
+
+  function toggleSelected(item: AdminInventory): void {
+    setSelected((current) => {
+      const next = new Map(current);
+      if (next.has(item.id)) next.delete(item.id); else next.set(item.id, item);
+      return next;
+    });
+  }
+
+  function togglePage(items: AdminInventory[]): void {
+    setSelected((current) => {
+      const next = new Map(current);
+      const all = items.every((item) => next.has(item.id));
+      for (const item of items) if (all) next.delete(item.id); else next.set(item.id, item);
+      return next;
+    });
+  }
+
+  async function selectAllResults(): Promise<void> {
+    setSelectingAll(true); setError("");
+    try {
+      const next = new Map<string, AdminInventory>();
+      for (let index = 1; ; index += 1) {
+        const result = await adminGet<AdminPage<AdminInventory>>(`/inventories?${listParams("inventories", index, BATCH_LIMIT)}`);
+        for (const item of result.items) next.set(item.id, item);
+        if (result.items.length < BATCH_LIMIT || next.size >= result.total) break;
+      }
+      setSelected(next);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Falha ao selecionar os resultados."); }
+    finally { setSelectingAll(false); }
+  }
+
+  async function deleteSelected(): Promise<void> {
+    if (busy || selected.size === 0) return;
+    setBusy(true); setError("");
+    const items = [...selected.values()].map((item) => ({
+      inventoryId: item.id, expectedRevision: item.revision, expectedGeneration: item.operationalGeneration,
+    }));
+    let deleted = 0;
+    try {
+      for (let start = 0; start < items.length; start += BATCH_LIMIT) {
+        const chunk = items.slice(start, start + BATCH_LIMIT);
+        await adminPost("/inventories/delete-batch", { items: chunk });
+        deleted += chunk.length;
+        setSelected((current) => {
+          const next = new Map(current);
+          for (const item of chunk) next.delete(item.inventoryId);
+          return next;
+        });
+      }
+      setBatchOpen(false);
+      const remaining = Math.max(0, (listing?.total ?? 0) - deleted);
+      const nextPage = Math.min(page, Math.max(1, Math.ceil(remaining / 25)));
+      setPage(nextPage);
+      await refreshSection(section, nextPage);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "A exclusão não foi concluída.";
+      setError(deleted > 0 ? `${deleted} inventário(s) excluído(s). ${message}` : message);
+      if (deleted > 0) void loadSection(section, page, auditPage).catch(() => undefined);
+    } finally { setBusy(false); }
+  }
 
   useEffect(() => {
     let live = true;
@@ -170,7 +270,7 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
   }
 
   function switchSection(next: Section): void {
-    setSection(next); setPage(1); setError("");
+    setSection(next); setPage(1); setError(""); setSelected(new Map());
     void refreshSection(next, 1);
   }
 
@@ -279,7 +379,7 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
       </> : null}
 
       {!inventoryId && (section === "inventories" || section === "deleted") ? <section className={styles.card}>
-        <form className={styles.filters} onSubmit={(event) => { event.preventDefault(); setPage(1); void refreshSection(section, 1); }}>
+        <form className={styles.filters} onSubmit={(event) => { event.preventDefault(); setPage(1); setSelected(new Map()); void refreshSection(section, 1); }}>
           <label>Pesquisa <input value={search} placeholder="Responsável, lote ou data" onChange={(event) => setSearch(event.target.value)} /></label>
           <label>Situação <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todas</option><option value="OPEN">Aberto</option><option value="FINISHED">Finalizado</option></select></label>
           <label>Buscar responsável <input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Nome ou e-mail" /></label>
@@ -292,7 +392,16 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
           <button className={styles.primary} type="submit">Pesquisar</button>
         </form>
         <div className={styles.sectionTitle}><h2>Resultados</h2><span>{listing?.total ?? 0} inventários</span></div>
-        <RecordList items={listing?.items ?? []} />
+        {section === "inventories" && listing && listing.items.length > 0
+          ? <BulkBar items={listing.items} total={listing.total} selectedCount={selected.size}
+            pageSelected={listing.items.filter((item) => selected.has(item.id)).length}
+            busy={busy} selectingAll={selectingAll}
+            onTogglePage={() => togglePage(listing.items)} onSelectAll={() => void selectAllResults()}
+            onClear={() => setSelected(new Map())} onDelete={() => { setError(""); setBatchOpen(true); }} />
+          : null}
+        <RecordList items={listing?.items ?? []}
+          selected={section === "inventories" ? selected : undefined}
+          onToggle={section === "inventories" ? toggleSelected : undefined} />
         <Pagination page={page} total={listing?.total ?? 0} size={25} onChange={(next) => { setPage(next); void refreshSection(section, next); }} />
       </section> : null}
 
@@ -364,6 +473,25 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
       </> : null}
     </div>
 
+    {batchOpen ? <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setBatchOpen(false); }}>
+      <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="admin-batch-title">
+        <form onSubmit={(event) => { event.preventDefault(); void deleteSelected(); }}>
+          <div className={styles.modalHead}><div><p className={styles.eyebrow}>AÇÃO ADMINISTRATIVA</p>
+            <h2 id="admin-batch-title">Excluir {selected.size} inventário(s)</h2></div>
+            <button type="button" aria-label="Fechar" onClick={() => setBatchOpen(false)} disabled={busy}>×</button></div>
+          <p className={styles.notice}>Tem certeza que deseja excluir os inventários selecionados? Eles saem da operação e continuam
+            disponíveis em &ldquo;Inventários excluídos&rdquo; e no histórico de alterações.</p>
+          <ul className={styles.batchList}>{[...selected.values()].slice(0, 8).map((item) =>
+            <li key={item.id}><strong>{formatBrazilianDate(item.date)}</strong> · {item.ownerName || "Responsável não informado"} · {statusLabel(item)}</li>)}
+            {selected.size > 8 ? <li>e mais {selected.size - 8} inventário(s)</li> : null}</ul>
+          {error ? <p className={styles.error} role="alert">{error}</p> : null}
+          <div className={styles.modalActions}><button className={styles.secondary} type="button" onClick={() => setBatchOpen(false)} disabled={busy}>Cancelar</button>
+            <button className={styles.danger} disabled={busy || selected.size === 0} type="submit">
+              {busy ? "Excluindo…" : `Sim, excluir ${selected.size}`}</button></div>
+        </form>
+      </section>
+    </div> : null}
+
     {action && detail ? <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setAction(undefined); }}>
       <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="admin-action-title">
         <form onSubmit={(event) => void submitAction(event)}>
@@ -396,6 +524,24 @@ export function AdminPanel({ inventoryId }: { inventoryId?: string }) {
       </section>
     </div> : null}
   </main>;
+}
+
+function BulkBar({ items, total, selectedCount, pageSelected, busy, selectingAll, onTogglePage, onSelectAll, onClear, onDelete }: {
+  items: AdminInventory[]; total: number; selectedCount: number; pageSelected: number; busy: boolean; selectingAll: boolean;
+  onTogglePage: () => void; onSelectAll: () => void; onClear: () => void; onDelete: () => void;
+}) {
+  const allPage = pageSelected === items.length;
+  return <div className={styles.bulkBar} role="toolbar" aria-label="Seleção de inventários">
+    <PageCheckbox checked={allPage} indeterminate={pageSelected > 0 && !allPage} disabled={busy} onChange={onTogglePage} />
+    {total > items.length && selectedCount < total ? <button type="button" className={styles.textButton}
+      disabled={selectingAll || busy} onClick={onSelectAll}>
+      {selectingAll ? "Selecionando…" : `Selecionar todos os ${total} resultados`}</button> : null}
+    <span className={styles.bulkCount} aria-live="polite">{selectedCount > 0 ? `${selectedCount} selecionado(s)` : "Nenhum selecionado"}</span>
+    {selectedCount > 0 ? <>
+      <button type="button" className={styles.textButton} disabled={busy} onClick={onClear}>Limpar seleção</button>
+      <button type="button" className={styles.danger} disabled={busy} onClick={onDelete}>Excluir selecionados ({selectedCount})</button>
+    </> : null}
+  </div>;
 }
 
 function Pagination({ page, total, size, onChange }: { page: number; total: number; size: number; onChange: (next: number) => void }) {

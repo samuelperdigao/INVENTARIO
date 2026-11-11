@@ -418,3 +418,46 @@ def test_transfer_finished_inventory_stays_in_history_and_reopen_order_is_consis
     assert connected.status_code == 200
     assert connected.json()["inventory"]["status"] == "OPEN"
     assert connected.json()["inventory"]["operationalGeneration"] == 2
+
+
+def test_batch_delete_is_atomic_audited_and_admin_only() -> None:
+    operator, auth = register_verified(client, "batch-delete-admin@example.com", "Equipe lote")
+    first, _e1, _t1 = create_inventory(auth)
+    second, _e2, _t2 = create_inventory(auth)
+    third, _e3, _t3 = create_inventory(auth)
+
+    def item(inventory_id: str) -> dict:
+        data = client.get(f"/api/v1/admin/inventories/{inventory_id}", headers=auth).json()
+        return {"inventoryId": inventory_id, **revision(data)}
+
+    body = {"items": [{"inventoryId": first, "expectedRevision": 1, "expectedGeneration": 1}]}
+    assert client.post("/api/v1/admin/inventories/delete-batch", headers=auth, json=body).status_code == 403
+    grant_admin(operator["user"]["id"])
+
+    items = [item(first), item(second), item(third)]
+    stale = {**items[2], "expectedRevision": items[2]["expectedRevision"] + 5}
+    rejected = client.post("/api/v1/admin/inventories/delete-batch", headers=auth,
+                           json={"items": [items[0], items[1], stale]})
+    assert rejected.status_code == 409
+    assert rejected.json()["detail"].startswith("Nenhum inventário foi excluído.")
+    listing = client.get("/api/v1/admin/inventories", headers=auth).json()
+    assert {first, second, third} <= {row["id"] for row in listing["items"]}
+
+    duplicated = client.post("/api/v1/admin/inventories/delete-batch", headers=auth,
+                             json={"items": [items[0], items[0]]})
+    assert duplicated.status_code == 422
+    assert client.post("/api/v1/admin/inventories/delete-batch", headers=auth, json={"items": []}).status_code == 422
+
+    done = client.post("/api/v1/admin/inventories/delete-batch", headers=auth, json={"items": items[:2]})
+    assert done.status_code == 200, done.text
+    assert done.json() == {"deleted": 2}
+    active = {row["id"] for row in client.get("/api/v1/admin/inventories", headers=auth).json()["items"]}
+    deleted = {row["id"] for row in client.get("/api/v1/admin/inventories?deleted=true", headers=auth).json()["items"]}
+    assert first not in active and second not in active and third in active
+    assert {first, second} <= deleted
+    for inventory_id in (first, second):
+        history = client.get(f"/api/v1/admin/audit?inventoryId={inventory_id}", headers=auth).json()["items"]
+        assert any(row["action"] == "INVENTORY_DELETED" for row in history)
+
+    again = client.post("/api/v1/admin/inventories/delete-batch", headers=auth, json={"items": [item(first)]})
+    assert again.status_code == 409

@@ -265,26 +265,23 @@ class SyncResponse(ApiModel):
 
 class RegisterRequest(ApiModel):
     email: str = Field(min_length=3, max_length=320)
-    password: str = Field(min_length=12, max_length=256)
-    passwordConfirmation: str = Field(min_length=12, max_length=256)
+    password: str = Field(min_length=1, max_length=256)
+    passwordConfirmation: str = Field(min_length=1, max_length=256)
     recoveryPin: str = Field(pattern=r"^\d{8}$")
-    recoveryPinConfirmation: str = Field(pattern=r"^\d{8}$")
     displayName: str = Field(min_length=1, max_length=120)
 
     @model_validator(mode="after")
     def credentials_match(self) -> "RegisterRequest":
         if self.password != self.passwordConfirmation:
             raise ValueError("As senhas informadas não coincidem.")
-        if self.recoveryPin != self.recoveryPinConfirmation:
-            raise ValueError("Os NPs pessoais informados não coincidem.")
         return self
 
 
 class ConfirmPasswordResetRequest(ApiModel):
     email: str = Field(min_length=3, max_length=320)
     recoveryPin: str = Field(pattern=r"^\d{8}$")
-    newPassword: str = Field(min_length=12, max_length=256)
-    passwordConfirmation: str = Field(min_length=12, max_length=256)
+    newPassword: str = Field(min_length=1, max_length=256)
+    passwordConfirmation: str = Field(min_length=1, max_length=256)
 
     @model_validator(mode="after")
     def passwords_match(self) -> "ConfirmPasswordResetRequest":

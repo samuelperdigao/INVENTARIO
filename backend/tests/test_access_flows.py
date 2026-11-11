@@ -40,7 +40,7 @@ def _registration(email: str, pin: str = "38427105") -> dict[str, str]:
     return {
         "email": email, "password": "senha-segura-123",
         "passwordConfirmation": "senha-segura-123", "displayName": "Novo Usuário",
-        "recoveryPin": pin, "recoveryPinConfirmation": pin,
+        "recoveryPin": pin,
     }
 
 
@@ -50,10 +50,20 @@ def test_registration_accepts_any_valid_email_and_enters_without_creating_team()
     })
     assert rejected.status_code == 422
 
-    mismatched_np = client.post("/api/v1/auth/register", json={
-        **_registration("np-divergente@example.com"), "recoveryPinConfirmation": "10572843",
+    mismatched_password = client.post("/api/v1/auth/register", json={
+        **_registration("senha-divergente@example.com"), "passwordConfirmation": "outra",
     })
-    assert mismatched_np.status_code == 422
+    assert mismatched_password.status_code == 422
+
+    invalid_np = client.post("/api/v1/auth/register", json={
+        **_registration("np-invalido@example.com"), "recoveryPin": "1234",
+    })
+    assert invalid_np.status_code == 422
+
+    short_password = client.post("/api/v1/auth/register", json={
+        **_registration("senha-curta@example.com"), "password": "abc", "passwordConfirmation": "abc",
+    })
+    assert short_password.status_code == 201
 
     email = "novo.usuario@gmail.com"
     registered = client.post("/api/v1/auth/register", json=_registration(email))

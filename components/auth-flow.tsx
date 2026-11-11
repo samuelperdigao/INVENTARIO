@@ -52,7 +52,6 @@ export function AuthFlow() {
           password: String(form.get("password") ?? ""),
           passwordConfirmation: String(form.get("passwordConfirmation") ?? ""),
           recoveryPin: String(form.get("recoveryPin") ?? ""),
-          recoveryPinConfirmation: String(form.get("recoveryPinConfirmation") ?? ""),
         });
         router.replace("/dashboard");
       } else if (view === "reset") {
@@ -105,11 +104,11 @@ export function AuthFlow() {
           <form className={styles.form} aria-busy={busy} onSubmit={(event) => void submit(event)}>
             {view === "register" ? <label>Nome completo<input name="displayName" autoComplete="name" required maxLength={120} placeholder="Como você quer ser chamado" /></label> : null}
             {view !== "setup-pin" ? <label>E-mail<input name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" placeholder="seuemail@exemplo.com" /></label> : null}
-            {view === "login" || view === "register" ? <label>Senha<input name="password" type="password" required minLength={view === "register" ? 12 : 1} autoComplete={view === "register" ? "new-password" : "current-password"} placeholder={view === "register" ? "Mínimo de 12 caracteres" : "Sua senha"} /></label> : null}
-            {view === "register" ? <label>Confirmar senha<input name="passwordConfirmation" type="password" autoComplete="new-password" minLength={12} required placeholder="Repita sua senha" /></label> : null}
+            {view === "login" || view === "register" ? <label>Senha<input name="password" type="password" required autoComplete={view === "register" ? "new-password" : "current-password"} placeholder={view === "register" ? "Crie sua senha" : "Sua senha"} /></label> : null}
+            {view === "register" ? <label>Confirmar senha<input name="passwordConfirmation" type="password" autoComplete="new-password" required placeholder="Repita sua senha" /></label> : null}
             {view === "register" || view === "reset" || view === "setup-pin" ? <label>NP pessoal de recuperação<input className={styles.code} name="recoveryPin" inputMode="numeric" autoComplete="off" pattern="\d{8}" minLength={8} maxLength={8} required placeholder="00000000" /><small>Use os 8 números do seu NP. Ele não será exibido novamente.</small></label> : null}
-            {view === "register" || view === "setup-pin" ? <label>Confirmar NP pessoal<input className={styles.code} name="recoveryPinConfirmation" inputMode="numeric" autoComplete="off" pattern="\d{8}" minLength={8} maxLength={8} required placeholder="00000000" /></label> : null}
-            {view === "reset" ? <><label>Nova senha<input name="newPassword" type="password" autoComplete="new-password" minLength={12} required /></label><label>Confirmar nova senha<input name="passwordConfirmation" type="password" autoComplete="new-password" minLength={12} required /></label></> : null}
+            {view === "setup-pin" ? <label>Confirmar NP pessoal<input className={styles.code} name="recoveryPinConfirmation" inputMode="numeric" autoComplete="off" pattern="\d{8}" minLength={8} maxLength={8} required placeholder="00000000" /></label> : null}
+            {view === "reset" ? <><label>Nova senha<input name="newPassword" type="password" autoComplete="new-password" required /></label><label>Confirmar nova senha<input name="passwordConfirmation" type="password" autoComplete="new-password" required /></label></> : null}
             <button className={styles.submit} type="submit" disabled={busy}>{busy ? "Aguarde…" : view === "login" ? "Entrar" : view === "register" ? "Criar conta e acessar" : view === "reset" ? "Atualizar senha" : "Salvar NP e continuar"}</button>
           </form>
           {message ? <p className={styles.notice} role="status">{message}</p> : null}

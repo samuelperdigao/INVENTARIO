@@ -64,6 +64,14 @@ class DeleteRequest(ApiModel):
     expectedGeneration: StrictInt = Field(ge=1)
 
 
+class BatchDeleteItem(DeleteRequest):
+    inventoryId: str = Field(min_length=36, max_length=36)
+
+
+class BatchDeleteRequest(ApiModel):
+    items: list[BatchDeleteItem] = Field(min_length=1, max_length=100)
+
+
 class TransferRequest(ExplainedRequest):
     newOwnerUserId: str = Field(min_length=36, max_length=36)
 
@@ -487,6 +495,12 @@ def delete_inventory(
     admin: UserRow = Depends(require_admin), session: Session = Depends(get_session),
 ) -> dict:
     inventory = lock_inventory(session, inventory_id, payload.expectedRevision, payload.expectedGeneration)
+    _soft_delete(session, inventory, admin)
+    session.commit()
+    return _detail(session, inventory)
+
+
+def _soft_delete(session: Session, inventory: InventoryRow, admin: UserRow) -> None:
     before = _visible_item(session, inventory)
     when = now_utc()
     inventory.tombstone, inventory.deleted_at = True, when
@@ -494,8 +508,28 @@ def delete_inventory(
     touch_inventory(session, inventory, when)
     audit(session, inventory, admin.id, "INVENTORY_DELETED",
           before=before, after={"tombstone": True, "deletedAt": when.isoformat()})
+
+
+@router.post("/inventories/delete-batch")
+def delete_inventories_batch(
+    payload: BatchDeleteRequest,
+    admin: UserRow = Depends(require_admin), session: Session = Depends(get_session),
+) -> dict:
+    """Exclui (tombstone) vários inventários na mesma transação: todos ou nenhum."""
+    ids = [item.inventoryId for item in payload.items]
+    if len(set(ids)) != len(ids):
+        raise HTTPException(status_code=422, detail="Há inventários repetidos na seleção.")
+    # Ordem estável de bloqueio evita deadlock entre exclusões concorrentes.
+    try:
+        for item in sorted(payload.items, key=lambda value: value.inventoryId):
+            inventory = lock_inventory(session, item.inventoryId, item.expectedRevision, item.expectedGeneration)
+            _soft_delete(session, inventory, admin)
+    except HTTPException as error:
+        session.rollback()
+        raise HTTPException(status_code=error.status_code,
+                            detail=f"Nenhum inventário foi excluído. {error.detail}") from error
     session.commit()
-    return _detail(session, inventory)
+    return {"deleted": len(ids)}
 
 
 @router.post("/inventories/{inventory_id}/transfer")
